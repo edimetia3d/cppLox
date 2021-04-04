@@ -8,15 +8,9 @@
 #include <string>
 #include <vector>
 
-class Token {
- public:
-  Token(const std::string& str) : str_(str) {}
-  const std::string& Str();
+#include "lox/token.h"
 
- private:
-  std::string str_;
-};
-
+namespace lox {
 class Scanner {
  public:
   Scanner(const std::string& srcs) : srcs_(srcs) {}
@@ -26,5 +20,5 @@ class Scanner {
  private:
   const std::string& srcs_;
 };
-
+}  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_SCANNER_H_
