@@ -7,12 +7,13 @@ using namespace lox;
 
 int main(int argn, char* argv[]) {
   Error ret;
+  Lox interpreter;
   if (argn > 2) {
     std::cout << Lox::CLIHelpString() << std::endl;
   } else if (argn == 2) {
-    ret = Lox::RunFile(argv[1]);
+    ret = interpreter.RunFile(argv[1]);
   } else {
-    ret = Lox::RunPrompt();
+    ret = interpreter.RunPrompt();
   }
   return ret.TOErrCode();
 }
