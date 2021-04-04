@@ -4,7 +4,9 @@
 
 #ifndef CPPLOX_INCLUDES_LOX_ERROR_H_
 #define CPPLOX_INCLUDES_LOX_ERROR_H_
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace lox {
 class Error {
@@ -17,6 +19,7 @@ class Error {
 
  private:
   std::string message_;
+  std::vector<std::shared_ptr<Error>> appended_err_;
 };
 
 #define ERR_STR(STR)                                     \
