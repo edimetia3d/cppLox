@@ -19,42 +19,39 @@ Error Lox::RunFile(const std::string &file_path) {
 
 Error Lox::RunPrompt() { return RunStream(&std::cin, true); }
 
-Error Lox::Run(const std::string &code) {
-  std::string eval_output;
-  Eval(code, &eval_output);
-  std::cout << eval_output << std::endl;
-  return Error();
-}
-
 Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
   Error err;
   if (interactive_mode) {
     std::string one_line;
     std::cout << ">> ";
     while (std::getline(*istream, one_line)) {
-      err.Append(Run(one_line));
+      std::string oneline_output;
+      auto line_err = Eval(one_line, &oneline_output);
+      if (line_err.TOErrCode()) {
+        std::cerr << line_err.Message() << std::endl;
+      }
+      std::cout << oneline_output << std::endl;
       std::cout << ">> ";
     }
   } else {
     std::string all_line((std::istreambuf_iterator<char>(*istream)),
                          std::istreambuf_iterator<char>());
-    err = Run(all_line);
+    err = Eval(all_line, nullptr);
   }
 
   return err;
 }
+
 Error Lox::Eval(const std::string &code, std::string *eval_output) {
   Scanner scanner(code);
-  std::string ret;
+  std::string output;
   auto tokens = scanner.Scan();
   for (auto &token : tokens) {
-    ret += token.Str();
+    output += token.Str();
   }
-  *eval_output = std::move(ret);
+  if (eval_output) {
+    *eval_output = std::move(output);
+  }
   return Error();
 }
-
-int Error::TOErrCode() { return 0; }
-
-void Error::Append(const Error &new_err) {}
 }  // namespace lox

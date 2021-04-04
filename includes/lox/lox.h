@@ -7,13 +7,9 @@
 
 #include <string>
 
-namespace lox {
+#include "lox/error.h"
 
-class Error {
- public:
-  int TOErrCode();
-  void Append(const Error &new_err);
-};
+namespace lox {
 
 class Lox {
  public:
@@ -28,11 +24,10 @@ class Lox {
    * @param code
    * @return
    */
-  Error Run(const std::string &code);
+  Error Eval(const std::string &code, std::string *run_output);
 
  private:
   Error RunStream(std::istream *istream, bool interactive_mode);
-  Error Eval(const std::string &code, std::string *eval_output);
 };
 
 }  // namespace lox
