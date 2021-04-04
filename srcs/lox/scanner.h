@@ -20,6 +20,7 @@ class Scanner {
   Error Scan();
 
   const std::vector<Token>& Tokens() { return tokens_; }
+
   void Reset() {
     Scanner tmp(*srcs_);
     std::swap(tmp, *this);
@@ -31,17 +32,32 @@ class Scanner {
   }
 
  private:
-  void scanSinlge();
+  void ScanOneToken();
 
-  bool match(char expected);
+  bool Match(char expected);
 
-  char peek();
+  char Peek(int offseet = 0);
+
+  void AddStringToken();
+
+  static bool IsDigit(char c) { return c >= '0' && c <= '9'; }
+
+  static bool IsAlpha(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+  }
+
+  static bool IsAlphaNumeric(char c) { return IsAlpha(c) || IsDigit(c); }
+
+  void AddNumToken();
 
   void AddToken(TokenType type);
 
-  bool isAtEnd() { return current_lex_pos_ >= srcs_->size(); }
+  bool IsAtEnd() { return current_lex_pos_ >= srcs_->size(); }
 
   char Advance();
+
+  void AddIdentifierToken();
+
   const std::string* srcs_;
   int start_lex_pos_ = 0;
   int current_lex_pos_ = 0;
