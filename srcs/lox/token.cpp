@@ -4,5 +4,8 @@
 
 #include "token.h"
 namespace lox {
-const std::string& Token::Str() { return lexeme_; }
+std::string Token::Str() {
+  return std::string("Type: ") + std::to_string((int)type_) +
+         " Lexme: " + lexeme_ + " @Line: " + std::to_string(line_);
+}
 }  // namespace lox
