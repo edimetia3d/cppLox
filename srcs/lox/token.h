@@ -13,6 +13,7 @@ namespace lox {
 
 class Token {
  public:
+  static TokenType GetIdentifierType(const std::string& identifier);
   explicit Token(TokenType type, std::string lexeme, int line)
       : type_(type), line_(line), lexeme_(std::move(lexeme)) {}
   std::string Str() const;
