@@ -36,7 +36,7 @@ class Token {
  public:
   explicit Token(TokenType type, std::string lexeme, int line)
       : type_(type), line_(line), lexeme_(std::move(lexeme)) {}
-  std::string Str();
+  std::string Str() const;
 
  private:
   std::string lexeme_;

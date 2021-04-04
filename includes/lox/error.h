@@ -19,7 +19,8 @@ class Error {
   std::string message_;
 };
 
-#define ERR_STR(STR) \
-  (std::string(__file__) + " | " + std::to_str(__line__) + " : " + STR)
+#define ERR_STR(STR)                                     \
+  Error(std::string("[") + std::string(__FILE__) + ":" + \
+        std::to_string(__LINE__) + "] " + STR)
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_ERROR_H_

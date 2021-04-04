@@ -45,13 +45,13 @@ Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
 Error Lox::Eval(const std::string &code, std::string *eval_output) {
   Scanner scanner(code);
   std::string output;
-  auto tokens = scanner.Scan();
-  for (auto &token : tokens) {
+  auto err = scanner.Scan();
+  for (auto &token : scanner.Tokens()) {
     output += token.Str();
   }
   if (eval_output) {
     *eval_output = std::move(output);
   }
-  return Error();
+  return err;
 }
 }  // namespace lox
