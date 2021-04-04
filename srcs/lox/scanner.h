@@ -29,6 +29,10 @@ class Scanner {
  private:
   void scanSinlge();
 
+  bool match(char expected);
+
+  char peek();
+
   void AddToken(TokenType type);
 
   bool isAtEnd() { return current_lex_pos_ > srcs_->size(); }

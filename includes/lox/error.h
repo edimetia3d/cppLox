@@ -9,6 +9,10 @@
 #include <vector>
 
 namespace lox {
+/**
+ * Note: only class Lox will handle Errors, all other class only generate
+ * errors, and return `Error` to the caller.
+ */
 class Error {
  public:
   Error();

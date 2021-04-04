@@ -22,7 +22,26 @@ void Scanner::scanSinlge() {
       case '+': AddToken(TokenType::PLUS); break;
       case ';': AddToken(TokenType::SEMICOLON); break;
       case '*': AddToken(TokenType::STAR); break;
-default: err_.Append(ERR_STR("Unknwon char at line "+std::to_string(line_)));break;
+      case '!': AddToken(match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);break;
+      case '=': AddToken(match('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);break;
+      case '<': AddToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS);break;
+      case '>': AddToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);break;
+      case '/':
+        if (match('/')) {
+          // A comment goes until the end of the line.
+          while (peek() != '\n' && !isAtEnd()) Advance();
+        } else {
+          AddToken(TokenType::SLASH);
+        }
+      case ' ':
+      case '\r':
+      case '\t':
+        // Ignore whitespace.
+        break;
+      case '\n':
+        line_++;
+        break;
+      default: err_.Append(ERR_STR("Unknwon char at line "+std::to_string(line_)));break;
     }
   // clang-format on
 }
@@ -35,4 +54,15 @@ void Scanner::AddToken(TokenType type) {
 }
 
 char Scanner::Advance() { return srcs_->at(current_lex_pos_++); }
+bool Scanner::match(char expected) {
+  if (isAtEnd()) return false;
+  if (srcs_->at(current_lex_pos_) != expected) return false;
+
+  current_lex_pos_++;
+  return true;
+}
+char Scanner::peek() {
+  if (isAtEnd()) return '\0';
+  return srcs_->at(current_lex_pos_);
+}
 }  // namespace lox

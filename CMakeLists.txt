@@ -8,4 +8,4 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/includes)
 add_subdirectory(srcs)
 
 add_executable(cppLox main.cpp)
-target_link_libraries(cppLox lox)
+target_link_libraries(cppLox lox version_info)
