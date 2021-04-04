@@ -2,8 +2,8 @@
 // LICENSE: MIT
 //
 
-#ifndef CPPLOX_SRCS_LOX_H_
-#define CPPLOX_SRCS_LOX_H_
+#ifndef CPPLOX_INCLUDES_LOX_LOX_H_
+#define CPPLOX_INCLUDES_LOX_LOX_H_
 
 #include <string>
 
@@ -31,9 +31,9 @@ class Lox {
   Error Run(const std::string &code);
 
  private:
-  Error RunStream(std::istream *istream, std::ostream *ostream,
-                  bool interactive_mode);
+  Error RunStream(std::istream *istream, bool interactive_mode);
+  Error Eval(const std::string &code, std::string *eval_output);
 };
 
 }  // namespace lox
-#endif  // CPPLOX_SRCS_LOX_H_
+#endif  // CPPLOX_INCLUDES_LOX_LOX_H_
