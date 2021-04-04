@@ -15,5 +15,5 @@ int main(int argn, char* argv[]) {
   } else {
     ret = interpreter.RunPrompt();
   }
-  return ret.TOErrCode();
+  return ret.ToErrCode();
 }

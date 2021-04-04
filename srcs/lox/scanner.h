@@ -16,13 +16,17 @@ namespace lox {
 class Scanner {
  public:
   explicit Scanner(const std::string& srcs) : srcs_(&srcs) {}
-  explicit Scanner(const std::string* srcs) : srcs_(srcs) {}
 
   Error Scan();
 
   const std::vector<Token>& Tokens() { return tokens_; }
   void Reset() {
-    Scanner tmp(srcs_);
+    Scanner tmp(*srcs_);
+    std::swap(tmp, *this);
+  }
+
+  void Reset(const std::string& srcs) {
+    Scanner tmp(srcs);
     std::swap(tmp, *this);
   }
 
@@ -35,7 +39,7 @@ class Scanner {
 
   void AddToken(TokenType type);
 
-  bool isAtEnd() { return current_lex_pos_ > srcs_->size(); }
+  bool isAtEnd() { return current_lex_pos_ >= srcs_->size(); }
 
   char Advance();
   const std::string* srcs_;

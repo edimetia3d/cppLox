@@ -27,7 +27,7 @@ Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
     while (std::getline(*istream, one_line)) {
       std::string oneline_output;
       auto line_err = Eval(one_line, &oneline_output);
-      if (line_err.TOErrCode()) {
+      if (line_err.ToErrCode() > 0) {
         std::cerr << line_err.Message() << std::endl;
       }
       std::cout << oneline_output << std::endl;
@@ -47,7 +47,7 @@ Error Lox::Eval(const std::string &code, std::string *eval_output) {
   std::string output;
   auto err = scanner.Scan();
   for (auto &token : scanner.Tokens()) {
-    output += token.Str();
+    output += (token.Str() + "\n");
   }
   if (eval_output) {
     *eval_output = std::move(output);

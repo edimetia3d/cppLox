@@ -17,13 +17,14 @@ class Error {
  public:
   Error();
   explicit Error(const std::string &message);
-  const std::string &Message();
-  int TOErrCode();
+  std::string Message();
+  int ToErrCode();
   void Append(const Error &new_err);
 
  private:
   std::string message_;
-  std::vector<std::shared_ptr<Error>> appended_err_;
+  std::shared_ptr<Error> next_;
+  std::shared_ptr<Error> tail_;
 };
 
 #define ERR_STR(STR)                                     \

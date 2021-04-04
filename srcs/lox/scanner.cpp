@@ -5,7 +5,10 @@
 #include "scanner.h"
 namespace lox {
 Error Scanner::Scan() {
-  tokens_.emplace_back(TokenType::EOF_TOKEN, *srcs_, 0);
+  while (!isAtEnd()) {
+    scanSinlge();
+  }
+  tokens_.emplace_back(TokenType::EOF_TOKEN, "", line_);
   return err_;
 }
 void Scanner::scanSinlge() {
@@ -46,10 +49,10 @@ void Scanner::scanSinlge() {
   // clang-format on
 }
 void Scanner::AddToken(TokenType type) {
-  tokens_.emplace_back(
-      type,
-      std::string(&srcs_->at(start_lex_pos_), &srcs_->at(current_lex_pos_)),
-      line_);
+  tokens_.emplace_back(type,
+                       std::string(srcs_->cbegin() + start_lex_pos_,
+                                   srcs_->cbegin() + current_lex_pos_),
+                       line_);
   start_lex_pos_ = current_lex_pos_;
 }
 
