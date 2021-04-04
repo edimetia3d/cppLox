@@ -12,21 +12,28 @@ std::string Lox::CLIHelpString() { return std::__cxx11::string(); }
 
 Error Lox::RunFile(const std::string &file_path) {
   std::ifstream infile(file_path);
-  return RunStream(&infile);
+  return RunStream(&infile, &std::cout, false);
 }
 
-Error Lox::RunPrompt() { return RunStream(&std::cin); }
+Error Lox::RunPrompt() { return RunStream(&std::cin, &std::cout, true); }
 
 Error Lox::Run(const std::string &code) {
   std::cout << "Echo: " << code << std::endl;
   return Error();
 }
 
-Error Lox::RunStream(std::istream *stream) {
+Error Lox::RunStream(std::istream *istream, std::ostream *ostream,
+                     bool interactive_mode) {
   std::string line;
   Error err;
-  while (std::getline(*stream, line)) {
+  if (interactive_mode) {
+    *ostream << ">> ";
+  }
+  while (std::getline(*istream, line)) {
     err.Append(Run(line));
+    if (interactive_mode) {
+      *ostream << ">> ";
+    }
   }
   return err;
 }

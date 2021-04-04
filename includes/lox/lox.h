@@ -31,7 +31,8 @@ class Lox {
   Error Run(const std::string &code);
 
  private:
-  Error RunStream(std::istream *stream);
+  Error RunStream(std::istream *istream, std::ostream *ostream,
+                  bool interactive_mode);
 };
 
 }  // namespace lox
