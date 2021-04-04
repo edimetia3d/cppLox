@@ -9,7 +9,10 @@
 
 namespace lox {
 
-class Error {};
+class Error {
+ public:
+  int TOErrCode();
+};
 
 class Lox {
  public:
