@@ -2,25 +2,11 @@
 // License: MIT
 //
 
-#include <iostream>
-
 #include "lox/version.h"
 namespace lox {
 namespace version {
-
-const std::string GIT_SHA1 = "@GIT_SHA1@";
-const std::string GIT_DATE = "@GIT_DATE@";
-
-struct BuildInfoPrinter {
-  BuildInfoPrinter() {
-    auto str = std::string("Build info:\nSHA1: ") +
-               std::string(version::GIT_SHA1) +
-               "\nDate: " + std::string(version::GIT_DATE);
-    std::cout << str << std::endl;
-  }
-};
-
-BuildInfoPrinter g_lox_build_info_inited;
+std::string GitSha1() { return "@GIT_SHA1@"; }
+std::string GitDate() { return "@GIT_DATE@"; }
 
 }  // namespace version
 }  // namespace lox

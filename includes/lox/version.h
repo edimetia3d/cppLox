@@ -7,8 +7,8 @@
 #include <string>
 namespace lox {
 namespace version {
-extern const std::string GIT_SHA1;
-extern const std::string GIT_DATE;
+std::string GitSha1();
+std::string GitDate();
 }  // namespace version
 }  // namespace lox
 #endif  // CPPLOX_VERSION_VERSION_H_
