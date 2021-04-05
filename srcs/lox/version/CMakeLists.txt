@@ -20,7 +20,7 @@ else ()
 endif ()
 
 # generate version.cc
-configure_file("${CMAKE_CURRENT_LIST_DIR}/version.cc.in" "${CMAKE_CURRENT_BINARY_DIR}/version.cc" @ONLY)
+configure_file("version.cc.in" "${CMAKE_CURRENT_BINARY_DIR}/version.cc" @ONLY)
 
 file(GLOB VERSION_INFO_SRCS "${CMAKE_CURRENT_BINARY_DIR}/version.cc")
 add_library(version_info OBJECT ${VERSION_INFO_SRCS})

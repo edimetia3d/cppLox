@@ -4,8 +4,8 @@
 
 #include <iostream>
 
-#include "version/version.h"
-
+#include "lox/version.h"
+namespace lox {
 namespace version {
 
 const std::string GIT_SHA1 = "@GIT_SHA1@";
@@ -23,3 +23,4 @@ struct BuildInfoPrinter {
 BuildInfoPrinter g_lox_build_info_inited;
 
 }  // namespace version
+}  // namespace lox

@@ -1,0 +1,3 @@
+
+add_library(lox_public_header INTERFACE)
+target_include_directories(lox_public_header INTERFACE ${CMAKE_CURRENT_LIST_DIR})

@@ -1,5 +1,7 @@
 
-include_directories(${CMAKE_CURRENT_LIST_DIR})
-add_subdirectory(version)
-file(GLOB LOX_SRCS ${CMAKE_CURRENT_LIST_DIR}/lox/*.c*)
-add_library(lox ${LOX_SRCS})
+add_subdirectory(lox)
+
+target_include_directories(lox PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_link_libraries(version_info PUBLIC lox_public_header)
+target_link_libraries(lox PUBLIC lox_public_header)
+target_link_libraries(lox INTERFACE version_info)

@@ -5,11 +5,10 @@
 #ifndef CPPLOX_SRCS_LOX_SCANNER_H_
 #define CPPLOX_SRCS_LOX_SCANNER_H_
 
-#include <lox/error.h>
-
 #include <string>
 #include <vector>
 
+#include "lox/error.h"
 #include "lox/token.h"
 
 namespace lox {
