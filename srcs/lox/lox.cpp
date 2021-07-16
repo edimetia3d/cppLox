@@ -10,7 +10,7 @@
 #include "lox/scanner.h"
 
 namespace lox {
-std::string Lox::CLIHelpString() { return std::__cxx11::string(); }
+std::string Lox::CLIHelpString() { return std::string(); }
 
 Error Lox::RunFile(const std::string &file_path) {
   std::ifstream infile(file_path);

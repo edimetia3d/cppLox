@@ -8,23 +8,25 @@ namespace lox {
 int Error::ToErrCode() { return Message().size(); }
 
 void Error::Append(const Error &new_err) {
-  if (next_) {
-    tail_->next_ = std::make_shared<Error>(new_err);
-    tail_ = tail_->next_;
-  } else {
-    next_ = std::make_shared<Error>(new_err);
-    tail_ = next_;
-  }
+  ErrorNode node = std::make_shared<Error>(new_err);
+  sub_errors.push_back(node);
 }
-std::string Error::Message() {
-  std::string ret = message_;
-  auto next = next_;
-  while (next) {
-    ret += (next->message_ + "\n");
-    next = next->next_;
+std::string Error::Message() { return RecursiveMessage(0); }
+Error::Error() {}
+
+Error::Error(const std::string &message) : message_(message) {}
+
+std::string Error::RecursiveMessage(int level) {
+  std::string tab_base = "  ";
+  std::string tab = "";
+  for (int i = 0; i < level; ++i) {
+    tab += tab_base;
+  }
+  auto ret = tab + message_;
+  for (auto node : sub_errors) {
+    ret += std::string("\n");
+    ret += node->RecursiveMessage(level + 1);
   }
   return ret;
 }
-Error::Error() {}
-Error::Error(const std::string &message) : message_(message) {}
 }  // namespace lox

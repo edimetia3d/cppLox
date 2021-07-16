@@ -15,6 +15,7 @@ namespace lox {
  */
 class Error {
  public:
+  using ErrorNode = std::shared_ptr<Error>;
   Error();
   explicit Error(const std::string &message);
   std::string Message();
@@ -23,8 +24,8 @@ class Error {
 
  private:
   std::string message_;
-  std::shared_ptr<Error> next_;
-  std::shared_ptr<Error> tail_;
+  std::string RecursiveMessage(int level);
+  std::vector<ErrorNode> sub_errors;
 };
 
 #define ERR_STR(STR)                                     \
