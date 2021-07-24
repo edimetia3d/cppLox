@@ -4,9 +4,12 @@
 
 #ifndef CPPLOX_INCLUDES_LOX_ERROR_H_
 #define CPPLOX_INCLUDES_LOX_ERROR_H_
+
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "lox/token.h"
 
 namespace lox {
 /**
@@ -18,7 +21,9 @@ class Error {
   using ErrorNode = std::shared_ptr<Error>;
   Error();
   explicit Error(const std::string &message);
+  explicit Error(const Token &token, const std::string &message);
   std::string Message();
+
   int ToErrCode();
   void Append(const Error &new_err);
 

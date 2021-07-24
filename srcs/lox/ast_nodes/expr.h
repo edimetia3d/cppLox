@@ -19,6 +19,7 @@ class Expr {
   RetT accept(const Visitor<RetT>& v);
 };
 
+using ExprPointer = std::shared_ptr<Expr>;
 }  // namespace lox
 
 #include "lox/ast_nodes/expr_decl.h.inc"

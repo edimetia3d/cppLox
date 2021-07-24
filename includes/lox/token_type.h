@@ -2,8 +2,8 @@
 // License: MIT
 //
 
-#ifndef CPPLOX_SRCS_LOX_TOKEN_TYPE_H_
-#define CPPLOX_SRCS_LOX_TOKEN_TYPE_H_
+#ifndef CPPLOX_INCLUDES_LOX_TOKEN_TYPE_H_
+#define CPPLOX_INCLUDES_LOX_TOKEN_TYPE_H_
 namespace lox {
 // clang-format off
 enum class TokenType {
@@ -28,4 +28,4 @@ enum class TokenType {
 };
 // clang-format on
 }  // namespace lox
-#endif  // CPPLOX_SRCS_LOX_TOKEN_TYPE_H_
+#endif  // CPPLOX_INCLUDES_LOX_TOKEN_TYPE_H_

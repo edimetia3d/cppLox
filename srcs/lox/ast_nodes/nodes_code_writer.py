@@ -2,10 +2,10 @@ import sys
 from os import path
 
 all_def = {
-    "Binary": "Expr left, Token op, Expr right",
-    "Grouping": "Expr expression",
-    "Literal": "void* value",
-    "Unary": "Token op, Expr right"
+    "Binary": "ExprPointer left, Token op, ExprPointer right",
+    "Grouping": "ExprPointer expression",
+    "Literal": "Token value",
+    "Unary": "Token op, ExprPointer right"
 }
 
 file_template = """
@@ -49,8 +49,8 @@ def gen_code(output_file_path):
                 cut_by_space = list(filter(lambda x: x != "", member.split(" ")))
                 member_type = cut_by_space[0]
                 member_name = cut_by_space[1]
-                member_def = member_def + f"{member_type}& {member_name};\n"
-                member_init_params.append(f"{member_type}& {member_name}")
+                member_def = member_def + f"{member_type} {member_name};\n"
+                member_init_params.append(f"{member_type} {member_name}")
                 member_init.append(f"{member_name}({member_name})")
             member_init = ",\n".join(member_init)
             member_init_params = ",".join(member_init_params)

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "lox/parser.h"
 #include "lox/scanner.h"
 
 namespace lox {
@@ -46,9 +47,9 @@ Error Lox::Eval(const std::string &code, std::string *eval_output) {
   Scanner scanner(code);
   std::string output;
   auto err = scanner.Scan();
-  for (auto &token : scanner.Tokens()) {
-    output += (token.Str() + "\n");
-  }
+
+  Parser parser(scanner.Tokens());
+  auto expr = parser.Parse();
   if (eval_output) {
     *eval_output = std::move(output);
   }
