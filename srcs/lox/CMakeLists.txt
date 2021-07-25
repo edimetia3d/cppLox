@@ -4,3 +4,9 @@ add_library(lox ${LOX_SRCS})
 
 add_subdirectory(version)
 add_subdirectory(ast)
+add_subdirectory(evaluator)
+
+target_link_libraries(lox PUBLIC lox_public_header)
+target_link_libraries(lox PRIVATE version_info)
+target_link_libraries(lox PRIVATE ast)
+target_link_libraries(lox PRIVATE evaluator)

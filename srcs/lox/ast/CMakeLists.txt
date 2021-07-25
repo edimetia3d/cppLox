@@ -8,6 +8,3 @@ add_library(ast
         ${CMAKE_CURRENT_BINARY_DIR}/expr_decl.h.inc
         ast_printer.cpp
         )
-target_include_directories(ast PUBLIC ${CMAKE_BINARY_DIR}/srcs)
-target_include_directories(ast PUBLIC ${CMAKE_SOURCE_DIR}/srcs)
-target_include_directories(ast PUBLIC ${CMAKE_SOURCE_DIR}/includes)

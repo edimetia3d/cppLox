@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "lox/ast/ast_printer.h"
+#include "lox/evaluator/eval_visitor.h"
 #include "lox/parser.h"
 #include "lox/scanner.h"
 
@@ -51,10 +52,14 @@ Error Lox::Eval(const std::string &code, std::string *eval_output) {
   Parser parser(scanner.Tokens());
   auto expr = parser.Parse();
 
-  AstPrinter printer;
   std::string output;
   if (expr) {
-    output = printer.Print(expr);
+    AstPrinter printer;
+    output = printer.Print(expr) + "\n";
+
+    AstEvaluator evaluator;
+    auto val = evaluator.Eval(expr);
+    output += val->ToString();
   }
 
   if (eval_output) {

@@ -24,3 +24,5 @@ configure_file("version.cc.in" "${CMAKE_CURRENT_BINARY_DIR}/version.cc" @ONLY)
 
 file(GLOB VERSION_INFO_SRCS "${CMAKE_CURRENT_BINARY_DIR}/version.cc")
 add_library(version_info OBJECT ${VERSION_INFO_SRCS})
+
+target_link_libraries(version_info PUBLIC lox_public_header)
