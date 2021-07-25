@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "lox/ast_nodes/expr.h"
+#include "lox/ast/expr.h"
 #include "lox/token.h"
 namespace lox {
 

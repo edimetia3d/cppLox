@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "lox/ast/ast_printer.h"
 #include "lox/parser.h"
 #include "lox/scanner.h"
 
@@ -45,11 +46,17 @@ Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
 
 Error Lox::Eval(const std::string &code, std::string *eval_output) {
   Scanner scanner(code);
-  std::string output;
   auto err = scanner.Scan();
 
   Parser parser(scanner.Tokens());
   auto expr = parser.Parse();
+
+  AstPrinter printer;
+  std::string output;
+  if (expr) {
+    output = printer.Print(expr);
+  }
+
   if (eval_output) {
     *eval_output = std::move(output);
   }

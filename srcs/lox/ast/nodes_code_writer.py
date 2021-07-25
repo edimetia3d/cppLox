@@ -17,7 +17,25 @@ class Visitor;
 
 {class_decls}
 
+template <class RetT>
+class Visitor {{
+protected:
+{virtual_visit_decls}
+}};
+
+template <class RetT>
+RetT Expr::CallAccept(const Visitor<RetT>& v, Expr& expr) {{
+{dispatch_call}
+throw "Dispatch Fail";
 }}
+
+template <class RetT>
+RetT Expr::CallAccept(const Visitor<RetT>& v, const Expr& expr) {{
+{const_dispatch_call}
+throw "Dispatch Fail";
+}}
+
+}} // namespace lox
 """
 
 class_template = """
@@ -32,6 +50,11 @@ template <class RetT>
 RetT Accept(const Visitor<RetT>& visitor){{
   return visitor.Visit{class_name}(this);
 }}
+
+template <class RetT>
+RetT Accept(const Visitor<RetT>& visitor) const {{
+  return visitor.Visit{class_name}(*this);
+}}
   
 }};
 """
@@ -40,7 +63,20 @@ RetT Accept(const Visitor<RetT>& visitor){{
 def gen_code(output_file_path):
     with open(output_file_path, "w") as output_file:
         class_decls = ""
+        dispatch_call = ""
+        const_dispatch_call = ""
+        virtual_visit_decls = ""
         for class_name in all_def:
+            dispatch_call += f"if(auto p = dynamic_cast<{class_name} *>(&expr)){{return p->Accept(v);}}\n"
+            const_dispatch_call += f"if(auto p = dynamic_cast<const {class_name} *>(&expr)){{return p->Accept(v);}}\n"
+            virtual_visit_decls += f"""
+friend class {class_name};
+virtual RetT Visit{class_name}({class_name} &) const{{
+throw "No Impl";
+}};
+virtual RetT Visit{class_name}(const {class_name} &) const{{
+throw "No Impl";
+}}"""
             member_list = all_def[class_name].split(",")
             member_def = ""
             member_init_params = []
@@ -58,7 +94,11 @@ def gen_code(output_file_path):
                                                               init_params=member_init_params,
                                                               init=member_init,
                                                               member_def=member_def)
-        output_file.write(file_template.format(class_decls=class_decls))
+        output_file.write(file_template.format(class_decls=class_decls,
+                                               virtual_visit_decls=virtual_visit_decls,
+                                               dispatch_call=dispatch_call,
+                                               const_dispatch_call=const_dispatch_call)
+                          )
 
 
 if __name__ == "__main__":
