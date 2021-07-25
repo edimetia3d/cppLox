@@ -13,39 +13,26 @@
 namespace lox {
 
 template <class RetT>
-class Visitor;  // forward decl
+class Visitor;
 
-/**
- * An abstract class
- */
-class ExprImpl {
+namespace private_ns {
+class ExprImpl;
+}
+
+class Expr {
  public:
-#define VIRTUAL_FUNCTION  // Just remind you that it is a virtual function
   /**
-   * Note that expr.Accept()` will be called with the derived version.
+   * This fn will take ownership of object impl pointed to
    */
-  template <class RetT>
-  VIRTUAL_FUNCTION RetT Accept(const Visitor<RetT>& v);
+  Expr(lox::private_ns::ExprImpl* impl) : impl(impl) {}
+  explicit operator bool() { return static_cast<bool>(impl); }
 
   template <class RetT>
-  VIRTUAL_FUNCTION RetT Accept(const Visitor<RetT>& v) const;
-#undef VIRTUAL_FUNCTION
+  RetT Accept(Visitor<RetT>* v);
 
-  virtual ~ExprImpl() {
-    // just make ExprImpl a virtual class to support dynamic_cast
-  }
-
- protected:
-  template <class RetT>
-  friend class Visitor;
-  template <class RetT>
-  RetT _Accept(const Visitor<RetT>& v);
-
-  template <class RetT>
-  RetT _Accept(const Visitor<RetT>& v) const;
+ private:
+  std::shared_ptr<lox::private_ns::ExprImpl> impl;
 };
-
-using Expr = std::shared_ptr<ExprImpl>;
 }  // namespace lox
 
 #ifdef DYNAMIC_GEN_EXPR_DECL

@@ -9,12 +9,25 @@ file_template = """
 // The file in source tree will only be used when python3 is not found by cmake, and might be out of sync.
 
 namespace lox{{
-class ExprImpl;
-class Token;
-template<class RetT>
-class Visitor;
+
+namespace private_ns{{
+
+class ExprImpl {{
+ public:
+  virtual ~ExprImpl() {{
+    // just make ExprImpl a virtual class to support dynamic_cast
+  }}
+}};
+
+}} // namespace private_ns
 
 {class_decls}
+
+template <class RetT>
+RetT Expr::Accept(Visitor<RetT> * visitor) {{
+{dispatch_call}
+throw "Dispatch Fail";
+}}
 
 template <class RetT>
 class Visitor {{
@@ -22,38 +35,23 @@ protected:
 {virtual_visit_decls}
 }};
 
-template <class RetT>
-RetT ExprImpl::Accept(const Visitor<RetT>& v) {{
-{dispatch_call}
-throw "Dispatch Fail";
-}}
-
-template <class RetT>
-RetT ExprImpl::Accept(const Visitor<RetT>& v) const {{
-{const_dispatch_call}
-throw "Dispatch Fail";
-}}
-
 }} // namespace lox
 // clang-format on
 """
 
 class_template = """
-class {class_name}:public ExprImpl
+class {class_name}:public private_ns::ExprImpl
 {{
 public:
 {class_name}({init_params})
 :{init}{{}}
 {member_def}
 
+private:
+friend class Expr;
 template <class RetT>
-RetT _Accept(const Visitor<RetT>& visitor){{
-  return visitor.Visit{class_name}(this);
-}}
-
-template <class RetT>
-RetT _Accept(const Visitor<RetT>& visitor) const {{
-  return visitor.Visit{class_name}(*this);
+RetT Accept(Visitor<RetT>* visitor){{
+  return visitor->Visit{class_name}(this);
 }}
   
 }};
@@ -67,19 +65,13 @@ def gen_code(input_file_path, output_file_path):
     with open(output_file_path, "w") as output_file:
         class_decls = ""
         dispatch_call = ""
-        const_dispatch_call = ""
         virtual_visit_decls = ""
         for class_name in all_def:
-            dispatch_call += f"if(auto p = dynamic_cast<{class_name} *>(this)){{return p->_Accept(v);}}\n"
-            const_dispatch_call += f"if(auto p = dynamic_cast<const {class_name} *>(this)){{return p->_Accept(v);}}\n"
+            dispatch_call += f"if(auto p = dynamic_cast<{class_name} *>(this->impl.get())){{return p->Accept(visitor);}}\n"
             virtual_visit_decls += f"""
 friend class {class_name};
-virtual RetT Visit{class_name}({class_name} &) const{{
-throw "No Impl";
-}};
-virtual RetT Visit{class_name}(const {class_name} &) const{{
-throw "No Impl";
-}}"""
+virtual RetT Visit{class_name}({class_name} *) = 0;
+"""
             member_list = all_def[class_name].split(",")
             member_def = ""
             member_init_params = []
@@ -101,8 +93,7 @@ throw "No Impl";
                                                current_time=datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                                                class_decls=class_decls,
                                                virtual_visit_decls=virtual_visit_decls,
-                                               dispatch_call=dispatch_call,
-                                               const_dispatch_call=const_dispatch_call)
+                                               dispatch_call=dispatch_call)
                           )
 
 
