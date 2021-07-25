@@ -48,6 +48,9 @@ class Expr {
 using ExprPointer = std::shared_ptr<Expr>;
 }  // namespace lox
 
+#ifdef DYNAMIC_GEN_EXPR_DECL
+#include "lox/ast/expr_decl_dynamic.h.inc"
+#else
 #include "lox/ast/expr_decl.h.inc"
-
+#endif
 #endif  // CPPLOX_SRCS_LOX_AST_EXPR_H
