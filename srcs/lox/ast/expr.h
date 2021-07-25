@@ -20,29 +20,34 @@ class Visitor;  // forward decl
  */
 class Expr {
  public:
+#define VIRTUAL_FUNCTION  // Just remind you that it is a virtual function
+  /**
+   * Note that expr.Accept()` will be called with the derived version.
+   */
   template <class RetT>
-  static RetT CallAccept(const Visitor<RetT>& v, Expr& expr);
+  VIRTUAL_FUNCTION RetT Accept(const Visitor<RetT>& v);
 
   template <class RetT>
-  static RetT CallAccept(const Visitor<RetT>& v, const Expr& expr);
+  VIRTUAL_FUNCTION RetT Accept(const Visitor<RetT>& v) const;
+#undef VIRTUAL_FUNCTION
 
   virtual ~Expr() {
-    // just make it virtual to support dynamic_cast
+    // just make Expr a virtual class to support dynamic_cast
   }
 
  protected:
   template <class RetT>
   friend class Visitor;
   template <class RetT>
-  RetT Accept(const Visitor<RetT>& v);
+  RetT _Accept(const Visitor<RetT>& v);
 
   template <class RetT>
-  RetT Accept(const Visitor<RetT>& v) const;
+  RetT _Accept(const Visitor<RetT>& v) const;
 };
 
 using ExprPointer = std::shared_ptr<Expr>;
 }  // namespace lox
 
-#include "expr_decl.h.inc"
+#include "lox/ast/expr_decl.h.inc"
 
 #endif  // CPPLOX_SRCS_LOX_AST_EXPR_H

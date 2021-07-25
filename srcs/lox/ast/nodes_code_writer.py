@@ -24,13 +24,13 @@ protected:
 }};
 
 template <class RetT>
-RetT Expr::CallAccept(const Visitor<RetT>& v, Expr& expr) {{
+RetT Expr::Accept(const Visitor<RetT>& v) {{
 {dispatch_call}
 throw "Dispatch Fail";
 }}
 
 template <class RetT>
-RetT Expr::CallAccept(const Visitor<RetT>& v, const Expr& expr) {{
+RetT Expr::Accept(const Visitor<RetT>& v) const {{
 {const_dispatch_call}
 throw "Dispatch Fail";
 }}
@@ -47,12 +47,12 @@ public:
 {member_def}
 
 template <class RetT>
-RetT Accept(const Visitor<RetT>& visitor){{
+RetT _Accept(const Visitor<RetT>& visitor){{
   return visitor.Visit{class_name}(this);
 }}
 
 template <class RetT>
-RetT Accept(const Visitor<RetT>& visitor) const {{
+RetT _Accept(const Visitor<RetT>& visitor) const {{
   return visitor.Visit{class_name}(*this);
 }}
   
@@ -67,8 +67,8 @@ def gen_code(output_file_path):
         const_dispatch_call = ""
         virtual_visit_decls = ""
         for class_name in all_def:
-            dispatch_call += f"if(auto p = dynamic_cast<{class_name} *>(&expr)){{return p->Accept(v);}}\n"
-            const_dispatch_call += f"if(auto p = dynamic_cast<const {class_name} *>(&expr)){{return p->Accept(v);}}\n"
+            dispatch_call += f"if(auto p = dynamic_cast<{class_name} *>(this)){{return p->_Accept(v);}}\n"
+            const_dispatch_call += f"if(auto p = dynamic_cast<const {class_name} *>(this)){{return p->_Accept(v);}}\n"
             virtual_visit_decls += f"""
 friend class {class_name};
 virtual RetT Visit{class_name}({class_name} &) const{{
