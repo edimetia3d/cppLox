@@ -1,12 +1,6 @@
 import sys
 from os import path
 
-all_def = {
-    "Binary": "ExprPointer left, Token op, ExprPointer right",
-    "Grouping": "ExprPointer expression",
-    "Literal": "Token value",
-    "Unary": "Token op, ExprPointer right"
-}
 
 file_template = """
 namespace lox{{
@@ -60,7 +54,10 @@ RetT _Accept(const Visitor<RetT>& visitor) const {{
 """
 
 
-def gen_code(output_file_path):
+def gen_code(input_file_path, output_file_path):
+    with open(input_file_path, "r") as f:
+        all_def = eval(f.read())
+
     with open(output_file_path, "w") as output_file:
         class_decls = ""
         dispatch_call = ""
@@ -102,8 +99,9 @@ throw "No Impl";
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        output_file_path = sys.argv[1]
+    input_file_path = sys.argv[1]
+    if len(sys.argv) == 3:
+        output_file_path = sys.argv[2]
     else:
         output_file_path = "tmp_gen_output.h.inc"
-    gen_code(output_file_path)
+    gen_code(input_file_path, output_file_path)
