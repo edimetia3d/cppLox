@@ -59,7 +59,7 @@ Error Lox::Eval(const std::string &code, std::string *eval_output) {
 
     AstEvaluator evaluator;
     auto val = evaluator.Eval(expr);
-    output += val->ToString();
+    output += val.ToString();
   }
 
   if (eval_output) {

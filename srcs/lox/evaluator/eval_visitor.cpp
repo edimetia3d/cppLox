@@ -6,29 +6,29 @@
 
 namespace lox {
 
-object::LoxObjectPointer AstEvaluator::Eval(const Expr& expr) const {
-  return expr.Accept(*this);
+object::LoxObject AstEvaluator::Eval(const Expr& expr) const { return expr.Accept(*this); }
+object::LoxObject AstEvaluator::VisitLiteral(const Literal& expr) const {
+  switch (expr.value.type_) {
+    case TokenType::NUMBER:
+      return object::LoxObject(std::stod(expr.value.lexeme_));
+    case TokenType::STRING:
+      return object::LoxObject(expr.value.lexeme_);
+    default:
+      throw "Not Valid Literal";
+  }
 }
-object::LoxObjectPointer AstEvaluator::VisitLiteral(const Literal& expr) const {
-  return object::LoxObject::FromLiteralToken(expr.value);
-}
-object::LoxObjectPointer AstEvaluator::VisitGrouping(
-    const Grouping& expr) const {
-  return Eval(expr.expression);
-}
-object::LoxObjectPointer AstEvaluator::VisitUnary(const Unary& expr) const {
+object::LoxObject AstEvaluator::VisitGrouping(const Grouping& expr) const { return Eval(expr.expression); }
+object::LoxObject AstEvaluator::VisitUnary(const Unary& expr) const {
   auto right = Eval(expr.right);
 
   switch (expr.op.type_) {
     case TokenType::MINUS:
-      return -(*right);
+      return -right;
     case TokenType::BANG:
-      return !(*right);
+      return !right;
     default:
       throw "Not supported unary";
   }
 }
-object::LoxObjectPointer AstEvaluator::VisitBinary(const Binary& expr) const {
-  return Visitor::VisitBinary(expr);
-}
+object::LoxObject AstEvaluator::VisitBinary(const Binary& expr) const { return Visitor::VisitBinary(expr); }
 }  // namespace lox

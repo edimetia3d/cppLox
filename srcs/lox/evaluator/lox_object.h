@@ -13,42 +13,23 @@ namespace lox {
 
 namespace object {
 
-class LoxObject;
-using LoxObjectPointer = std::shared_ptr<LoxObject>;
+class LoxObjectImpl;
+using LoxObjectImplPointer = std::shared_ptr<LoxObjectImpl>;
 
 class LoxObject {
  public:
-  virtual ~LoxObject(){};
+  explicit LoxObject(LoxObjectImplPointer impl) : impl(std::move(impl)) {}
+  explicit LoxObject(bool);
+  explicit LoxObject(double);
+  explicit LoxObject(char* v) : LoxObject(std::string(v)){};
+  explicit LoxObject(const std::string&);
+  LoxObject operator-();
+  LoxObject operator!();
+  std::string ToString();
+  operator bool() const;
 
-  virtual LoxObjectPointer operator-() = 0;
-  virtual LoxObjectPointer operator!() = 0;
-  virtual std::string ToString() = 0;
-  static LoxObjectPointer FromLiteralToken(const Token& token);
-};
-
-class Number : public LoxObject {
- public:
-  explicit Number(double value) : value(value) {}
-
-  LoxObjectPointer operator-() override {
-    return LoxObjectPointer(new Number(-value));
-  }
-  LoxObjectPointer operator!() override {
-    return LoxObjectPointer(new Number(!static_cast<bool>(value)));
-  }
-
-  std::string ToString() override { return std::to_string(value); }
-
-  double value;
-};
-
-class String : public LoxObject {
- public:
-  explicit String(const std::string value) : value(value) {}
-  LoxObjectPointer operator-() override { throw "Not supported"; }
-  LoxObjectPointer operator!() override { throw "Not supported"; }
-  std::string ToString() override { return value; }
-  std::string value;
+ private:
+  LoxObjectImplPointer impl;
 };
 
 }  // namespace object
