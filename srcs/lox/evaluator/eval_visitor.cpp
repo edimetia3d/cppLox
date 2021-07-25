@@ -6,7 +6,7 @@
 
 namespace lox {
 
-object::LoxObject AstEvaluator::VisitLiteral(Literal* expr) {
+object::LoxObject AstEvaluator::Visit(Literal* expr) {
   switch (expr->value.type_) {
     case TokenType::NUMBER:
       return object::LoxObject(std::stod(expr->value.lexeme_));
@@ -16,8 +16,8 @@ object::LoxObject AstEvaluator::VisitLiteral(Literal* expr) {
       throw "Not Valid Literal";
   }
 }
-object::LoxObject AstEvaluator::VisitGrouping(Grouping* expr) { return Eval(expr->expression); }
-object::LoxObject AstEvaluator::VisitUnary(Unary* expr) {
+object::LoxObject AstEvaluator::Visit(Grouping* expr) { return Eval(expr->expression); }
+object::LoxObject AstEvaluator::Visit(Unary* expr) {
   auto right = Eval(expr->right);
 
   switch (expr->op.type_) {
@@ -29,5 +29,5 @@ object::LoxObject AstEvaluator::VisitUnary(Unary* expr) {
       throw "Not supported unary";
   }
 }
-object::LoxObject AstEvaluator::VisitBinary(Binary* expr) { return object::LoxObject((double)0); }
+object::LoxObject AstEvaluator::Visit(Binary* expr) { return object::LoxObject((double)0); }
 }  // namespace lox

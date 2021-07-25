@@ -28,6 +28,9 @@ Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
     std::string one_line;
     std::cout << ">> ";
     while (std::getline(*istream, one_line)) {
+      if (one_line == "exit()") {
+        break;
+      }
       std::string oneline_output;
       auto line_err = Eval(one_line, &oneline_output);
       if (line_err.ToErrCode() > 0) {

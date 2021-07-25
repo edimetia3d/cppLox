@@ -29,7 +29,11 @@ class Expr {
   explicit operator bool() { return static_cast<bool>(impl); }
 
   template <class RetT>
-  RetT Accept(Visitor<RetT>* v);
+  RetT Accept(Visitor<RetT>* visitor) {
+    return visitor->Visit(this);
+  }
+
+  lox::private_ns::ExprImpl* ImplHandle() { return impl.get(); }
 
  private:
   std::shared_ptr<lox::private_ns::ExprImpl> impl;

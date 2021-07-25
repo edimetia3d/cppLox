@@ -16,10 +16,10 @@ class AstPrinter : public Visitor<std::string> {
   std::string Print(Expr expr) { return expr.Accept(this); }
 
  protected:
-  std::string VisitBinary(Binary* expr) override;
-  std::string VisitGrouping(Grouping* expr) override;
-  std::string VisitLiteral(Literal* expr) override;
-  std::string VisitUnary(Unary* expr) override;
+  std::string Visit(Binary* expr) override;
+  std::string Visit(Grouping* expr) override;
+  std::string Visit(Literal* expr) override;
+  std::string Visit(Unary* expr) override;
 };
 }  // namespace lox
 

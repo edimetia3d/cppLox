@@ -13,10 +13,10 @@ class AstEvaluator : public Visitor<object::LoxObject> {
   object::LoxObject Eval(Expr expr) { return expr.Accept(this); }
 
  protected:
-  object::LoxObject VisitBinary(Binary* expr) override;
-  object::LoxObject VisitGrouping(Grouping* expr) override;
-  object::LoxObject VisitLiteral(Literal* expr) override;
-  object::LoxObject VisitUnary(Unary* expr) override;
+  object::LoxObject Visit(Binary* expr) override;
+  object::LoxObject Visit(Grouping* expr) override;
+  object::LoxObject Visit(Literal* expr) override;
+  object::LoxObject Visit(Unary* expr) override;
 };
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_EVALUATOR_EVAL_VISITOR_H_
