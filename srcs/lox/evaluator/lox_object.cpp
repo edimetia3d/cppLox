@@ -6,6 +6,7 @@
 
 namespace lox {
 namespace object {
+using LoxObjectImplPointer = std::shared_ptr<LoxObjectImpl>;
 
 class LoxObjectImpl {
  public:
@@ -53,10 +54,10 @@ class String : public LoxObjectImpl {
 LoxObject LoxObject::operator-() { return LoxObject(-(*impl)); }
 std::string LoxObject::ToString() { return impl->ToString(); }
 LoxObject::operator bool() const { return static_cast<bool>(*impl); }
-LoxObject::LoxObject(bool v) { impl = LoxObjectImplPointer(new Bool(v)); }
-LoxObject::LoxObject(double v) { impl = LoxObjectImplPointer(new Number(v)); }
-LoxObject::LoxObject(const std::string& v) { impl = LoxObjectImplPointer(new String(v)); }
+LoxObject::LoxObject(bool v) { impl.reset(new Bool(v)); }
+LoxObject::LoxObject(double v) { impl.reset(new Number(v)); }
+LoxObject::LoxObject(const std::string& v) { impl.reset(new String(v)); }
 LoxObject LoxObject::operator!() { return LoxObject(static_cast<bool>(*this)); }
-
+LoxObject::LoxObject(LoxObjectImpl* impl) : impl(impl) {}
 }  // namespace object
 }  // namespace lox

@@ -24,7 +24,8 @@ class Expr {
   /**
    * This fn will take ownership of object impl pointed to
    */
-  Expr(lox::private_ns::ExprImpl* impl) : impl(impl) {}
+  explicit Expr(lox::private_ns::ExprImpl* impl) : impl(impl) {}
+  explicit Expr(std::shared_ptr<lox::private_ns::ExprImpl> impl) : impl(std::move(impl)) {}
   explicit operator bool() { return static_cast<bool>(impl); }
 
   template <class RetT>

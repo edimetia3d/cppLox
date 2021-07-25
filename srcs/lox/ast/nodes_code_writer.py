@@ -43,7 +43,7 @@ class_template = """
 class {class_name}:public private_ns::ExprImpl
 {{
 public:
-{class_name}({init_params})
+explicit {class_name}({init_params})
 :{init}{{}}
 {member_def}
 
@@ -82,7 +82,7 @@ virtual RetT Visit{class_name}({class_name} *) = 0;
                 member_name = cut_by_space[1]
                 member_def = member_def + f"{member_type} {member_name};\n"
                 member_init_params.append(f"{member_type} {member_name}")
-                member_init.append(f"{member_name}({member_name})")
+                member_init.append(f"{member_name}(std::move({member_name}))")
             member_init = ",\n".join(member_init)
             member_init_params = ",".join(member_init_params)
             class_decls = class_decls + class_template.format(class_name=class_name,

@@ -14,11 +14,11 @@ namespace lox {
 namespace object {
 
 class LoxObjectImpl;
-using LoxObjectImplPointer = std::shared_ptr<LoxObjectImpl>;
 
 class LoxObject {
  public:
-  explicit LoxObject(LoxObjectImplPointer impl) : impl(std::move(impl)) {}
+  explicit LoxObject(LoxObjectImpl* impl);
+  explicit LoxObject(std::shared_ptr<LoxObjectImpl> impl) : impl(std::move(impl)) {}
   explicit LoxObject(bool);
   explicit LoxObject(double);
   explicit LoxObject(char* v) : LoxObject(std::string(v)){};
@@ -29,7 +29,7 @@ class LoxObject {
   operator bool() const;
 
  private:
-  LoxObjectImplPointer impl;
+  std::shared_ptr<LoxObjectImpl> impl;
 };
 
 }  // namespace object
