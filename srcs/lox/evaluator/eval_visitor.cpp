@@ -6,7 +6,7 @@
 
 namespace lox {
 
-object::LoxObject AstEvaluator::Eval(const Expr& expr) const { return expr.Accept(*this); }
+object::LoxObject AstEvaluator::Eval(const ExprImpl& expr) const { return expr.Accept(*this); }
 object::LoxObject AstEvaluator::VisitLiteral(const Literal& expr) const {
   switch (expr.value.type_) {
     case TokenType::NUMBER:

@@ -10,9 +10,9 @@
 namespace lox {
 class AstEvaluator : public Visitor<object::LoxObject> {
  public:
-  object::LoxObject Eval(ExprPointer p_expr) const { return Eval(*p_expr); }
+  object::LoxObject Eval(Expr p_expr) const { return Eval(*p_expr); }
 
-  object::LoxObject Eval(const Expr& expr) const;
+  object::LoxObject Eval(const ExprImpl& expr) const;
 
  protected:
   object::LoxObject VisitBinary(const Binary& expr) const override;

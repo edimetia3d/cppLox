@@ -18,7 +18,7 @@ class Visitor;  // forward decl
 /**
  * An abstract class
  */
-class Expr {
+class ExprImpl {
  public:
 #define VIRTUAL_FUNCTION  // Just remind you that it is a virtual function
   /**
@@ -31,8 +31,8 @@ class Expr {
   VIRTUAL_FUNCTION RetT Accept(const Visitor<RetT>& v) const;
 #undef VIRTUAL_FUNCTION
 
-  virtual ~Expr() {
-    // just make Expr a virtual class to support dynamic_cast
+  virtual ~ExprImpl() {
+    // just make ExprImpl a virtual class to support dynamic_cast
   }
 
  protected:
@@ -45,7 +45,7 @@ class Expr {
   RetT _Accept(const Visitor<RetT>& v) const;
 };
 
-using ExprPointer = std::shared_ptr<Expr>;
+using Expr = std::shared_ptr<ExprImpl>;
 }  // namespace lox
 
 #ifdef DYNAMIC_GEN_EXPR_DECL

@@ -3,38 +3,31 @@
 //
 
 #include "lox/parser.h"
-lox::ExprPointer lox::Parser::Equality() {
-  return BinaryExpression<&Parser::Comparison, TokenType::BANG_EQUAL,
-                          TokenType::EQUAL_EQUAL>();
+lox::Expr lox::Parser::Equality() {
+  return BinaryExpression<&Parser::Comparison, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
 }
-lox::ExprPointer lox::Parser::Comparison() {
-  return BinaryExpression<&Parser::Term, TokenType::GREATER,
-                          TokenType::GREATER_EQUAL, TokenType::LESS,
+lox::Expr lox::Parser::Comparison() {
+  return BinaryExpression<&Parser::Term, TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS,
                           TokenType::LESS_EQUAL>();
 }
-lox::ExprPointer lox::Parser::Term() {
-  return BinaryExpression<&Parser::Factor, TokenType::MINUS, TokenType::PLUS>();
-}
-lox::ExprPointer lox::Parser::Factor() {
-  return BinaryExpression<&Parser::Unary, TokenType::SLASH, TokenType::STAR>();
-}
-lox::ExprPointer lox::Parser::Unary() {
+lox::Expr lox::Parser::Term() { return BinaryExpression<&Parser::Factor, TokenType::MINUS, TokenType::PLUS>(); }
+lox::Expr lox::Parser::Factor() { return BinaryExpression<&Parser::Unary, TokenType::SLASH, TokenType::STAR>(); }
+lox::Expr lox::Parser::Unary() {
   if (AdvanceIfMatchAny<TokenType::BANG, TokenType::MINUS>()) {
     Token op = Previous();
     auto right = this->Unary();
-    return ExprPointer(new lox::Unary(op, right));
+    return Expr(new lox::Unary(op, right));
   }
   return Primary();
 }
-lox::ExprPointer lox::Parser::Primary() {
-  if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL,
-                        TokenType::NUMBER, TokenType::STRING>())
-    return ExprPointer(new Literal(Previous()));
+lox::Expr lox::Parser::Primary() {
+  if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
+    return Expr(new Literal(Previous()));
 
   if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
     auto expr = Expression();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-    return ExprPointer(new Grouping(expr));
+    return Expr(new Grouping(expr));
   }
   throw Error(Peek(), "Primary get unknown token");
 }
@@ -64,10 +57,10 @@ void lox::Parser::Synchronize() {
     Advance();
   }
 }
-lox::ExprPointer lox::Parser::Parse() {
+lox::Expr lox::Parser::Parse() {
   try {
     return Expression();
   } catch (ParserException& exception) {
-    return ExprPointer(nullptr);
+    return Expr(nullptr);
   }
 }

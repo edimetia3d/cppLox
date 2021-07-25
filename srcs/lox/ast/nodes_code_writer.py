@@ -9,7 +9,7 @@ file_template = """
 // The file in source tree will only be used when python3 is not found by cmake, and might be out of sync.
 
 namespace lox{{
-class Expr;
+class ExprImpl;
 class Token;
 template<class RetT>
 class Visitor;
@@ -23,13 +23,13 @@ protected:
 }};
 
 template <class RetT>
-RetT Expr::Accept(const Visitor<RetT>& v) {{
+RetT ExprImpl::Accept(const Visitor<RetT>& v) {{
 {dispatch_call}
 throw "Dispatch Fail";
 }}
 
 template <class RetT>
-RetT Expr::Accept(const Visitor<RetT>& v) const {{
+RetT ExprImpl::Accept(const Visitor<RetT>& v) const {{
 {const_dispatch_call}
 throw "Dispatch Fail";
 }}
@@ -39,7 +39,7 @@ throw "Dispatch Fail";
 """
 
 class_template = """
-class {class_name}:public Expr
+class {class_name}:public ExprImpl
 {{
 public:
 {class_name}({init_params})

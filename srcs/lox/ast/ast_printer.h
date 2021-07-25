@@ -13,9 +13,9 @@
 namespace lox {
 class AstPrinter : public Visitor<std::string> {
  public:
-  std::string Print(ExprPointer p_expr) const { return Print(*p_expr); }
+  std::string Print(Expr p_expr) const { return Print(*p_expr); }
 
-  std::string Print(const Expr& expr) const;
+  std::string Print(const ExprImpl& expr) const;
 
  protected:
   std::string VisitBinary(const Binary& expr) const override;

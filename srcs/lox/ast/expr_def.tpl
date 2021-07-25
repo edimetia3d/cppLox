@@ -1,6 +1,6 @@
 {
-    "Binary": "ExprPointer left, Token op, ExprPointer right",
-    "Grouping": "ExprPointer expression",
+    "Binary": "Expr left, Token op, Expr right",
+    "Grouping": "Expr expression",
     "Literal": "Token value",
-    "Unary": "Token op, ExprPointer right"
+    "Unary": "Token op, Expr right"
 }

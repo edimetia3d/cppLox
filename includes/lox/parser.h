@@ -36,7 +36,7 @@ class Parser {
  public:
   explicit Parser(const std::vector<Token>& tokens) : tokens(tokens) {}
 
-  ExprPointer Parse();
+  Expr Parse();
 
  private:
   const std::vector<Token>& tokens;
@@ -92,11 +92,10 @@ class Parser {
     return TokenRecursiveMatch<types...>::Run(this);
   }
 
-  ExprPointer Expression() { return Equality(); }
+  Expr Expression() { return Equality(); }
 
-  template <ExprPointer (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(),
-            TokenType... MATCH_TYPES>
-  ExprPointer BinaryExpression() {
+  template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
+  Expr BinaryExpression() {
     // This function is the impl of  " left_expr (<binary_op> right_expr)* "
 
     // All token before this->current has been parsed to the expr
@@ -109,23 +108,23 @@ class Parser {
     while (AdvanceIfMatchAny<MATCH_TYPES...>()) {
       Token op = Previous();
       auto r_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-      expr = ExprPointer(new Binary(expr, op, r_expr));
+      expr = Expr(new Binary(expr, op, r_expr));
     }
     // ok now it's done
     return expr;
   }
 
-  ExprPointer Equality();
+  Expr Equality();
 
-  ExprPointer Comparison();
+  Expr Comparison();
 
-  ExprPointer Term();
+  Expr Term();
 
-  ExprPointer Factor();
+  Expr Factor();
 
-  ExprPointer Unary();
+  Expr Unary();
 
-  ExprPointer Primary();
+  Expr Primary();
 };
 
 template <TokenType type>

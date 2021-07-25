@@ -5,9 +5,7 @@
 
 namespace lox {
 
-std::string lox::AstPrinter::Print(const lox::Expr& expr) const {
-  return expr.Accept(*this);
-}
+std::string lox::AstPrinter::Print(const lox::ExprImpl& expr) const { return expr.Accept(*this); }
 std::string lox::AstPrinter::VisitBinary(const Binary& binary_expr) const {
   std::string left_expr = Print(binary_expr.left);
   std::string op = binary_expr.op.lexeme_;
