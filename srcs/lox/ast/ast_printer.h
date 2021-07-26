@@ -13,13 +13,13 @@
 namespace lox {
 class AstPrinter : public Visitor<std::string> {
  public:
-  std::string Print(Expr expr) { return expr.Accept(this); }
+  std::string Print(Expr expr) { return Dispatch(expr.State().get()); }
 
  protected:
-  std::string Visit(Binary* expr) override;
-  std::string Visit(Grouping* expr) override;
-  std::string Visit(Literal* expr) override;
-  std::string Visit(Unary* expr) override;
+  std::string Visit(BinaryState* state) override;
+  std::string Visit(GroupingState* state) override;
+  std::string Visit(LiteralState* state) override;
+  std::string Visit(UnaryState* state) override;
 };
 }  // namespace lox
 

@@ -16,18 +16,18 @@ lox::Expr lox::Parser::Unary() {
   if (AdvanceIfMatchAny<TokenType::BANG, TokenType::MINUS>()) {
     Token op = Previous();
     auto right = this->Unary();
-    return Expr(new lox::Unary(op, right));
+    return Expr(new lox::UnaryState(op, right));
   }
   return Primary();
 }
 lox::Expr lox::Parser::Primary() {
   if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
-    return Expr(new Literal(Previous()));
+    return Expr(new LiteralState(Previous()));
 
   if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
     auto expr = Expression();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-    return Expr(new Grouping(expr));
+    return Expr(new GroupingState(expr));
   }
   throw Error(Peek(), "Primary get unknown token");
 }

@@ -96,7 +96,7 @@ class Parser {
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
   Expr BinaryExpression() {
-    // This function is the impl of  " left_expr (<binary_op> right_expr)* "
+    // This function is the state_ of  " left_expr (<binary_op> right_expr)* "
 
     // All token before this->current has been parsed to the expr
     auto expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
@@ -108,7 +108,7 @@ class Parser {
     while (AdvanceIfMatchAny<MATCH_TYPES...>()) {
       Token op = Previous();
       auto r_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-      expr = Expr(new Binary(expr, op, r_expr));
+      expr = Expr(new BinaryState(expr, op, r_expr));
     }
     // ok now it's done
     return expr;

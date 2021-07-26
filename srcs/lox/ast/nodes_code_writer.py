@@ -9,26 +9,24 @@ file_template = """
 
 namespace lox{{
 
-namespace private_ns{{
 
-class ExprImpl {{
+class ExprState {{
  public:
-  virtual ~ExprImpl() {{
-    // just make ExprImpl a virtual class to support dynamic_cast
+  virtual ~ExprState() {{
+    // just make ExprState a virtual class to support dynamic_cast
   }}
   virtual int TypeId() = 0;
 }};
 
-}} // namespace private_ns
 
 {class_decls}
 
 template <class RetT>
 class Visitor {{
 
-public:
-RetT Visit(Expr * expr){{
-switch(expr->ImplHandle()->TypeId()){{
+protected:
+RetT Dispatch(ExprState * state){{
+switch(state->TypeId()){{
 {dispatch_call}
 default: throw "Dispatch Fail";
 }}
@@ -43,10 +41,10 @@ protected:
 """
 
 class_template = """
-class {class_name}:public private_ns::ExprImpl
+class {class_name}State:public ExprState
 {{
 public:
-explicit {class_name}({init_params})
+explicit {class_name}State({init_params})
 :{init}{{}}
 {member_def}
 int TypeId() override {{
@@ -67,9 +65,9 @@ def gen_code(input_file_path, output_file_path):
         type_id = 10000
         for class_name in all_def:
             type_id += 1
-            dispatch_call += f"case {type_id}:return Visit(static_cast<{class_name} *>(expr->ImplHandle()));\n"
+            dispatch_call += f"case {type_id}:return Visit(static_cast<{class_name}State *>(state));\n"
             virtual_visit_decls += f"""
-virtual RetT Visit({class_name} *) = 0;
+virtual RetT Visit({class_name}State *) = 0;
 """
             member_list = all_def[class_name].split(",")
             member_def = ""

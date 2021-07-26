@@ -15,28 +15,21 @@ namespace lox {
 template <class RetT>
 class Visitor;
 
-namespace private_ns {
-class ExprImpl;
-}
+class ExprState;
 
 class Expr {
  public:
   /**
-   * This fn will take ownership of object impl pointed to
+   * This fn will take ownership of object state_ pointed to
    */
-  explicit Expr(lox::private_ns::ExprImpl* impl) : impl(impl) {}
-  explicit Expr(std::shared_ptr<lox::private_ns::ExprImpl> impl) : impl(std::move(impl)) {}
-  explicit operator bool() { return static_cast<bool>(impl); }
+  explicit Expr(ExprState* state) : state_(state) {}
+  explicit Expr(std::shared_ptr<ExprState> state) : state_(std::move(state)) {}
+  explicit operator bool() { return static_cast<bool>(state_); }
 
-  template <class RetT>
-  RetT Accept(Visitor<RetT>* visitor) {
-    return visitor->Visit(this);
-  }
-
-  lox::private_ns::ExprImpl* ImplHandle() { return impl.get(); }
+  std::shared_ptr<ExprState> State() { return state_; }
 
  private:
-  std::shared_ptr<lox::private_ns::ExprImpl> impl;
+  std::shared_ptr<ExprState> state_;
 };
 }  // namespace lox
 
