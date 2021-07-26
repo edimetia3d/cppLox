@@ -12,9 +12,6 @@
 
 namespace lox {
 
-template <class RetT>
-class Visitor;
-
 class ExprState;
 
 class Expr {
