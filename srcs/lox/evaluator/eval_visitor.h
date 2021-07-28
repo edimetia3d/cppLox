@@ -6,7 +6,7 @@
 #define CPPLOX_SRCS_LOX_EVALUATOR_EVAL_VISITOR_H_
 
 #include "lox/ast/expr.h"
-#include "lox/evaluator/lox_object.h"
+#include "lox/lox_object.h"
 namespace lox {
 class AstEvaluator : public Visitor<object::LoxObject> {
  public:
