@@ -11,15 +11,15 @@
 #include "lox/ast/expr.h"
 
 namespace lox {
-class AstPrinter : public Visitor<std::string> {
+class AstPrinter : public Visitor {
  public:
-  std::string Print(Expr expr) { return Dispatch(expr.State().get()); }
+  std::string Print(Expr expr) { return expr.State()->Accept(this).AsNative<std::string>(); }
 
  protected:
-  std::string Visit(BinaryState* state) override;
-  std::string Visit(GroupingState* state) override;
-  std::string Visit(LiteralState* state) override;
-  std::string Visit(UnaryState* state) override;
+  object::LoxObject Visit(BinaryState* state) override;
+  object::LoxObject Visit(GroupingState* state) override;
+  object::LoxObject Visit(LiteralState* state) override;
+  object::LoxObject Visit(UnaryState* state) override;
 };
 }  // namespace lox
 

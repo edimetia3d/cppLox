@@ -8,9 +8,9 @@
 #include "lox/ast/expr.h"
 #include "lox/lox_object.h"
 namespace lox {
-class AstEvaluator : public Visitor<object::LoxObject> {
+class AstEvaluator : public Visitor {
  public:
-  object::LoxObject Eval(Expr expr) { return Dispatch(expr.State().get()); }
+  object::LoxObject Eval(Expr expr) { return expr.State()->Accept(this); }
 
  protected:
   object::LoxObject Visit(BinaryState* state) override;

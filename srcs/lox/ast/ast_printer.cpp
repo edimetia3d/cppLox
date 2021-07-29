@@ -5,18 +5,18 @@
 
 namespace lox {
 
-std::string lox::AstPrinter::Visit(BinaryState* state) {
+object::LoxObject lox::AstPrinter::Visit(BinaryState* state) {
   std::string left_expr = Print(state->left);
   std::string op = state->op.lexeme_;
   std::string right_expr = Print(state->right);
-  return std::string("(") + left_expr + op + right_expr + std::string(")");
+  return object::LoxObject(std::string("(") + left_expr + op + right_expr + std::string(")"));
 }
-std::string AstPrinter::Visit(LiteralState* state) { return state->value.lexeme_; }
-std::string lox::AstPrinter::Visit(GroupingState* state) {
-  return std::string("(") + Print(state->expression) + std::string(")");
+object::LoxObject AstPrinter::Visit(LiteralState* state) { return object::LoxObject(state->value.lexeme_); }
+object::LoxObject lox::AstPrinter::Visit(GroupingState* state) {
+  return object::LoxObject(std::string("(") + Print(state->expression) + std::string(")"));
 }
-std::string AstPrinter::Visit(UnaryState* state) {
-  return std::string("(") + state->op.lexeme_ + Print(state->right) + std::string(")");
+object::LoxObject AstPrinter::Visit(UnaryState* state) {
+  return object::LoxObject(std::string("(") + state->op.lexeme_ + Print(state->right) + std::string(")"));
 }
 
 }  // namespace lox
