@@ -28,8 +28,21 @@ class LoxObject {
   explicit LoxObject(double);
   explicit LoxObject(char* v) : LoxObject(std::string(v)){};
   explicit LoxObject(const std::string&);
+  // Uary
   LoxObject operator-();
   LoxObject operator!();
+
+  // Binary
+  LoxObject operator-(LoxObject& rhs);
+  LoxObject operator+(LoxObject& rhs);
+  LoxObject operator*(LoxObject& rhs);
+  LoxObject operator/(LoxObject& rhs);
+  LoxObject operator==(LoxObject& rhs);
+  LoxObject operator!=(LoxObject& rhs);
+  LoxObject operator<(LoxObject& rhs);
+  LoxObject operator>(LoxObject& rhs);
+  LoxObject operator<=(LoxObject& rhs);
+  LoxObject operator>=(LoxObject& rhs);
   std::string ToString();
   operator bool() const;
 
@@ -44,6 +57,8 @@ class LoxObject {
   }
 
  private:
+  static void BinaryTypeCheck(LoxObject* lhs, LoxObject* rhs);
+
   std::shared_ptr<LoxObjectOperator> lox_operator;
   std::shared_ptr<void> raw_value;
 };
