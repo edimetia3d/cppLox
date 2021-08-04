@@ -84,6 +84,10 @@ template <>
 LoxObject Bool::UaryMinus(LoxObject *obj) {
   return LoxObject(new Number(), static_cast<double>(-1 * obj->AsNative<RealT>()));
 }
+template <>
+std::string Bool::ToString(const LoxObject *obj) {
+  return (obj->AsNative<RealT>() ? "true" : "false");
+}
 
 class String : public LoxObjectOperator {
   LoxObject BinaryPlus(LoxObject *lhs, LoxObject *rhs) override {
