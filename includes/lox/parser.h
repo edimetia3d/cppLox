@@ -6,13 +6,14 @@
 #define CPPLOX_INCLUDES_LOX_PARSER_H_
 
 #include <error.h>
-#include <lox/error.h>
 
 #include <memory>
 #include <vector>
 
 #include "lox/ast/expr.h"
+#include "lox/error.h"
 #include "lox/token.h"
+
 namespace lox {
 
 class Parser;

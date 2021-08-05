@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox_object.h"
+#include "lox/lox_object.h"
 
 namespace lox {
 namespace object {

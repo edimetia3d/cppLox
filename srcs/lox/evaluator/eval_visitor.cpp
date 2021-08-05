@@ -2,8 +2,9 @@
 // LICENSE: MIT
 //
 
-#include "eval_visitor.h"
+#include "lox/evaluator/eval_visitor.h"
 
+#include "lox/error.h"
 namespace lox {
 
 object::LoxObject AstEvaluator::Visit(LiteralState* state) {
@@ -17,7 +18,7 @@ object::LoxObject AstEvaluator::Visit(LiteralState* state) {
     case TokenType::FALSE:
       return object::LoxObject(false);
     default:
-      throw "Not Valid Literal";
+      throw RuntimeError(Error(state->value, "Not a valid Literal."));
   }
 }
 object::LoxObject AstEvaluator::Visit(GroupingState* state) { return Eval(state->expression); }
@@ -30,36 +31,39 @@ object::LoxObject AstEvaluator::Visit(UnaryState* state) {
     case TokenType::BANG:
       return !right;
     default:
-      throw "Not supported unary";
+      throw RuntimeError(Error(state->op, "Not a valid Unary Op."));
   }
 }
 object::LoxObject AstEvaluator::Visit(BinaryState* state) {
   auto left = Eval(state->left);
   auto right = Eval(state->right);
-
-  switch (state->op.type_) {
-    case TokenType::PLUS:
-      return left + right;
-    case TokenType::MINUS:
-      return left - right;
-    case TokenType::STAR:
-      return left * right;
-    case TokenType::SLASH:
-      return left / right;
-    case TokenType::EQUAL_EQUAL:
-      return left == right;
-    case TokenType::BANG_EQUAL:
-      return left != right;
-    case TokenType::LESS:
-      return left < right;
-    case TokenType::GREATER:
-      return left > right;
-    case TokenType::LESS_EQUAL:
-      return left <= right;
-    case TokenType::GREATER_EQUAL:
-      return left >= right;
-    default:
-      throw "Not supported unary";
+  try {
+    switch (state->op.type_) {
+      case TokenType::PLUS:
+        return left + right;
+      case TokenType::MINUS:
+        return left - right;
+      case TokenType::STAR:
+        return left * right;
+      case TokenType::SLASH:
+        return left / right;
+      case TokenType::EQUAL_EQUAL:
+        return left == right;
+      case TokenType::BANG_EQUAL:
+        return left != right;
+      case TokenType::LESS:
+        return left < right;
+      case TokenType::GREATER:
+        return left > right;
+      case TokenType::LESS_EQUAL:
+        return left <= right;
+      case TokenType::GREATER_EQUAL:
+        return left >= right;
+      default:
+        throw RuntimeError(Error(state->op, "Not a valid Binary Op."));
+    }
+  } catch (const char* msg) {
+    throw RuntimeError(Error(state->op, msg));
   }
 }
 }  // namespace lox

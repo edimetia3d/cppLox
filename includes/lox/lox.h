@@ -8,6 +8,7 @@
 #include <string>
 
 #include "lox/error.h"
+#include "lox/evaluator/eval_visitor.h"
 
 namespace lox {
 
@@ -28,6 +29,7 @@ class Lox {
 
  private:
   Error RunStream(std::istream *istream, bool interactive_mode);
+  AstEvaluator evaluator_;
 };
 
 }  // namespace lox

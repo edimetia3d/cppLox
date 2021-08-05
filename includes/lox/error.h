@@ -33,8 +33,17 @@ class Error {
   std::vector<ErrorNode> sub_errors;
 };
 
-#define ERR_STR(STR)                                     \
-  Error(std::string("[") + std::string(__FILE__) + ":" + \
-        std::to_string(__LINE__) + "] " + STR)
+struct RuntimeError : public std::exception {
+  explicit RuntimeError(Error err) : err(std::move(err)) {}
+  const char *what() noexcept {
+    static std::string last_err;
+    last_err = err.Message().c_str();
+    return last_err.c_str();
+  }
+
+  Error err;
+};
+
+#define ERR_STR(STR) Error(std::string("[") + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "] " + STR)
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_ERROR_H_
