@@ -4,155 +4,136 @@
 
 #include "lox/lox_object.h"
 
+#include "lox/binary_dispatcher.h"
+
 namespace lox {
 namespace object {
 
-class LoxObjectOperator : public std::enable_shared_from_this<LoxObjectOperator> {
- public:
-  virtual ~LoxObjectOperator(){};
-
-  virtual LoxObject UaryMinus(LoxObject *) { throw "Not supported"; }
-  virtual LoxObject BinaryMinus(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryPlus(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryMul(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryDiv(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryEQ(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryNE(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryLT(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryGT(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryLE(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual LoxObject BinaryGE(LoxObject *lhs, LoxObject *rhs) { throw "Not supported"; }
-  virtual std::string ToString(const LoxObject *) { throw "Not supported"; }
-  virtual bool IsTrue(const LoxObject *obj) const { return obj != nullptr; }
-
-  std::shared_ptr<LoxObjectOperator> share_this() { return shared_from_this(); }
+struct Bool : public LoxObjectState {
+  using RealT = bool;
+  explicit Bool(const RealT &v) : LoxObjectState(v) {}
+  LoxObjectStatePtr operator!() override { return LoxObjectStatePtr(new Bool(!AsNative<RealT>())); };
+  LoxObjectStatePtr operator-() override;
+  bool IsTrue() override { return AsNative<RealT>(); }
+  std::string ToString() override { return (AsNative<RealT>() ? "true" : "false"); }
 };
 
-/**
- * Always return a new LoxObject
- */
-template <class RealType>
-class OutplaceOperator : public LoxObjectOperator {
- public:
-  using RealT = RealType;
-
-  LoxObject UaryMinus(LoxObject *obj) override { return LoxObject(share_this(), -1 * obj->template AsNative<RealT>()); }
-  LoxObject BinaryMinus(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(share_this(), lhs->template AsNative<RealT>() - rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryPlus(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(share_this(), lhs->template AsNative<RealT>() + rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryMul(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(share_this(), lhs->template AsNative<RealT>() * rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryDiv(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(share_this(), lhs->template AsNative<RealT>() / rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryEQ(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<RealT>() == rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryNE(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<RealT>() != rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryLT(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<RealT>() < rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryGT(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<RealT>() > rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryLE(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<RealT>() <= rhs->template AsNative<RealT>());
-  }
-  LoxObject BinaryGE(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<RealT>() >= rhs->template AsNative<RealT>());
-  }
-  std::string ToString(const LoxObject *obj) override { return std::to_string(obj->AsNative<RealT>()); }
-
-  bool IsTrue(const LoxObject *obj) const override { return static_cast<bool>(obj->AsNative<RealT>()); }
+struct Number : public LoxObjectState {
+  using RealT = double;
+  explicit Number(const RealT &v) : LoxObjectState(v) {}
+  bool IsTrue() override { return static_cast<bool>(AsNative<RealT>()); }
+  std::string ToString() override { return std::to_string(AsNative<RealT>()); }
+  LoxObjectStatePtr operator!() override { return LoxObjectStatePtr(new Bool(AsNative<RealT>())); }
+  LoxObjectStatePtr operator-() override { return LoxObjectStatePtr(new Number(-AsNative<RealT>())); }
 };
 
-/**
- * Always return the raw LoxObject
- */
-class InplaceOperator : public LoxObjectOperator {};
+LoxObjectStatePtr Bool::operator-() { return LoxObjectStatePtr(new Number(-AsNative<RealT>())); }
 
-using Number = OutplaceOperator<double>;
-using Bool = OutplaceOperator<bool>;
-
-template <>
-LoxObject Bool::UaryMinus(LoxObject *obj) {
-  return LoxObject(new Number(), static_cast<double>(-1 * obj->AsNative<RealT>()));
-}
-template <>
-std::string Bool::ToString(const LoxObject *obj) {
-  return (obj->AsNative<RealT>() ? "true" : "false");
-}
-
-class String : public LoxObjectOperator {
-  LoxObject BinaryPlus(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(share_this(), lhs->AsNative<std::string>() + rhs->AsNative<std::string>());
-  }
-  LoxObject BinaryEQ(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<std::string>() == rhs->template AsNative<std::string>());
-  }
-  LoxObject BinaryNE(LoxObject *lhs, LoxObject *rhs) override {
-    return LoxObject(lhs->template AsNative<std::string>() != rhs->template AsNative<std::string>());
-  }
-  std::string ToString(const LoxObject *obj) override { return obj->AsNative<std::string>(); }
+struct String : public LoxObjectState {
+  using RealT = std::string;
+  explicit String(const RealT &v) : LoxObjectState(v) {}
+  std::string ToString() override { return std::string("\"") + AsNative<RealT>() + "\""; }
+  LoxObjectStatePtr operator!() override { return LoxObjectStatePtr(new Bool(!IsTrue())); }
+  LoxObjectStatePtr operator-() override { throw "`!` is not supported on String"; }
 };
 
-std::string LoxObject::ToString() { return lox_operator->ToString(this); }
-LoxObject::operator bool() const { return lox_operator->IsTrue(this); }
-LoxObject::LoxObject(bool v) : LoxObject(new Bool(), v) {}
-LoxObject::LoxObject(double v) : LoxObject(new Number(), v) {}
-LoxObject::LoxObject(const std::string &v) : LoxObject(new String(), v) {}
-LoxObject LoxObject::operator-() { return lox_operator->UaryMinus(this); }
-LoxObject LoxObject::operator!() { return LoxObject(!static_cast<bool>(*this)); }
-LoxObject LoxObject::operator-(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryMinus(this, &rhs);
+LoxObjectStatePtr BinaryEQ(Bool *lhs, Bool *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Bool::RealT>() == rhs->AsNative<Bool::RealT>()));
 }
-LoxObject LoxObject::operator+(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryPlus(this, &rhs);
+
+LoxObjectStatePtr BinaryNE(Bool *lhs, Bool *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Bool::RealT>() != rhs->AsNative<Bool::RealT>()));
 }
-LoxObject LoxObject::operator*(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryMul(this, &rhs);
+
+LoxObjectStatePtr BinaryPlus(String *lhs, String *rhs) {
+  return LoxObjectStatePtr(new String(lhs->AsNative<String::RealT>() + rhs->AsNative<String::RealT>()));
 }
-LoxObject LoxObject::operator/(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryDiv(this, &rhs);
-}
-LoxObject LoxObject::operator==(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryEQ(this, &rhs);
-}
-LoxObject LoxObject::operator!=(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryNE(this, &rhs);
-}
-LoxObject LoxObject::operator<(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryLT(this, &rhs);
-}
-LoxObject LoxObject::operator>(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryGT(this, &rhs);
-}
-LoxObject LoxObject::operator<=(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryLE(this, &rhs);
-}
-LoxObject LoxObject::operator>=(LoxObject &rhs) {
-  BinaryTypeCheck(this, &rhs);
-  return lox_operator->BinaryGE(this, &rhs);
-}
-void LoxObject::BinaryTypeCheck(LoxObject *lhs, LoxObject *rhs) {
-  if (typeid(*(lhs->lox_operator.get())) != typeid(*(rhs->lox_operator.get()))) {
-    throw "Not same type";
+
+LoxObjectStatePtr BinaryMul(String *lhs, Number *rhs) {
+  int loop = rhs->AsNative<Number::RealT>();
+  std::string ret = "";
+  for (int i = 0; i < loop; ++i) {
+    ret += lhs->AsNative<std::string>();
   }
+  return LoxObjectStatePtr(new String(ret));
 }
+LoxObjectStatePtr BinaryMul(Number *lhs, String *rhs) { return BinaryMul(rhs, lhs); }
+
+LoxObjectStatePtr BinaryEQ(String *lhs, String *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<String::RealT>() == rhs->AsNative<String::RealT>()));
+}
+
+LoxObjectStatePtr BinaryNE(String *lhs, String *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<String::RealT>() != rhs->AsNative<String::RealT>()));
+}
+
+LoxObjectStatePtr BinaryPlus(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Number(lhs->AsNative<Number::RealT>() + rhs->AsNative<Number::RealT>()));
+}
+LoxObjectStatePtr BinaryMinus(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Number(lhs->AsNative<Number::RealT>() - rhs->AsNative<Number::RealT>()));
+}
+LoxObjectStatePtr BinaryMul(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Number(lhs->AsNative<Number::RealT>() * rhs->AsNative<Number::RealT>()));
+}
+LoxObjectStatePtr BinaryDiv(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Number(lhs->AsNative<Number::RealT>() / rhs->AsNative<Number::RealT>()));
+}
+
+LoxObjectStatePtr BinaryEQ(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Number::RealT>() == rhs->AsNative<Number::RealT>()));
+}
+
+LoxObjectStatePtr BinaryNE(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Number::RealT>() != rhs->AsNative<Number::RealT>()));
+}
+
+LoxObjectStatePtr BinaryLT(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Number::RealT>() < rhs->AsNative<Number::RealT>()));
+}
+
+LoxObjectStatePtr BinaryGT(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Number::RealT>() > rhs->AsNative<Number::RealT>()));
+}
+
+LoxObjectStatePtr BinaryLE(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Number::RealT>() <= rhs->AsNative<Number::RealT>()));
+}
+
+LoxObjectStatePtr BinaryGE(Number *lhs, Number *rhs) {
+  return LoxObjectStatePtr(new Bool(lhs->AsNative<Number::RealT>() >= rhs->AsNative<Number::RealT>()));
+}
+
+LoxObject::LoxObject(bool v) : lox_object_state_(new Bool(v)) {}
+LoxObject::LoxObject(double v) : lox_object_state_(new Number(v)) {}
+LoxObject::LoxObject(const std::string &v) : lox_object_state_(new String(v)) {}
+
+LoxObject LoxObject::operator-() { return -(*lox_object_state_); }
+LoxObject LoxObject::operator!() { return !(*lox_object_state_); }
+std::string LoxObject::ToString() { return lox_object_state_->ToString(); }
+LoxObject::operator bool() const { return lox_object_state_->IsTrue(); };
+
+#define QUICK_DEF_BINARY_OP(OPNAME, SYMBOL)                                                                      \
+  DEF_DISPATCHER(OPNAME)                                                                                         \
+  LoxObject LoxObject::SYMBOL(LoxObject &rhs) {                                                                  \
+    LoxObject ret = LoxObject();                                                                                 \
+    DISPATCHTER(OPNAME)<Number, Bool, String>::In<Number, Bool, String>::Run(lox_object_state_.get(),            \
+                                                                             rhs.lox_object_state_.get(), &ret); \
+    if (!ret.lox_object_state_) {                                                                                \
+      throw "No overload found";                                                                                 \
+    }                                                                                                            \
+    return ret;                                                                                                  \
+  }
+QUICK_DEF_BINARY_OP(BinaryMinus, operator-)
+QUICK_DEF_BINARY_OP(BinaryPlus, operator+)
+QUICK_DEF_BINARY_OP(BinaryMul, operator*)
+QUICK_DEF_BINARY_OP(BinaryDiv, operator/)
+QUICK_DEF_BINARY_OP(BinaryEQ, operator==)
+QUICK_DEF_BINARY_OP(BinaryNE, operator!=)
+QUICK_DEF_BINARY_OP(BinaryLT, operator<)
+QUICK_DEF_BINARY_OP(BinaryGT, operator>)
+QUICK_DEF_BINARY_OP(BinaryLE, operator<=)
+QUICK_DEF_BINARY_OP(BinaryGE, operator>=)
+
 }  // namespace object
 }  // namespace lox

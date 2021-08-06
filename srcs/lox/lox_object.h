@@ -13,17 +13,36 @@ namespace lox {
 
 namespace object {
 
-class LoxObjectOperator;
+struct LoxObjectState;
+using LoxObjectStatePtr = std::shared_ptr<LoxObjectState>;
 
+struct LoxObjectState {
+  template <class RealT>
+  LoxObjectState(const RealT& v) : raw_value(new RealT{v}) {}
+  std::shared_ptr<void> raw_value;
+  virtual LoxObjectStatePtr operator-() = 0;
+  virtual LoxObjectStatePtr operator!() = 0;
+  virtual bool IsTrue() { return raw_value.get(); };
+  virtual std::string ToString() {
+    return std::string("LoxObjectState at") + std::to_string((uint64_t)raw_value.get());
+  };
+
+  template <class T>
+  T& AsNative() {
+    return *static_cast<T*>(raw_value.get());
+  }
+
+  template <class T>
+  const T& AsNative() const {
+    return *static_cast<T*>(raw_value.get());
+  }
+
+  virtual ~LoxObjectState() = default;
+};
 class LoxObject {
  public:
-  template <class RealT>
-  explicit LoxObject(LoxObjectOperator* lox_oprator, const RealT& value)
-      : lox_operator(lox_oprator), raw_value(new RealT{value}){};
-  template <class RealT>
-  explicit LoxObject(std::shared_ptr<LoxObjectOperator> lox_operator, const RealT& value)
-      : lox_operator(std::move(lox_operator)), raw_value(new RealT{value}) {}
-
+  LoxObject() = default;
+  LoxObject(LoxObjectStatePtr ptr) : lox_object_state_(ptr) {}
   explicit LoxObject(bool);
   explicit LoxObject(double);
   explicit LoxObject(char* v) : LoxObject(std::string(v)){};
@@ -48,21 +67,16 @@ class LoxObject {
 
   template <class T>
   T& AsNative() {
-    return *static_cast<T*>(raw_value.get());
+    return lox_object_state_->template AsNative<T>();
   }
 
   template <class T>
   const T& AsNative() const {
-    return *static_cast<T*>(raw_value.get());
+    return lox_object_state_->template AsNative<T>();
   }
 
- private:
-  static void BinaryTypeCheck(LoxObject* lhs, LoxObject* rhs);
-
-  std::shared_ptr<LoxObjectOperator> lox_operator;
-  std::shared_ptr<void> raw_value;
+  LoxObjectStatePtr lox_object_state_;
 };
-
 }  // namespace object
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_EVALUATOR_LOX_OBJECT_H_

@@ -12,7 +12,7 @@ object::LoxObject AstEvaluator::Visit(LiteralState* state) {
     case TokenType::NUMBER:
       return object::LoxObject(std::stod(state->value.lexeme_));
     case TokenType::STRING:
-      return object::LoxObject(state->value.lexeme_);
+      return object::LoxObject(std::string(state->value.lexeme_.begin() + 1, state->value.lexeme_.end() - 1));
     case TokenType::TRUE:
       return object::LoxObject(true);
     case TokenType::FALSE:
