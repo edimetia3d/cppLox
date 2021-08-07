@@ -41,9 +41,11 @@ void Scanner::ScanOneToken() {
       case '\r':
       case '\t':
         // Ignore whitespace.
+        ResetTokenBeg();
         break;
       case '\n':
         line_++;
+        ResetTokenBeg();
         break;
       case '"':
         AddStringToken();
@@ -62,12 +64,10 @@ void Scanner::ScanOneToken() {
   // clang-format on
 }
 void Scanner::AddToken(TokenType type) {
-  tokens_.emplace_back(type,
-                       std::string(srcs_->cbegin() + start_lex_pos_,
-                                   srcs_->cbegin() + current_lex_pos_),
-                       line_);
-  start_lex_pos_ = current_lex_pos_;
+  tokens_.emplace_back(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);
+  ResetTokenBeg();
 }
+void Scanner::ResetTokenBeg() { start_lex_pos_ = current_lex_pos_; }
 
 char Scanner::Advance() { return srcs_->at(current_lex_pos_++); }
 bool Scanner::Match(char expected) {

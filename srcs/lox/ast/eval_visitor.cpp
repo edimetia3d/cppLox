@@ -2,12 +2,15 @@
 // LICENSE: MIT
 //
 
-#include "lox/evaluator/eval_visitor.h"
+#include "lox/ast/eval_visitor.h"
 
+#include <iostream>
+
+#include "lox/ast/ast_printer.h"
 #include "lox/error.h"
 namespace lox {
 
-object::LoxObject AstEvaluator::Visit(LiteralState* state) {
+object::LoxObject ExprEvaluator::Visit(LiteralState* state) {
   switch (state->value.type_) {
     case TokenType::NUMBER:
       return object::LoxObject(std::stod(state->value.lexeme_));
@@ -21,8 +24,8 @@ object::LoxObject AstEvaluator::Visit(LiteralState* state) {
       throw RuntimeError(Error(state->value, "Not a valid Literal."));
   }
 }
-object::LoxObject AstEvaluator::Visit(GroupingState* state) { return Eval(state->expression); }
-object::LoxObject AstEvaluator::Visit(UnaryState* state) {
+object::LoxObject ExprEvaluator::Visit(GroupingState* state) { return Eval(state->expression); }
+object::LoxObject ExprEvaluator::Visit(UnaryState* state) {
   auto right = Eval(state->right);
 
   switch (state->op.type_) {
@@ -34,7 +37,7 @@ object::LoxObject AstEvaluator::Visit(UnaryState* state) {
       throw RuntimeError(Error(state->op, "Not a valid Unary Op."));
   }
 }
-object::LoxObject AstEvaluator::Visit(BinaryState* state) {
+object::LoxObject ExprEvaluator::Visit(BinaryState* state) {
   auto left = Eval(state->left);
   auto right = Eval(state->right);
   try {
@@ -65,5 +68,16 @@ object::LoxObject AstEvaluator::Visit(BinaryState* state) {
   } catch (const char* msg) {
     throw RuntimeError(Error(state->op, msg));
   }
+}
+object::LoxObject AstEvaluator::Visit(PrintState* state) {
+  auto ret_v = expr_evaluator_.Eval(state->expression);
+  static AstPrinter printer;
+  std::cout << "Expr: " << printer.Print(state->expression) << std::endl;
+  std::cout << "Str: " << ret_v.ToString() << std::endl;
+  return object::LoxObject::VoidObject();
+}
+object::LoxObject AstEvaluator::Visit(ExpressionState* state) {
+  expr_evaluator_.Eval(state->expression);
+  return object::LoxObject::VoidObject();
 }
 }  // namespace lox

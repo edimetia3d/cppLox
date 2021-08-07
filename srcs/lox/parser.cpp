@@ -3,6 +3,7 @@
 //
 
 #include "lox/parser.h"
+namespace lox {
 lox::Expr lox::Parser::Equality() {
   return BinaryExpression<&Parser::Comparison, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
 }
@@ -31,8 +32,7 @@ lox::Expr lox::Parser::Primary() {
   }
   throw Error(Peek(), "Primary get unknown token");
 }
-lox::Token lox::Parser::Consume(lox::TokenType type,
-                                const std::string& message) {
+lox::Token lox::Parser::Consume(lox::TokenType type, const std::string& message) {
   if (Check(type)) return Advance();
   throw Error(Peek(), message);
 }
@@ -57,10 +57,31 @@ void lox::Parser::Synchronize() {
     Advance();
   }
 }
-lox::Expr lox::Parser::Parse() {
-  try {
-    return Expression();
-  } catch (ParserException& exception) {
-    return Expr(nullptr);
+std::vector<lox::Stmt> lox::Parser::Parse() {
+  std::vector<lox::Stmt> statements;
+  while (!IsAtEnd()) {
+    statements.push_back(Statement());
   }
+
+  return statements;
 }
+lox::Stmt lox::Parser::Statement() {
+  if (AdvanceIfMatchAny<TokenType::PRINT>()) {
+    return PrintStatement();
+  }
+
+  return ExpressionStatement();
+}
+Stmt Parser::PrintStatement() {
+  Expr value = Expression();
+  Consume(TokenType::SEMICOLON, "Expect ';' after value.");
+  return Stmt(new PrintState(value));
+}
+Stmt Parser::ExpressionStatement() {
+  Expr expr = Expression();
+  if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
+    return Stmt(new ExpressionState(expr));
+  }
+  { return Stmt(new PrintState(expr)); }
+}
+}  // namespace lox

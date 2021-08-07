@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/lox_object.h"
+#include "lox_object.h"
 
 #include "lox/binary_dispatcher.h"
 
@@ -31,6 +31,19 @@ struct LoxObjectState {
   }
 
   virtual ~LoxObjectState() = default;
+};
+
+struct Void : public LoxObjectState {
+ public:
+  explicit Void() : LoxObjectState(0) {}
+
+ private:
+  using LoxObjectState::AsNative;
+  using LoxObjectState::IsTrue;
+  using LoxObjectState::ToString;
+
+  virtual LoxObjectStatePtr operator-() { return LoxObjectStatePtr(nullptr); };
+  virtual LoxObjectStatePtr operator!() { return LoxObjectStatePtr(nullptr); };
 };
 
 struct Bool : public LoxObjectState {
@@ -131,7 +144,7 @@ LoxObjectStatePtr BinaryGE(Number *lhs, Number *rhs) {
 LoxObject::LoxObject(bool v) : lox_object_state_(new Bool(v)) {}
 LoxObject::LoxObject(double v) : lox_object_state_(new Number(v)) {}
 LoxObject::LoxObject(const std::string &v) : lox_object_state_(new String(v)) {}
-
+LoxObject LoxObject::VoidObject() { return LoxObject(LoxObjectStatePtr(new Void)); }
 LoxObject LoxObject::operator-() { return -(*lox_object_state_); }
 LoxObject LoxObject::operator!() { return !(*lox_object_state_); }
 std::string LoxObject::ToString() { return lox_object_state_->ToString(); }

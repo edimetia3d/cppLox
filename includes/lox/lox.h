@@ -25,7 +25,7 @@ class Lox {
    * @param code
    * @return
    */
-  Error Eval(const std::string &code, std::string *run_output);
+  Error Eval(const std::string &code);
 
  private:
   Error RunStream(std::istream *istream, bool interactive_mode);

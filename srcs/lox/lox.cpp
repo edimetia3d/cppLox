@@ -8,7 +8,7 @@
 #include <iostream>
 
 #include "lox/ast/ast_printer.h"
-#include "lox/evaluator/eval_visitor.h"
+#include "lox/ast/eval_visitor.h"
 #include "lox/parser.h"
 #include "lox/scanner.h"
 
@@ -33,18 +33,15 @@ Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
       if (one_line == "exit()") {
         break;
       }
-      std::string oneline_output;
-      auto line_err = Eval(one_line, &oneline_output);
+      auto line_err = Eval(one_line);
       if (line_err.ToErrCode() > 0) {
         std::cout << line_err.Message() << std::endl;
-      } else {
-        std::cout << oneline_output << std::endl;
       }
       std::cout << ">> ";
     }
   } else {
     std::string all_line((std::istreambuf_iterator<char>(*istream)), std::istreambuf_iterator<char>());
-    err = Eval(all_line, nullptr);
+    err = Eval(all_line);
     if (err.ToErrCode() > 0) {
       std::cout << err.Message() << std::endl;
     }
@@ -53,27 +50,20 @@ Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
   return err;
 }
 
-Error Lox::Eval(const std::string &code, std::string *eval_output) {
+Error Lox::Eval(const std::string &code) {
   Scanner scanner(code);
   auto err = scanner.Scan();
 
   Parser parser(scanner.Tokens());
-  auto expr = parser.Parse();
+  auto statements = parser.Parse();
 
   std::string output;
-  if (expr) {
-    AstPrinter printer;
-    output = printer.Print(expr) + "\n";
-    try {
-      auto val = evaluator_->Eval(expr);
-      output += val.ToString();
-    } catch (RuntimeError &rt_err) {
-      err.Append(rt_err.err);
+  try {
+    for (auto &stmt : statements) {
+      evaluator_->Eval(stmt);
     }
-  }
-
-  if (eval_output) {
-    *eval_output = std::move(output);
+  } catch (RuntimeError &rt_err) {
+    err.Append(rt_err.err);
   }
   return err;
 }

@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-#include "lox/ast/expr.h"
+#include "lox/ast/stmt.h"
 #include "lox/error.h"
 #include "lox/token.h"
 
@@ -37,7 +37,7 @@ class Parser {
  public:
   explicit Parser(const std::vector<Token>& tokens) : tokens(tokens) {}
 
-  Expr Parse();
+  std::vector<Stmt> Parse();
 
  private:
   const std::vector<Token>& tokens;
@@ -92,7 +92,9 @@ class Parser {
   inline bool AdvanceIfMatchAny() {
     return TokenRecursiveMatch<types...>::Run(this);
   }
-
+  Stmt Statement();
+  Stmt PrintStatement();
+  Stmt ExpressionStatement();
   Expr Expression() { return Equality(); }
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>

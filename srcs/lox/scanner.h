@@ -63,6 +63,7 @@ class Scanner {
   std::vector<Token> tokens_;
   int line_ = 0;
   Error err_;
+  void ResetTokenBeg();
 };
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_SCANNER_H_

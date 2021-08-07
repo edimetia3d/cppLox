@@ -24,6 +24,7 @@ class LoxObject {
   explicit LoxObject(double);
   explicit LoxObject(char* v) : LoxObject(std::string(v)){};
   explicit LoxObject(const std::string&);
+  static LoxObject VoidObject();
   // Uary
   LoxObject operator-();
   LoxObject operator!();
