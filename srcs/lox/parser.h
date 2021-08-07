@@ -80,8 +80,8 @@ class Parser {
   }
   Stmt Declaration();
   Stmt Statement();
-  Stmt PrintStatement();
-  Stmt ExpressionStatement();
+  Stmt PrintStmtStatement();
+  Stmt ExprStmtStatement();
   Expr Expression() { return Equality(); }
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>

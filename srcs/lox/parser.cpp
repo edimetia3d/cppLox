@@ -81,22 +81,22 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
 }
 lox::Stmt lox::Parser::Statement() {
   if (AdvanceIfMatchAny<TokenType::PRINT>()) {
-    return PrintStatement();
+    return PrintStmtStatement();
   }
 
-  return ExpressionStatement();
+  return ExprStmtStatement();
 }
-Stmt Parser::PrintStatement() {
+Stmt Parser::PrintStmtStatement() {
   Expr value = Expression();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  return Stmt(new PrintState(value));
+  return Stmt(new PrintStmtState(value));
 }
-Stmt Parser::ExpressionStatement() {
+Stmt Parser::ExprStmtStatement() {
   Expr expr = Expression();
   if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
-    return Stmt(new ExpressionState(expr));
+    return Stmt(new ExprStmtState(expr));
   }
-  { return Stmt(new PrintState(expr)); }
+  { return Stmt(new PrintStmtState(expr)); }
 }
 Stmt Parser::Declaration() {
   if (AdvanceIfMatchAny<TokenType::VAR>()) {
@@ -106,7 +106,7 @@ Stmt Parser::Declaration() {
       init_expr = Expression();
     }
     Consume(TokenType::SEMICOLON, "Expect ; when var decl finish.");
-    return Stmt(new VarState(name, init_expr));
+    return Stmt(new VarDeclStmtState(name, init_expr));
   }
 
   return Statement();

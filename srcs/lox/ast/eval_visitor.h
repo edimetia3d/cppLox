@@ -34,9 +34,9 @@ class StmtEvaluator : public StmtVisitor {
   }
 
  protected:
-  object::LoxObject Visit(PrintState* state) override;
-  object::LoxObject Visit(ExpressionState* state) override;
-  object::LoxObject Visit(VarState* state) override;
+  object::LoxObject Visit(PrintStmtState* state) override;
+  object::LoxObject Visit(ExprStmtState* state) override;
+  object::LoxObject Visit(VarDeclStmtState* state) override;
 
  private:
   ExprEvaluator expr_evaluator_;

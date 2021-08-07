@@ -20,13 +20,13 @@ object::LoxObject ExprPrinter::Visit(UnaryState* state) {
 }
 object::LoxObject ExprPrinter::Visit(VariableState* state) { return object::LoxObject(state->name.lexeme_); }
 
-object::LoxObject StmtPrinter::Visit(PrintState* state) {
+object::LoxObject StmtPrinter::Visit(PrintStmtState* state) {
   return object::LoxObject(std::string("print ") + expr_printer_.Print(state->expression) + ";");
 }
-object::LoxObject StmtPrinter::Visit(ExpressionState* state) {
+object::LoxObject StmtPrinter::Visit(ExprStmtState* state) {
   return object::LoxObject(expr_printer_.Print(state->expression) + ";");
 }
-object::LoxObject StmtPrinter::Visit(VarState* state) {
+object::LoxObject StmtPrinter::Visit(VarDeclStmtState* state) {
   std::string init = "(NoInit)";
   if (state->initializer.State()) {
     init = " = " + expr_printer_.Print(state->initializer);

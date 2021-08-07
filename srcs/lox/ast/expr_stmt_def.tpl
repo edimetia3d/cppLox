@@ -6,7 +6,7 @@ Expr{
     "Variable" : "Token name",
 }
 Stmt{
-    "Expression" : "Expr expression",
-    "Print"      : "Expr expression",
-    "Var"        : "Token name, Expr initializer"
+    "ExprStmt"       : "Expr expression",
+    "PrintStmt"      : "Expr expression",
+    "VarDeclStmt"    : "Token name, Expr initializer"
 }
