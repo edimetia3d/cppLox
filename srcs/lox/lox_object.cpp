@@ -136,8 +136,8 @@ LoxObject LoxObject::operator-() { return -(*lox_object_state_); }
 LoxObject LoxObject::operator!() { return !(*lox_object_state_); }
 std::string LoxObject::ToString() { return lox_object_state_->ToString(); }
 LoxObject::operator bool() const { return lox_object_state_->IsTrue(); };
-void *LoxObject::RawObjPtr() { return lox_object_state_.get(); }
-void *LoxObject::RawObjPtr() const { return const_cast<LoxObject *>(this)->RawObjPtr(); }
+void *LoxObject::RawObjPtr() { return lox_object_state_->raw_value.get(); }
+void *LoxObject::RawObjPtr() const { return (const_cast<LoxObject *>(this))->RawObjPtr(); }
 
 #define QUICK_DEF_BINARY_OP(OPNAME, SYMBOL)                                                                      \
   DEF_DISPATCHER(OPNAME)                                                                                         \
