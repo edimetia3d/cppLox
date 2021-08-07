@@ -2,9 +2,9 @@
 // LICENSE: MIT
 //
 
-#include "lox_object.h"
+#include "lox/lox_object/lox_object.h"
 
-#include "lox/binary_dispatcher.h"
+#include "lox/lox_object/binary_dispatcher.h"
 
 namespace lox {
 namespace object {
@@ -14,10 +14,9 @@ struct LoxObjectState {
   LoxObjectState(const RealT &v) : raw_value(new RealT{v}) {}
   std::shared_ptr<void> raw_value;
   virtual LoxObjectStatePtr operator-() = 0;
-  virtual LoxObjectStatePtr operator!() = 0;
   virtual bool IsTrue() { return raw_value.get(); };
   virtual std::string ToString() {
-    return std::string("LoxObjectState at") + std::to_string((uint64_t)raw_value.get());
+    return std::string("LoxObjectState at ") + std::to_string((uint64_t)raw_value.get());
   };
 
   template <class T>
@@ -33,34 +32,18 @@ struct LoxObjectState {
   virtual ~LoxObjectState() = default;
 };
 
-struct Void : public LoxObjectState {
- public:
-  explicit Void() : LoxObjectState(0) {}
-
- private:
-  using LoxObjectState::AsNative;
-  using LoxObjectState::IsTrue;
-  using LoxObjectState::ToString;
-
-  virtual LoxObjectStatePtr operator-() { return LoxObjectStatePtr(nullptr); };
-  virtual LoxObjectStatePtr operator!() { return LoxObjectStatePtr(nullptr); };
-};
-
 struct Bool : public LoxObjectState {
   using RealT = bool;
   explicit Bool(const RealT &v) : LoxObjectState(v) {}
-  LoxObjectStatePtr operator!() override { return LoxObjectStatePtr(new Bool(!AsNative<RealT>())); };
   LoxObjectStatePtr operator-() override;
   bool IsTrue() override { return AsNative<RealT>(); }
   std::string ToString() override { return (AsNative<RealT>() ? "true" : "false"); }
 };
-
 struct Number : public LoxObjectState {
   using RealT = double;
   explicit Number(const RealT &v) : LoxObjectState(v) {}
   bool IsTrue() override { return static_cast<bool>(AsNative<RealT>()); }
   std::string ToString() override { return std::to_string(AsNative<RealT>()); }
-  LoxObjectStatePtr operator!() override { return LoxObjectStatePtr(new Bool(AsNative<RealT>())); }
   LoxObjectStatePtr operator-() override { return LoxObjectStatePtr(new Number(-AsNative<RealT>())); }
 };
 
@@ -70,7 +53,6 @@ struct String : public LoxObjectState {
   using RealT = std::string;
   explicit String(const RealT &v) : LoxObjectState(v) {}
   std::string ToString() override { return std::string("\"") + AsNative<RealT>() + "\""; }
-  LoxObjectStatePtr operator!() override { return LoxObjectStatePtr(new Bool(!IsTrue())); }
   LoxObjectStatePtr operator-() override { throw "`!` is not supported on String"; }
 };
 
@@ -144,11 +126,15 @@ LoxObjectStatePtr BinaryGE(Number *lhs, Number *rhs) {
 LoxObject::LoxObject(bool v) : lox_object_state_(new Bool(v)) {}
 LoxObject::LoxObject(double v) : lox_object_state_(new Number(v)) {}
 LoxObject::LoxObject(const std::string &v) : lox_object_state_(new String(v)) {}
-LoxObject LoxObject::VoidObject() { return LoxObject(LoxObjectStatePtr(new Void)); }
+LoxObject LoxObject::VoidObject() { return LoxObject(LoxObjectStatePtr(nullptr)); }
 LoxObject LoxObject::operator-() { return -(*lox_object_state_); }
-LoxObject LoxObject::operator!() { return !(*lox_object_state_); }
 std::string LoxObject::ToString() { return lox_object_state_->ToString(); }
-LoxObject::operator bool() const { return lox_object_state_->IsTrue(); };
+bool LoxObject::IsValueTrue() {
+  if (!IsValid()) {
+    throw "Not a valid LoxObject";
+  }
+  return lox_object_state_->IsTrue();
+};
 void *LoxObject::RawObjPtr() { return lox_object_state_->raw_value.get(); }
 void *LoxObject::RawObjPtr() const { return (const_cast<LoxObject *>(this))->RawObjPtr(); }
 

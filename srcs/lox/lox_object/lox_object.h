@@ -27,7 +27,6 @@ class LoxObject {
   static LoxObject VoidObject();
   // Uary
   LoxObject operator-();
-  LoxObject operator!();
 
   // Binary
   LoxObject operator-(LoxObject& rhs);
@@ -41,7 +40,8 @@ class LoxObject {
   LoxObject operator<=(LoxObject& rhs);
   LoxObject operator>=(LoxObject& rhs);
   std::string ToString();
-  operator bool() const;
+  bool IsValid() { return static_cast<bool>(lox_object_state_); }
+  bool IsValueTrue();
 
   template <class T>
   T& AsNative() {
@@ -52,7 +52,6 @@ class LoxObject {
   const T& AsNative() const {
     return *static_cast<T*>(RawObjPtr());
   }
-  LoxObjectStatePtr State() { return lox_object_state_; }
 
  private:
   void* RawObjPtr();

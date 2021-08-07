@@ -16,8 +16,8 @@ class ExprEvaluator : public ExprVisitor {
  public:
   explicit ExprEvaluator(std::shared_ptr<Environment> env) : work_env_(std::move(env)) {}
   object::LoxObject Eval(Expr expr) {
-    assert(expr.State());
-    return expr.State()->Accept(this);
+    assert(expr.IsValid());
+    return expr.Accept(this);
   }
 
  protected:
@@ -33,8 +33,8 @@ class StmtEvaluator : public StmtVisitor {
  public:
   explicit StmtEvaluator(std::shared_ptr<Environment> env) : work_env_(env), expr_evaluator_(env) {}
   object::LoxObject Eval(Stmt stmt) {
-    assert(stmt.State());
-    return stmt.State()->Accept(this);
+    assert(stmt.IsValid());
+    return stmt.Accept(this);
   }
 
  protected:

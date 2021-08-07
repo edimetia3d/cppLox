@@ -8,12 +8,13 @@
 
 #include <memory>
 
+#include "lox/lox_object/lox_object.h"
 #include "lox/token.h"
 
 namespace lox {
 
 class ExprState;
-
+class ExprVisitor;
 class Expr {
  public:
   /**
@@ -21,9 +22,9 @@ class Expr {
    */
   explicit Expr(ExprState* state) : state_(state) {}
   explicit Expr(std::shared_ptr<ExprState> state) : state_(std::move(state)) {}
-  explicit operator bool() { return static_cast<bool>(state_); }
+  bool IsValid() { return static_cast<bool>(state_); }
 
-  std::shared_ptr<ExprState> State() { return state_; }
+  object::LoxObject Accept(ExprVisitor* visitor);
 
  private:
   std::shared_ptr<ExprState> state_;

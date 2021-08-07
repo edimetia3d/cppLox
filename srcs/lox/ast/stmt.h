@@ -9,7 +9,7 @@
 namespace lox {
 
 class StmtState;
-
+class StmtVisitor;
 class Stmt {
  public:
   /**
@@ -17,9 +17,8 @@ class Stmt {
    */
   explicit Stmt(StmtState* state) : state_(state) {}
   explicit Stmt(std::shared_ptr<StmtState> state) : state_(std::move(state)) {}
-  explicit operator bool() { return static_cast<bool>(state_); }
-
-  std::shared_ptr<StmtState> State() { return state_; }
+  bool IsValid() { return static_cast<bool>(state_); }
+  object::LoxObject Accept(StmtVisitor* visitor);
 
  private:
   std::shared_ptr<StmtState> state_;

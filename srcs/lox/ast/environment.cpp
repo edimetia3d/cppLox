@@ -14,7 +14,7 @@ void Environment::Remove(std::string var_name) { map.erase(var_name); }
 void Environment::Set(std::string var_name, object::LoxObject value) { map[var_name] = value; }
 object::LoxObject Environment::Get(std::string var_name) {
   if (map.count(var_name) == 0) {
-    throw RuntimeError(Error(var_name + " Not found"));
+    throw "Var Not found";
   }
   return map[var_name];
 }

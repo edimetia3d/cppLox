@@ -32,7 +32,12 @@ object::LoxObject ExprEvaluator::Visit(UnaryState* state) {
     case TokenType::MINUS:
       return -right;
     case TokenType::BANG:
-      return !right;
+      try {
+        return object::LoxObject(right.IsValueTrue());
+      } catch (const char* msg) {
+        throw RuntimeError(Error(state->op, msg));
+      }
+
     default:
       throw RuntimeError(Error(state->op, "Not a valid Unary Op."));
   }
@@ -69,7 +74,18 @@ object::LoxObject ExprEvaluator::Visit(BinaryState* state) {
     throw RuntimeError(Error(state->op, msg));
   }
 }
-object::LoxObject ExprEvaluator::Visit(VariableState* state) { return work_env_->Get(state->name.lexeme_); }
+object::LoxObject ExprEvaluator::Visit(VariableState* state) {
+  auto ret = object::LoxObject::VoidObject();
+  try {
+    ret = work_env_->Get(state->name.lexeme_);
+  } catch (const char* msg) {
+    throw RuntimeError(Error(state->name, msg));
+  }
+  if (!ret.IsValid()) {
+    throw RuntimeError(Error(state->name, "Doesnt reference to a valid value."));
+  }
+  return ret;
+}
 
 object::LoxObject StmtEvaluator::Visit(PrintStmtState* state) {
   auto ret_v = expr_evaluator_.Eval(state->expression);
@@ -81,7 +97,10 @@ object::LoxObject StmtEvaluator::Visit(ExprStmtState* state) {
   return object::LoxObject::VoidObject();
 }
 object::LoxObject StmtEvaluator::Visit(VarDeclStmtState* state) {
-  auto value = expr_evaluator_.Eval(state->initializer);
+  auto value = object::LoxObject::VoidObject();
+  if (state->initializer.IsValid()) {
+    value = expr_evaluator_.Eval(state->initializer);
+  }
   work_env_->Define(state->name.lexeme_, value);
   return object::LoxObject::VoidObject();
 }

@@ -3,21 +3,27 @@ add_library(environment
         environment.cpp
         )
 
-add_library(ast
-        expr.h
-        stmt.h
-        ast_printer.cpp
-        eval_visitor.cpp
+add_library(expr_stmt
+        expr.cpp
+        stmt.cpp
         )
 
+add_library(ast_printer ast_printer.cpp)
+target_link_libraries(ast_printer PRIVATE lox_object)
+target_link_libraries(ast_printer PRIVATE expr_stmt)
 
-target_link_libraries(ast PUBLIC lox_object)
-target_link_libraries(ast PUBLIC environment)
+add_library(evaluator eval_visitor.cpp)
+target_link_libraries(evaluator PRIVATE lox_object)
+target_link_libraries(evaluator PRIVATE expr_stmt)
+target_link_libraries(evaluator PRIVATE environment)
+
+add_library(ast INTERFACE)
+target_link_libraries(ast INTERFACE evaluator ast_printer expr_stmt)
 
 
 find_package(Python3 COMPONENTS Interpreter)
 if (Python3_Interpreter_FOUND)
-    target_compile_definitions(ast PUBLIC DYNAMIC_GEN_DECL)
+    target_compile_definitions(expr_stmt PUBLIC DYNAMIC_GEN_DECL)
 
     add_custom_target(generated_expr_decl
             COMMAND ${Python3_EXECUTABLE} nodes_code_writer.py ${CMAKE_CURRENT_LIST_DIR}/expr_stmt_def.tpl ${CMAKE_CURRENT_BINARY_DIR}/expr_decl_dynamic.h.inc Expr

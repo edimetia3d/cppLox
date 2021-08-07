@@ -16,8 +16,8 @@ namespace lox {
 class ExprPrinter : public ExprVisitor {
  public:
   std::string Print(Expr expr) {
-    assert(expr.State());
-    return expr.State()->Accept(this).AsNative<std::string>();
+    assert(expr.IsValid());
+    return expr.Accept(this).AsNative<std::string>();
   }
 
  protected:
@@ -31,8 +31,8 @@ class ExprPrinter : public ExprVisitor {
 class StmtPrinter : public StmtVisitor {
  public:
   std::string Print(Stmt stmt) {
-    assert(stmt.State());
-    return stmt.State()->Accept(this).AsNative<std::string>();
+    assert(stmt.IsValid());
+    return stmt.Accept(this).AsNative<std::string>();
   }
 
  protected:

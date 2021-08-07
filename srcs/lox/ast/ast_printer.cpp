@@ -28,7 +28,7 @@ object::LoxObject StmtPrinter::Visit(ExprStmtState* state) {
 }
 object::LoxObject StmtPrinter::Visit(VarDeclStmtState* state) {
   std::string init = "(NoInit)";
-  if (state->initializer.State()) {
+  if (state->initializer.IsValid()) {
     init = " = " + expr_printer_.Print(state->initializer);
   }
   return object::LoxObject(std::string("var ") + state->name.lexeme_ + init + ";");
