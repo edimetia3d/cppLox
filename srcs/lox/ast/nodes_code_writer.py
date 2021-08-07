@@ -10,17 +10,17 @@ file_template = """
 #include "lox/lox_object.h"
 namespace lox{{
 {class_forward_decl}
-class Visitor {{
+class {target_key}Visitor {{
 
 protected:
 {virtual_visit_decls}
 }};
 
-class ExprState {{
+class {target_key}State {{
  public:
-  virtual ~ExprState() {{}}
+  virtual ~{target_key}State() {{}}
   
-  virtual object::LoxObject Accept(Visitor * visitor) = 0;
+  virtual object::LoxObject Accept({target_key}Visitor * visitor) = 0;
 
 }};
 
@@ -32,13 +32,13 @@ class ExprState {{
 """
 
 class_template = """
-class {class_name}State:public ExprState
+class {class_name}State:public {target_key}State
 {{
 public:
 explicit {class_name}State({init_params})
 :{init}{{}}
 {member_def}
-object::LoxObject Accept(Visitor * visitor) override {{
+object::LoxObject Accept({target_key}Visitor * visitor) override {{
   return visitor->Visit(this);
 }}
 }};
@@ -84,12 +84,14 @@ virtual object::LoxObject Visit({class_name}State *) = 0;
                 member_init.append(f"{member_name}(std::move({member_name}))")
             member_init = ",\n".join(member_init)
             member_init_params = ",".join(member_init_params)
-            class_decls = class_decls + class_template.format(class_name = class_name,
+            class_decls = class_decls + class_template.format(target_key = target_key,
+                                                              class_name = class_name,
                                                               init_params = member_init_params,
                                                               init = member_init,
                                                               member_def = member_def,
                                                               type_id = type_id)
-        output_file.write(file_template.format(this_file_name = os.path.basename(__file__),
+        output_file.write(file_template.format(target_key = target_key,
+                                               this_file_name = os.path.basename(__file__),
                                                current_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                                                class_forward_decl = class_forward_decl,
                                                class_decls = class_decls,
@@ -98,7 +100,7 @@ virtual object::LoxObject Visit({class_name}State *) = 0;
 
 
 if __name__ == "__main__":
-    input_file_path = "expr_def.tpl"
+    input_file_path = "expr_stmt_def.tpl"
     output_file_path = "tmp_gen_output.h.inc"
     target_key = "Expr"
     if len(sys.argv) >= 2:

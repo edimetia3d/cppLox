@@ -5,5 +5,6 @@ Expr{
     "Unary": "Token op, Expr right"
 }
 Stmt{
-
+    "Expression" : "Expr expression",
+    "Print"      : "Expr expression"
 }

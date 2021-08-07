@@ -8,7 +8,7 @@
 #include "lox/ast/expr.h"
 #include "lox/lox_object.h"
 namespace lox {
-class AstEvaluator : public Visitor {
+class AstEvaluator : public ExprVisitor {
  public:
   object::LoxObject Eval(Expr expr) { return expr.State()->Accept(this); }
 

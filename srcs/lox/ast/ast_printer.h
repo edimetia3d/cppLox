@@ -11,7 +11,7 @@
 #include "lox/ast/expr.h"
 
 namespace lox {
-class AstPrinter : public Visitor {
+class AstPrinter : public ExprVisitor {
  public:
   std::string Print(Expr expr) { return expr.State()->Accept(this).AsNative<std::string>(); }
 

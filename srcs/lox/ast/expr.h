@@ -30,7 +30,7 @@ class Expr {
 };
 }  // namespace lox
 
-#ifdef DYNAMIC_GEN_EXPR_DECL
+#ifdef DYNAMIC_GEN_DECL
 #include "lox/ast/expr_decl_dynamic.h.inc"
 #else
 #include "lox/ast/expr_decl.h.inc"
