@@ -26,6 +26,7 @@ class ExprEvaluator : public ExprVisitor {
   object::LoxObject Visit(LiteralState* state) override;
   object::LoxObject Visit(UnaryState* state) override;
   object::LoxObject Visit(VariableState* state) override;
+  object::LoxObject Visit(AssignState* state) override;
   std::shared_ptr<Environment> work_env_;
 };
 

@@ -19,6 +19,9 @@ object::LoxObject ExprPrinter::Visit(UnaryState* state) {
   return object::LoxObject(std::string("(") + state->op.lexeme_ + Print(state->right) + std::string(")"));
 }
 object::LoxObject ExprPrinter::Visit(VariableState* state) { return object::LoxObject(state->name.lexeme_); }
+object::LoxObject ExprPrinter::Visit(AssignState* state) {
+  return object::LoxObject(std::string("(") + state->name.lexeme_ + " = " + Print(state->value) + std::string(")"));
+}
 
 object::LoxObject StmtPrinter::Visit(PrintStmtState* state) {
   return object::LoxObject(std::string("print ") + expr_printer_.Print(state->expression) + ";");

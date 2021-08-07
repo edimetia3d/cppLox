@@ -26,6 +26,11 @@ class Expr {
 
   object::LoxObject Accept(ExprVisitor* visitor);
 
+  template <class T>
+  T* DownCastState() {
+    return dynamic_cast<T*>(state_.get());
+  }
+
  private:
   std::shared_ptr<ExprState> state_;
 };

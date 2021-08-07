@@ -86,6 +86,15 @@ object::LoxObject ExprEvaluator::Visit(VariableState* state) {
   }
   return ret;
 }
+object::LoxObject ExprEvaluator::Visit(AssignState* state) {
+  auto value = Eval(state->value);
+  try {
+    work_env_->Set(state->name.lexeme_, value);
+  } catch (const char* msg) {
+    throw RuntimeError(Error(state->name, msg));
+  }
+  return value;
+}
 
 object::LoxObject StmtEvaluator::Visit(PrintStmtState* state) {
   auto ret_v = expr_evaluator_.Eval(state->expression);

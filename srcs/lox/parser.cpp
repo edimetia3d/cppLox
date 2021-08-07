@@ -111,4 +111,21 @@ Stmt Parser::Declaration() {
 
   return Statement();
 }
+Expr Parser::Assignment() {
+  Expr expr = Equality();
+
+  if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
+    Token equals = Previous();
+    Expr value = Assignment();  // use recurse to impl the right-associative
+
+    if (auto state = expr.DownCastState<VariableState>()) {
+      Token name = state->name;
+      return Expr(new AssignState(name, value));
+    }
+
+    throw Error(equals, "Invalid assignment target.");
+  }
+
+  return expr;
+}
 }  // namespace lox

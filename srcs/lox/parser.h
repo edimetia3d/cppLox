@@ -82,7 +82,8 @@ class Parser {
   Stmt Statement();
   Stmt PrintStmtStatement();
   Stmt ExprStmtStatement();
-  Expr Expression() { return Equality(); }
+  Expr Expression() { return Assignment(); }
+  Expr Assignment();
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
   Expr BinaryExpression() {

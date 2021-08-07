@@ -4,6 +4,7 @@ Expr{
     "Literal": "Token value",
     "Unary": "Token op, Expr right",
     "Variable" : "Token name",
+    "Assign"   : "Token name, Expr value",
 }
 Stmt{
     "ExprStmt"       : "Expr expression",
