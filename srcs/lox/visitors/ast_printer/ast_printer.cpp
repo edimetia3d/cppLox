@@ -1,7 +1,7 @@
 //
 // License: MIT
 //
-#include "lox/ast/ast_printer.h"
+#include "lox/visitors/ast_printer/ast_printer.h"
 
 namespace lox {
 

@@ -7,11 +7,11 @@
 #include <fstream>
 #include <iostream>
 
-#include "lox/ast/ast_printer.h"
-#include "lox/ast/environment.h"
-#include "lox/ast/eval_visitor.h"
 #include "lox/parser.h"
 #include "lox/scanner.h"
+#include "lox/visitors/ast_printer/ast_printer.h"
+#include "lox/visitors/evaluator/environment.h"
+#include "lox/visitors/evaluator/evaluator.h"
 
 namespace lox {
 static bool g_debug = true;

@@ -7,7 +7,7 @@
 
 #include <cassert>
 
-#include "lox/ast/environment.h"
+#include "environment.h"
 #include "lox/ast/expr.h"
 #include "lox/ast/stmt.h"
 #include "lox/lox_object/lox_object.h"

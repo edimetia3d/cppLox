@@ -2,11 +2,10 @@
 // LICENSE: MIT
 //
 
-#include "lox/ast/eval_visitor.h"
+#include "lox/visitors/evaluator/evaluator.h"
 
 #include <iostream>
 
-#include "lox/ast/ast_printer.h"
 #include "lox/error.h"
 namespace lox {
 

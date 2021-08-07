@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/ast/environment.h"
+#include "lox/visitors/evaluator/environment.h"
 
 #include "lox/error.h"
 namespace lox {
