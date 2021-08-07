@@ -18,8 +18,19 @@ object::LoxObject lox::ExprPrinter::Visit(GroupingState* state) {
 object::LoxObject ExprPrinter::Visit(UnaryState* state) {
   return object::LoxObject(std::string("(") + state->op.lexeme_ + Print(state->right) + std::string(")"));
 }
-object::LoxObject ExprPrinter::Visit(VariableState* state) {
-  return object::LoxObject(std::string("Var{") + state->name.lexeme_ + std::string("}"));
-}
+object::LoxObject ExprPrinter::Visit(VariableState* state) { return object::LoxObject(state->name.lexeme_); }
 
+object::LoxObject StmtPrinter::Visit(PrintState* state) {
+  return object::LoxObject(std::string("print ") + expr_printer_.Print(state->expression) + ";");
+}
+object::LoxObject StmtPrinter::Visit(ExpressionState* state) {
+  return object::LoxObject(expr_printer_.Print(state->expression) + ";");
+}
+object::LoxObject StmtPrinter::Visit(VarState* state) {
+  std::string init = "(NoInit)";
+  if (state->initializer.State()) {
+    init = " = " + expr_printer_.Print(state->initializer);
+  }
+  return object::LoxObject(std::string("var ") + state->name.lexeme_ + init + ";");
+}
 }  // namespace lox

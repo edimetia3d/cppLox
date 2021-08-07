@@ -28,8 +28,8 @@ static std::map<std::string,TokenType> g_reserved_map{
 // clang-format on
 
 std::string Token::Str() const {
-  return std::string("Type: ") + std::to_string((int)type_) +
-         " Lexme: " + lexeme_ + " @Line: " + std::to_string(line_);
+  return std::string("[Type:{") + std::to_string((int)type_) + "},Lexme:{" + lexeme_ +
+         "},@Line:" + std::to_string(line_) + "]";
 }
 
 TokenType Token::GetIdentifierType(const std::string& identifier) {

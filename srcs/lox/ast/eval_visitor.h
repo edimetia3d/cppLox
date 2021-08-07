@@ -5,13 +5,18 @@
 #ifndef CPPLOX_SRCS_LOX_EVALUATOR_EVAL_VISITOR_H_
 #define CPPLOX_SRCS_LOX_EVALUATOR_EVAL_VISITOR_H_
 
+#include <cassert>
+
 #include "lox/ast/expr.h"
 #include "lox/ast/stmt.h"
 #include "lox/lox_object/lox_object.h"
 namespace lox {
 class ExprEvaluator : public ExprVisitor {
  public:
-  object::LoxObject Eval(Expr expr) { return expr.State()->Accept(this); }
+  object::LoxObject Eval(Expr expr) {
+    assert(expr.State());
+    return expr.State()->Accept(this);
+  }
 
  protected:
   object::LoxObject Visit(BinaryState* state) override;
@@ -23,7 +28,10 @@ class ExprEvaluator : public ExprVisitor {
 
 class StmtEvaluator : public StmtVisitor {
  public:
-  object::LoxObject Eval(Stmt stmt) { return stmt.State()->Accept(this); }
+  object::LoxObject Eval(Stmt stmt) {
+    assert(stmt.State());
+    return stmt.State()->Accept(this);
+  }
 
  protected:
   object::LoxObject Visit(PrintState* state) override;

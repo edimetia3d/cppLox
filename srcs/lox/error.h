@@ -37,10 +37,22 @@ struct RuntimeError : public std::exception {
   explicit RuntimeError(Error err) : err(std::move(err)) {}
   const char *what() noexcept {
     static std::string last_err;
-    last_err = err.Message().c_str();
+    last_err = std::string("RuntimeError: ") + err.Message().c_str();
     return last_err.c_str();
   }
 
+  Error err;
+};
+
+struct ParserError : public std::exception {
+  explicit ParserError(const Error &err) : err(err) {}
+  const char *what() noexcept {
+    static std::string last_err;
+    last_err = std::string("PaserError: ") + err.Message().c_str();
+    return last_err.c_str();
+  }
+
+ private:
   Error err;
 };
 

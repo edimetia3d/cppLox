@@ -43,25 +43,11 @@ class Parser {
   const std::vector<Token>& tokens;
   int current_idx = 0;
 
-  struct ParserException : public std::exception {
-    explicit ParserException(const Error& err) : err(err) {}
-    const char* what() noexcept {
-      static std::string last_err;
-      last_err = err.Message().c_str();
-      return last_err.c_str();
-    }
-
-   private:
-    Error err;
-  };
-
   const Token& Peek() { return tokens[current_idx]; }
 
   Token Consume(TokenType type, const std::string& message);
 
-  ParserException Error(Token token, const std::string& msg) {
-    return ParserException(lox::Error(token, msg));
-  }
+  ParserError Error(Token token, const std::string& msg) { return ParserError(lox::Error(token, msg)); }
 
   bool IsAtEnd() { return Peek().type_ == TokenType::EOF_TOKEN; }
 

@@ -29,8 +29,5 @@ std::string Error::RecursiveMessage(int level) {
   }
   return ret;
 }
-Error::Error(const Token &token, const std::string &message) {
-  message_ =
-      std::to_string(token.line_) + " " + token.lexeme_ + ":" + " " + message;
-}
+Error::Error(const Token &token, const std::string &message) { message_ = token.Str() + " what(): " + message; }
 }  // namespace lox

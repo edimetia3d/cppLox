@@ -19,7 +19,6 @@ class Expr {
   /**
    * This fn will take ownership of object state_ pointed to
    */
-  Expr(){};
   explicit Expr(ExprState* state) : state_(state) {}
   explicit Expr(std::shared_ptr<ExprState> state) : state_(std::move(state)) {}
   explicit operator bool() { return static_cast<bool>(state_); }

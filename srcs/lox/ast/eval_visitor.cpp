@@ -76,7 +76,7 @@ object::LoxObject ExprEvaluator::Visit(VariableState* state) {
 
 object::LoxObject StmtEvaluator::Visit(PrintState* state) {
   auto ret_v = expr_evaluator_.Eval(state->expression);
-  std::cout << "Str: " << ret_v.ToString() << std::endl;
+  std::cout << ret_v.ToString() << std::endl;
   return object::LoxObject::VoidObject();
 }
 object::LoxObject StmtEvaluator::Visit(ExpressionState* state) {

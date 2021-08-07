@@ -9,7 +9,7 @@ Error Scanner::Scan() {
   while (!IsAtEnd()) {
     ScanOneToken();
   }
-  tokens_.emplace_back(TokenType::EOF_TOKEN, "", line_);
+  tokens_.emplace_back(TokenType::EOF_TOKEN, "EOF", line_);
   return err_;
 }
 void Scanner::ScanOneToken() {

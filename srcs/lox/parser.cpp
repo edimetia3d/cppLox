@@ -3,6 +3,8 @@
 //
 
 #include "lox/parser.h"
+
+#include <iostream>
 namespace lox {
 lox::Expr lox::Parser::Equality() {
   return BinaryExpression<&Parser::Comparison, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
@@ -64,7 +66,15 @@ void lox::Parser::Synchronize() {
 std::vector<lox::Stmt> lox::Parser::Parse() {
   std::vector<lox::Stmt> statements;
   while (!IsAtEnd()) {
-    statements.push_back(Declaration());
+    try {
+      auto stmt = Declaration();
+      statements.push_back(stmt);
+    } catch (ParserError& error) {
+      std::cout << error.what() << std::endl;
+      Synchronize();
+      auto remained_statments = Parse();
+      statements.insert(statements.end(), remained_statments.begin(), remained_statments.end());
+    }
   }
 
   return statements;
@@ -89,21 +99,16 @@ Stmt Parser::ExpressionStatement() {
   { return Stmt(new PrintState(expr)); }
 }
 Stmt Parser::Declaration() {
-  try {
-    if (AdvanceIfMatchAny<TokenType::VAR>()) {
-      auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after var decl.");
-      Expr init_expr;
-      if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
-        init_expr = Expression();
-      }
-      Consume(TokenType::SEMICOLON, "Expect IDENTIFIER after var decl.");
-      return Stmt(new VarState(name, init_expr));
+  if (AdvanceIfMatchAny<TokenType::VAR>()) {
+    auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after key `var`.");
+    Expr init_expr(nullptr);
+    if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
+      init_expr = Expression();
     }
-
-    return Statement();
-  } catch (ParserException& error) {
-    Synchronize();
-    return Stmt(nullptr);
+    Consume(TokenType::SEMICOLON, "Expect ; when var decl finish.");
+    return Stmt(new VarState(name, init_expr));
   }
+
+  return Statement();
 }
 }  // namespace lox
