@@ -8,13 +8,17 @@
 #include <iostream>
 
 #include "lox/ast/ast_printer.h"
+#include "lox/ast/environment.h"
 #include "lox/ast/eval_visitor.h"
 #include "lox/parser.h"
 #include "lox/scanner.h"
 
 namespace lox {
 static bool g_debug = true;
-Lox::Lox() { evaluator_ = std::make_shared<StmtEvaluator>(); }
+Lox::Lox() {
+  global_env_ = std::make_shared<Environment>();
+  evaluator_ = std::make_shared<StmtEvaluator>(global_env_);
+}
 
 std::string Lox::CLIHelpString() { return std::string(); }
 

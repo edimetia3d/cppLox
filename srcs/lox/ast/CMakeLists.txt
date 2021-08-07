@@ -1,4 +1,8 @@
 
+add_library(environment
+        environment.cpp
+        )
+
 add_library(ast
         expr.h
         stmt.h
@@ -8,6 +12,7 @@ add_library(ast
 
 
 target_link_libraries(ast PUBLIC lox_object)
+target_link_libraries(ast PUBLIC environment)
 
 
 find_package(Python3 COMPONENTS Interpreter)

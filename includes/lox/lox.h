@@ -11,6 +11,7 @@
 
 namespace lox {
 class StmtEvaluator;
+class Environment;
 class Lox {
  public:
   Lox();
@@ -30,6 +31,7 @@ class Lox {
  private:
   Error RunStream(std::istream *istream, bool interactive_mode);
   std::shared_ptr<StmtEvaluator> evaluator_;
+  std::shared_ptr<Environment> global_env_;
 };
 
 }  // namespace lox
