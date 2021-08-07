@@ -69,6 +69,11 @@ object::LoxObject ExprEvaluator::Visit(BinaryState* state) {
     throw RuntimeError(Error(state->op, msg));
   }
 }
+object::LoxObject ExprEvaluator::Visit(VariableState* state) {
+  // todo get value here
+  return object::LoxObject(std::string("ValueOf{") + state->name.lexeme_ + std::string("}"));
+}
+
 object::LoxObject AstEvaluator::Visit(PrintState* state) {
   auto ret_v = expr_evaluator_.Eval(state->expression);
   static AstPrinter printer;
@@ -78,6 +83,10 @@ object::LoxObject AstEvaluator::Visit(PrintState* state) {
 }
 object::LoxObject AstEvaluator::Visit(ExpressionState* state) {
   expr_evaluator_.Eval(state->expression);
+  return object::LoxObject::VoidObject();
+}
+object::LoxObject AstEvaluator::Visit(VarState* state) {
+  // todo bind value here
   return object::LoxObject::VoidObject();
 }
 }  // namespace lox

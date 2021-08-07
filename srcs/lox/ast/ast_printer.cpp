@@ -18,5 +18,8 @@ object::LoxObject lox::AstPrinter::Visit(GroupingState* state) {
 object::LoxObject AstPrinter::Visit(UnaryState* state) {
   return object::LoxObject(std::string("(") + state->op.lexeme_ + Print(state->right) + std::string(")"));
 }
+object::LoxObject AstPrinter::Visit(VariableState* state) {
+  return object::LoxObject(std::string("Var{") + state->name.lexeme_ + std::string("}"));
+}
 
 }  // namespace lox

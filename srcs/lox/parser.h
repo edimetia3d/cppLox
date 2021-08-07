@@ -92,6 +92,7 @@ class Parser {
   inline bool AdvanceIfMatchAny() {
     return TokenRecursiveMatch<types...>::Run(this);
   }
+  Stmt Declaration();
   Stmt Statement();
   Stmt PrintStatement();
   Stmt ExpressionStatement();

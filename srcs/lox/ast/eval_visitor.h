@@ -18,6 +18,7 @@ class ExprEvaluator : public ExprVisitor {
   object::LoxObject Visit(GroupingState* state) override;
   object::LoxObject Visit(LiteralState* state) override;
   object::LoxObject Visit(UnaryState* state) override;
+  object::LoxObject Visit(VariableState* state) override;
 };
 
 class AstEvaluator : public StmtVisitor {
@@ -27,6 +28,7 @@ class AstEvaluator : public StmtVisitor {
  protected:
   object::LoxObject Visit(PrintState* state) override;
   object::LoxObject Visit(ExpressionState* state) override;
+  object::LoxObject Visit(VarState* state) override;
 
  private:
   ExprEvaluator expr_evaluator_;

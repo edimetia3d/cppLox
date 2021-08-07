@@ -20,6 +20,7 @@ class AstPrinter : public ExprVisitor {
   object::LoxObject Visit(GroupingState* state) override;
   object::LoxObject Visit(LiteralState* state) override;
   object::LoxObject Visit(UnaryState* state) override;
+  object::LoxObject Visit(VariableState* state) override;
 };
 }  // namespace lox
 

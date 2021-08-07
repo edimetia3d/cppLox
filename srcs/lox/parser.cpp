@@ -25,6 +25,10 @@ lox::Expr lox::Parser::Primary() {
   if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
     return Expr(new LiteralState(Previous()));
 
+  if (AdvanceIfMatchAny<TokenType::IDENTIFIER>()) {
+    return Expr(new VariableState(Previous()));
+  }
+
   if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
     auto expr = Expression();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
@@ -60,7 +64,7 @@ void lox::Parser::Synchronize() {
 std::vector<lox::Stmt> lox::Parser::Parse() {
   std::vector<lox::Stmt> statements;
   while (!IsAtEnd()) {
-    statements.push_back(Statement());
+    statements.push_back(Declaration());
   }
 
   return statements;
@@ -83,5 +87,23 @@ Stmt Parser::ExpressionStatement() {
     return Stmt(new ExpressionState(expr));
   }
   { return Stmt(new PrintState(expr)); }
+}
+Stmt Parser::Declaration() {
+  try {
+    if (AdvanceIfMatchAny<TokenType::VAR>()) {
+      auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after var decl.");
+      Expr init_expr;
+      if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
+        init_expr = Expression();
+      }
+      Consume(TokenType::SEMICOLON, "Expect IDENTIFIER after var decl.");
+      return Stmt(new VarState(name, init_expr));
+    }
+
+    return Statement();
+  } catch (ParserException& error) {
+    Synchronize();
+    return Stmt(nullptr);
+  }
 }
 }  // namespace lox
