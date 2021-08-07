@@ -8,5 +8,4 @@ add_subdirectory(ast)
 
 target_link_libraries(lox PUBLIC lox_public_header)
 target_link_libraries(lox PRIVATE version_info)
-target_link_libraries(lox PRIVATE expr_stmt)
-target_link_libraries(lox PRIVATE evaluator)
+target_link_libraries(lox PRIVATE ast)
