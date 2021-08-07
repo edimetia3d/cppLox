@@ -45,9 +45,19 @@ object::LoxObject Accept(Visitor * visitor) override {{
 """
 
 
-def gen_code(input_file_path, output_file_path):
+def gen_code(input_file_path, output_file_path, target_key = "Expr"):
+    import re
     with open(input_file_path, "r") as f:
-        all_def = eval(f.read())
+        split_str = re.split("({|})", f.read())
+        all_dict = {"Stmt": {}, "Expr": {}}
+        i = 0
+        while i < len(split_str):
+            if split_str[i] == "{":
+                all_dict[split_str[i - 1].strip()].update(eval("{" + split_str[i + 1] + "}"))
+                i = i + 3
+            i = i + 1
+
+        all_def = all_dict[target_key]
 
     with open(output_file_path, "w") as output_file:
         class_decls = ""
@@ -74,27 +84,30 @@ virtual object::LoxObject Visit({class_name}State *) = 0;
                 member_init.append(f"{member_name}(std::move({member_name}))")
             member_init = ",\n".join(member_init)
             member_init_params = ",".join(member_init_params)
-            class_decls = class_decls + class_template.format(class_name=class_name,
-                                                              init_params=member_init_params,
-                                                              init=member_init,
-                                                              member_def=member_def,
-                                                              type_id=type_id)
-        output_file.write(file_template.format(this_file_name=os.path.basename(__file__),
-                                               current_time=datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                                               class_forward_decl=class_forward_decl,
-                                               class_decls=class_decls,
-                                               virtual_visit_decls=virtual_visit_decls)
+            class_decls = class_decls + class_template.format(class_name = class_name,
+                                                              init_params = member_init_params,
+                                                              init = member_init,
+                                                              member_def = member_def,
+                                                              type_id = type_id)
+        output_file.write(file_template.format(this_file_name = os.path.basename(__file__),
+                                               current_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                                               class_forward_decl = class_forward_decl,
+                                               class_decls = class_decls,
+                                               virtual_visit_decls = virtual_visit_decls)
                           )
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
+    input_file_path = "expr_def.tpl"
+    output_file_path = "tmp_gen_output.h.inc"
+    target_key = "Expr"
+    if len(sys.argv) >= 2:
         input_file_path = sys.argv[1]
+
+    if len(sys.argv) >= 3:
         output_file_path = sys.argv[2]
-    elif len(sys.argv) == 2:
-        input_file_path = sys.argv[1]
-        output_file_path = "tmp_gen_output.h.inc"
-    else:
-        input_file_path = "expr_def.tpl"
-        output_file_path = "tmp_gen_output.h.inc"
-    gen_code(input_file_path, output_file_path)
+
+    if len(sys.argv) >= 4:
+        target_key = sys.argv[3]
+
+    gen_code(input_file_path, output_file_path, target_key = target_key)
