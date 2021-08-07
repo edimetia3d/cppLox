@@ -8,10 +8,13 @@
 #include <iostream>
 
 #include "lox/ast/ast_printer.h"
+#include "lox/evaluator/eval_visitor.h"
 #include "lox/parser.h"
 #include "lox/scanner.h"
 
 namespace lox {
+Lox::Lox() { evaluator_ = std::make_shared<AstEvaluator>(); }
+
 std::string Lox::CLIHelpString() { return std::string(); }
 
 Error Lox::RunFile(const std::string &file_path) {
@@ -62,7 +65,7 @@ Error Lox::Eval(const std::string &code, std::string *eval_output) {
     AstPrinter printer;
     output = printer.Print(expr) + "\n";
     try {
-      auto val = evaluator_.Eval(expr);
+      auto val = evaluator_->Eval(expr);
       output += val.ToString();
     } catch (RuntimeError &rt_err) {
       err.Append(rt_err.err);

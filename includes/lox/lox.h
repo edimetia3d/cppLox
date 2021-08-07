@@ -8,12 +8,12 @@
 #include <string>
 
 #include "lox/error.h"
-#include "lox/evaluator/eval_visitor.h"
 
 namespace lox {
-
+class AstEvaluator;
 class Lox {
  public:
+  Lox();
   static std::string CLIHelpString();
 
   Error RunFile(const std::string &file_path);
@@ -29,7 +29,7 @@ class Lox {
 
  private:
   Error RunStream(std::istream *istream, bool interactive_mode);
-  AstEvaluator evaluator_;
+  std::shared_ptr<AstEvaluator> evaluator_;
 };
 
 }  // namespace lox
