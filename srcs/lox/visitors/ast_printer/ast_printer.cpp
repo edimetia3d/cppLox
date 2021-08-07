@@ -3,6 +3,8 @@
 //
 #include "lox/visitors/ast_printer/ast_printer.h"
 
+#include <map>
+
 namespace lox {
 
 object::LoxObject lox::ExprPrinter::Visit(BinaryState* state) {
@@ -35,5 +37,34 @@ object::LoxObject StmtPrinter::Visit(VarDeclStmtState* state) {
     init = " = " + expr_printer_.Print(state->initializer);
   }
   return object::LoxObject(std::string("var ") + state->name.lexeme_ + init + ";");
+}
+namespace {
+struct Level {
+  struct V {
+    int v = -1;
+  };
+  int Value() { return nest_level[current_printer].v; }
+  Level(void* printer) : current_printer(printer) { nest_level[current_printer].v += 1; }
+  ~Level() { nest_level[current_printer].v -= 1; }
+  void* current_printer;
+  static std::map<void*, V> nest_level;
+};
+std::map<void*, Level::V> Level::nest_level;
+}  // namespace
+
+object::LoxObject StmtPrinter::Visit(BlockStmtState* state) {
+  Level level(this);
+  std::string tab_base = "  ";
+  std::string tab = "";
+  for (int i = 0; i < level.Value(); ++i) {
+    tab += tab_base;
+  }
+  std::string str = tab + "{\n";
+  for (auto& stmt : state->statements) {
+    str += (tab + Print(stmt));
+    str += (tab + "\n");
+  }
+  str += (tab + "}");
+  return object::LoxObject(str);
 }
 }  // namespace lox

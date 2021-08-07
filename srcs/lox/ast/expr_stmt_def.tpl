@@ -9,5 +9,6 @@ Expr{
 Stmt{
     "ExprStmt"       : "Expr expression",
     "PrintStmt"      : "Expr expression",
-    "VarDeclStmt"    : "Token name, Expr initializer"
+    "VarDeclStmt"    : "Token name, Expr initializer",
+    "BlockStmt"      : "std::vector<Stmt> statements",
 }

@@ -81,22 +81,25 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
 }
 lox::Stmt lox::Parser::Statement() {
   if (AdvanceIfMatchAny<TokenType::PRINT>()) {
-    return PrintStmtStatement();
+    return PrintStmt();
+  }
+  if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) {
+    return BlockStmt();
   }
 
-  return ExprStmtStatement();
+  return ExprStmt();
 }
-Stmt Parser::PrintStmtStatement() {
+Stmt Parser::PrintStmt() {
   Expr value = Expression();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
   return Stmt(new PrintStmtState(value));
 }
-Stmt Parser::ExprStmtStatement() {
+Stmt Parser::ExprStmt() {
   Expr expr = Expression();
   if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
     return Stmt(new ExprStmtState(expr));
   }
-  { return Stmt(new PrintStmtState(expr)); }
+  return Stmt(new PrintStmtState(expr));
 }
 Stmt Parser::Declaration() {
   if (AdvanceIfMatchAny<TokenType::VAR>()) {
@@ -127,5 +130,16 @@ Expr Parser::Assignment() {
   }
 
   return expr;
+}
+Stmt Parser::BlockStmt() { return Stmt(new BlockStmtState(Blocks())); }
+std::vector<Stmt> Parser::Blocks() {
+  std::vector<Stmt> statements;
+
+  while (!Check(TokenType::RIGHT_BRACE) && !IsAtEnd()) {
+    statements.push_back(Declaration());
+  }
+
+  Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+  return statements;
 }
 }  // namespace lox

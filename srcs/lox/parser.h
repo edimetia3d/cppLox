@@ -80,8 +80,10 @@ class Parser {
   }
   Stmt Declaration();
   Stmt Statement();
-  Stmt PrintStmtStatement();
-  Stmt ExprStmtStatement();
+  Stmt PrintStmt();
+  Stmt ExprStmt();
+  Stmt BlockStmt();
+  std::vector<Stmt> Blocks();
   Expr Expression() { return Assignment(); }
   Expr Assignment();
 

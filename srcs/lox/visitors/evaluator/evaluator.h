@@ -19,6 +19,12 @@ class ExprEvaluator : public ExprVisitor {
     assert(expr.IsValid());
     return expr.Accept(this);
   }
+  std::shared_ptr<Environment>& WorkEnv() { return work_env_; }
+  std::shared_ptr<Environment> WorkEnv(std::shared_ptr<Environment> new_env) {
+    auto old_env = work_env_;
+    work_env_ = new_env;
+    return old_env;
+  }
 
  protected:
   object::LoxObject Visit(BinaryState* state) override;
@@ -32,19 +38,32 @@ class ExprEvaluator : public ExprVisitor {
 
 class StmtEvaluator : public StmtVisitor {
  public:
-  explicit StmtEvaluator(std::shared_ptr<Environment> env) : work_env_(env), expr_evaluator_(env) {}
+  explicit StmtEvaluator(std::shared_ptr<Environment> env) : expr_evaluator_(env) {}
   object::LoxObject Eval(Stmt stmt) {
     assert(stmt.IsValid());
     return stmt.Accept(this);
+  }
+
+  std::shared_ptr<Environment>& WorkEnv() { return expr_evaluator_.WorkEnv(); }
+  std::shared_ptr<Environment> WorkEnv(std::shared_ptr<Environment> new_env) {
+    return expr_evaluator_.WorkEnv(new_env);
   }
 
  protected:
   object::LoxObject Visit(PrintStmtState* state) override;
   object::LoxObject Visit(ExprStmtState* state) override;
   object::LoxObject Visit(VarDeclStmtState* state) override;
-
+  object::LoxObject Visit(BlockStmtState* state) override;
   ExprEvaluator expr_evaluator_;
-  std::shared_ptr<Environment> work_env_;
+
+  struct EnterNewScopeGuard {
+    EnterNewScopeGuard(StmtEvaluator* ev) : evaluator(ev) {
+      backup = evaluator->WorkEnv(std::make_shared<Environment>(evaluator->WorkEnv()));
+    }
+    ~EnterNewScopeGuard() { evaluator->WorkEnv(backup); }
+    std::shared_ptr<Environment> backup;
+    StmtEvaluator* evaluator;
+  };
 };
 
 }  // namespace lox

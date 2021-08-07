@@ -76,7 +76,7 @@ object::LoxObject ExprEvaluator::Visit(BinaryState* state) {
 object::LoxObject ExprEvaluator::Visit(VariableState* state) {
   auto ret = object::LoxObject::VoidObject();
   try {
-    ret = work_env_->Get(state->name.lexeme_);
+    ret = WorkEnv()->Get(state->name.lexeme_);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }
@@ -88,7 +88,7 @@ object::LoxObject ExprEvaluator::Visit(VariableState* state) {
 object::LoxObject ExprEvaluator::Visit(AssignState* state) {
   auto value = Eval(state->value);
   try {
-    work_env_->Set(state->name.lexeme_, value);
+    WorkEnv()->Set(state->name.lexeme_, value);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }
@@ -109,7 +109,14 @@ object::LoxObject StmtEvaluator::Visit(VarDeclStmtState* state) {
   if (state->initializer.IsValid()) {
     value = expr_evaluator_.Eval(state->initializer);
   }
-  work_env_->Define(state->name.lexeme_, value);
+  WorkEnv()->Define(state->name.lexeme_, value);
+  return object::LoxObject::VoidObject();
+}
+object::LoxObject StmtEvaluator::Visit(BlockStmtState* state) {
+  EnterNewScopeGuard guard(this);
+  for (auto& stmt : state->statements) {
+    Eval(stmt);
+  }
   return object::LoxObject::VoidObject();
 }
 }  // namespace lox

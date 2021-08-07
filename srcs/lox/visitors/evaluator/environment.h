@@ -12,12 +12,15 @@ namespace lox {
 
 class Environment {
  public:
+  Environment() {}
+  Environment(std::shared_ptr<Environment> enclosing) : enclosing_(enclosing) {}
   void Define(std::string var_name, object::LoxObject value);
   void Remove(std::string var_name);
   void Set(std::string var_name, object::LoxObject value);
   object::LoxObject Get(std::string var_name);
 
  private:
+  std::shared_ptr<Environment> enclosing_;
   std::map<std::string, object::LoxObject> map;
 };
 

@@ -4,6 +4,9 @@
 
 #ifndef CPPLOX_SRCS_LOX_AST_STMT_H_
 #define CPPLOX_SRCS_LOX_AST_STMT_H_
+
+#include <vector>
+
 #include "lox/ast/expr.h"
 
 namespace lox {
