@@ -16,29 +16,6 @@ namespace object {
 struct LoxObjectState;
 using LoxObjectStatePtr = std::shared_ptr<LoxObjectState>;
 
-struct LoxObjectState {
-  template <class RealT>
-  LoxObjectState(const RealT& v) : raw_value(new RealT{v}) {}
-  std::shared_ptr<void> raw_value;
-  virtual LoxObjectStatePtr operator-() = 0;
-  virtual LoxObjectStatePtr operator!() = 0;
-  virtual bool IsTrue() { return raw_value.get(); };
-  virtual std::string ToString() {
-    return std::string("LoxObjectState at") + std::to_string((uint64_t)raw_value.get());
-  };
-
-  template <class T>
-  T& AsNative() {
-    return *static_cast<T*>(raw_value.get());
-  }
-
-  template <class T>
-  const T& AsNative() const {
-    return *static_cast<T*>(raw_value.get());
-  }
-
-  virtual ~LoxObjectState() = default;
-};
 class LoxObject {
  public:
   LoxObject() = default;
@@ -67,14 +44,18 @@ class LoxObject {
 
   template <class T>
   T& AsNative() {
-    return lox_object_state_->template AsNative<T>();
+    return *static_cast<T*>(RawObjPtr());
   }
 
   template <class T>
   const T& AsNative() const {
-    return lox_object_state_->template AsNative<T>();
+    return *static_cast<T*>(RawObjPtr());
   }
+  LoxObjectStatePtr State() { return lox_object_state_; }
 
+ private:
+  void* RawObjPtr();
+  void* RawObjPtr() const;
   LoxObjectStatePtr lox_object_state_;
 };
 }  // namespace object

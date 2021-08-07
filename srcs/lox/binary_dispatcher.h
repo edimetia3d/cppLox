@@ -14,19 +14,19 @@
     struct In {                                                                              \
       static void Run(LoxObjectState *lhs, LoxObjectState *rhs, LoxObject *output) {         \
         DISPATCHTER(OPERATION_NAME)<LhsT>::template In<RhsT>::Run(lhs, rhs, output);         \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
         DISPATCHTER(OPERATION_NAME)<LhsT>::template In<RhsTs...>::Run(lhs, rhs, output);     \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
         DISPATCHTER(OPERATION_NAME)<LhsTs...>::template In<RhsT>::Run(lhs, rhs, output);     \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
         DISPATCHTER(OPERATION_NAME)<LhsTs...>::template In<RhsTs...>::Run(lhs, rhs, output); \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
       }                                                                                      \
@@ -36,11 +36,11 @@
     struct In<RhsT> {                                                                        \
       static void Run(LoxObjectState *lhs, LoxObjectState *rhs, LoxObject *output) {         \
         DISPATCHTER(OPERATION_NAME)<LhsT>::template In<RhsT>::Run(lhs, rhs, output);         \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
         DISPATCHTER(OPERATION_NAME)<LhsTs...>::template In<RhsT>::Run(lhs, rhs, output);     \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
       }                                                                                      \
@@ -53,11 +53,11 @@
     struct In {                                                                              \
       static void Run(LoxObjectState *lhs, LoxObjectState *rhs, LoxObject *output) {         \
         DISPATCHTER(OPERATION_NAME)<LhsT>::template In<RhsT>::Run(lhs, rhs, output);         \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
         DISPATCHTER(OPERATION_NAME)<LhsT>::template In<RhsTs...>::Run(lhs, rhs, output);     \
-        if (output->lox_object_state_) {                                                     \
+        if (output->State()) {                                                               \
           return;                                                                            \
         }                                                                                    \
       }                                                                                      \

@@ -9,6 +9,30 @@
 namespace lox {
 namespace object {
 
+struct LoxObjectState {
+  template <class RealT>
+  LoxObjectState(const RealT &v) : raw_value(new RealT{v}) {}
+  std::shared_ptr<void> raw_value;
+  virtual LoxObjectStatePtr operator-() = 0;
+  virtual LoxObjectStatePtr operator!() = 0;
+  virtual bool IsTrue() { return raw_value.get(); };
+  virtual std::string ToString() {
+    return std::string("LoxObjectState at") + std::to_string((uint64_t)raw_value.get());
+  };
+
+  template <class T>
+  T &AsNative() {
+    return *static_cast<T *>(raw_value.get());
+  }
+
+  template <class T>
+  const T &AsNative() const {
+    return *static_cast<T *>(raw_value.get());
+  }
+
+  virtual ~LoxObjectState() = default;
+};
+
 struct Bool : public LoxObjectState {
   using RealT = bool;
   explicit Bool(const RealT &v) : LoxObjectState(v) {}
@@ -112,6 +136,8 @@ LoxObject LoxObject::operator-() { return -(*lox_object_state_); }
 LoxObject LoxObject::operator!() { return !(*lox_object_state_); }
 std::string LoxObject::ToString() { return lox_object_state_->ToString(); }
 LoxObject::operator bool() const { return lox_object_state_->IsTrue(); };
+void *LoxObject::RawObjPtr() { return lox_object_state_.get(); }
+void *LoxObject::RawObjPtr() const { return const_cast<LoxObject *>(this)->RawObjPtr(); }
 
 #define QUICK_DEF_BINARY_OP(OPNAME, SYMBOL)                                                                      \
   DEF_DISPATCHER(OPNAME)                                                                                         \
