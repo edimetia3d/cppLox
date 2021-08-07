@@ -21,7 +21,7 @@ class ExprEvaluator : public ExprVisitor {
   object::LoxObject Visit(VariableState* state) override;
 };
 
-class AstEvaluator : public StmtVisitor {
+class StmtEvaluator : public StmtVisitor {
  public:
   object::LoxObject Eval(Stmt stmt) { return stmt.State()->Accept(this); }
 

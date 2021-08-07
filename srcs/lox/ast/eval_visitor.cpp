@@ -74,18 +74,16 @@ object::LoxObject ExprEvaluator::Visit(VariableState* state) {
   return object::LoxObject(std::string("ValueOf{") + state->name.lexeme_ + std::string("}"));
 }
 
-object::LoxObject AstEvaluator::Visit(PrintState* state) {
+object::LoxObject StmtEvaluator::Visit(PrintState* state) {
   auto ret_v = expr_evaluator_.Eval(state->expression);
-  static AstPrinter printer;
-  std::cout << "Expr: " << printer.Print(state->expression) << std::endl;
   std::cout << "Str: " << ret_v.ToString() << std::endl;
   return object::LoxObject::VoidObject();
 }
-object::LoxObject AstEvaluator::Visit(ExpressionState* state) {
+object::LoxObject StmtEvaluator::Visit(ExpressionState* state) {
   expr_evaluator_.Eval(state->expression);
   return object::LoxObject::VoidObject();
 }
-object::LoxObject AstEvaluator::Visit(VarState* state) {
+object::LoxObject StmtEvaluator::Visit(VarState* state) {
   // todo bind value here
   return object::LoxObject::VoidObject();
 }

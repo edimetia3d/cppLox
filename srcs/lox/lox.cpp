@@ -13,7 +13,7 @@
 #include "lox/scanner.h"
 
 namespace lox {
-Lox::Lox() { evaluator_ = std::make_shared<AstEvaluator>(); }
+Lox::Lox() { evaluator_ = std::make_shared<StmtEvaluator>(); }
 
 std::string Lox::CLIHelpString() { return std::string(); }
 
