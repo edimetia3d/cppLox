@@ -82,5 +82,10 @@ object::LoxObject StmtPrinter::Visit(IfStmtState* state) {
   }
   return object::LoxObject(ret);
 }
+object::LoxObject StmtPrinter::Visit(WhileStmtState* state) {
+  std::string ret = "while ( " + expr_printer_.Print(state->condition) + " )\n";
+  ret += "{\n" + Print(state->body) + "}\n";
+  return object::LoxObject(ret);
+}
 
 }  // namespace lox

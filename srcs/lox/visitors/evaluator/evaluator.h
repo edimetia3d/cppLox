@@ -52,6 +52,7 @@ class StmtEvaluator : public StmtVisitor {
 
  protected:
   object::LoxObject Visit(PrintStmtState* state) override;
+  object::LoxObject Visit(WhileStmtState* state) override;
   object::LoxObject Visit(ExprStmtState* state) override;
   object::LoxObject Visit(VarDeclStmtState* state) override;
   object::LoxObject Visit(BlockStmtState* state) override;

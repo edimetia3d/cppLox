@@ -141,4 +141,10 @@ object::LoxObject StmtEvaluator::Visit(IfStmtState* state) {
   }
   return object::LoxObject::VoidObject();
 }
+object::LoxObject StmtEvaluator::Visit(WhileStmtState* state) {
+  while ((expr_evaluator_.Eval(state->condition)).IsValueTrue()) {
+    Eval(state->body);
+  }
+  return object::LoxObject::VoidObject();
+}
 }  // namespace lox

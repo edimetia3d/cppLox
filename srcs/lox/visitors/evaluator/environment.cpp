@@ -14,7 +14,7 @@ void Environment::Remove(std::string var_name) { map.erase(var_name); }
 void Environment::Set(std::string var_name, object::LoxObject value) {
   if (map.count(var_name) == 0) {
     if (enclosing_) {
-      enclosing_->Set(var_name, value);
+      return enclosing_->Set(var_name, value);
     }
     throw "Var Not found";
   }

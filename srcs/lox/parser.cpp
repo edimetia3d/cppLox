@@ -102,12 +102,9 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
 }
 lox::Stmt lox::Parser::Statement() {
   if (AdvanceIfMatchAny<TokenType::IF>()) return IfStmt();
-  if (AdvanceIfMatchAny<TokenType::PRINT>()) {
-    return PrintStmt();
-  }
-  if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) {
-    return BlockStmt();
-  }
+  if (AdvanceIfMatchAny<TokenType::WHILE>()) return WhileStmt();
+  if (AdvanceIfMatchAny<TokenType::PRINT>()) return PrintStmt();
+  if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) return BlockStmt();
 
   return ExprStmt();
 }
@@ -176,6 +173,14 @@ Stmt Parser::IfStmt() {
   }
 
   return Stmt(new IfStmtState(condition, thenBranch, elseBranch));
+}
+Stmt Parser::WhileStmt() {
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
+  Expr condition = Expression();
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
+  Stmt body = Statement();
+
+  return Stmt(new WhileStmtState(condition, body));
 }
 
 }  // namespace lox
