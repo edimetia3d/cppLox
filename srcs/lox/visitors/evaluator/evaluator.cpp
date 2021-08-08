@@ -41,6 +41,20 @@ object::LoxObject ExprEvaluator::Visit(UnaryState* state) {
       throw RuntimeError(Error(state->op, "Not a valid Unary Op."));
   }
 }
+
+object::LoxObject ExprEvaluator::Visit(LogicalState* state) {
+  auto left = Eval(state->left);
+  if (state->op.type_ == TokenType::AND) {
+    if (left.IsValueTrue()) {
+      return Eval(state->right);
+    }
+
+  } else if (!left.IsValueTrue()) {
+    return Eval(state->right);
+  }
+  return left;
+}
+
 object::LoxObject ExprEvaluator::Visit(BinaryState* state) {
   auto left = Eval(state->left);
   auto right = Eval(state->right);

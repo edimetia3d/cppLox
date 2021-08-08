@@ -6,6 +6,27 @@
 
 #include <iostream>
 namespace lox {
+Expr Parser::Or() {
+  auto expr = And();
+
+  while (AdvanceIfMatchAny<TokenType::OR>()) {
+    Token op = Previous();
+    auto r_expr = And();
+    expr = Expr(new LogicalState(expr, op, r_expr));
+  }
+  return expr;
+}
+Expr Parser::And() {
+  auto expr = Equality();
+
+  while (AdvanceIfMatchAny<TokenType::AND>()) {
+    Token op = Previous();
+    auto r_expr = Equality();
+    expr = Expr(new LogicalState(expr, op, r_expr));
+  }
+  return expr;
+}
+
 lox::Expr lox::Parser::Equality() {
   return BinaryExpression<&Parser::Comparison, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
 }
@@ -116,7 +137,7 @@ Stmt Parser::Declaration() {
   return Statement();
 }
 Expr Parser::Assignment() {
-  Expr expr = Equality();
+  Expr expr = Or();
 
   if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
     Token equals = Previous();
@@ -156,4 +177,5 @@ Stmt Parser::IfStmt() {
 
   return Stmt(new IfStmtState(condition, thenBranch, elseBranch));
 }
+
 }  // namespace lox

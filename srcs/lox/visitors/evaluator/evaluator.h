@@ -27,6 +27,7 @@ class ExprEvaluator : public ExprVisitor {
   }
 
  protected:
+  object::LoxObject Visit(LogicalState* state) override;
   object::LoxObject Visit(BinaryState* state) override;
   object::LoxObject Visit(GroupingState* state) override;
   object::LoxObject Visit(LiteralState* state) override;

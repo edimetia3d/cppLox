@@ -107,6 +107,9 @@ class Parser {
     // ok now it's done
     return expr;
   }
+  Expr Or();
+
+  Expr And();
 
   Expr Equality();
 

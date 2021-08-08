@@ -7,11 +7,18 @@
 
 namespace lox {
 
+object::LoxObject ExprPrinter::Visit(LogicalState* state) {
+  std::string left_expr = Print(state->left);
+  std::string op = state->op.lexeme_;
+  std::string right_expr = Print(state->right);
+  return object::LoxObject(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
+}
+
 object::LoxObject lox::ExprPrinter::Visit(BinaryState* state) {
   std::string left_expr = Print(state->left);
   std::string op = state->op.lexeme_;
   std::string right_expr = Print(state->right);
-  return object::LoxObject(std::string("(") + left_expr + op + right_expr + std::string(")"));
+  return object::LoxObject(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
 }
 object::LoxObject ExprPrinter::Visit(LiteralState* state) { return object::LoxObject(state->value.lexeme_); }
 object::LoxObject lox::ExprPrinter::Visit(GroupingState* state) {
