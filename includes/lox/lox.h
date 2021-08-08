@@ -29,7 +29,7 @@ class Lox {
   void Eval(const std::string &code);
 
  private:
-  Error RunStream(std::istream *istream, bool interactive_mode);
+  Error RunStream(std::istream *istream);
   std::shared_ptr<StmtEvaluator> evaluator_;
   std::shared_ptr<Environment> global_env_;
 };

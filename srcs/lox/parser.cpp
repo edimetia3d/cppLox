@@ -5,6 +5,8 @@
 #include "lox/parser.h"
 
 #include <iostream>
+
+#include "lox/global_setting/global_setting.h"
 namespace lox {
 Expr Parser::Or() {
   auto expr = And();
@@ -93,8 +95,8 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
     } catch (ParserError& error) {
       std::cout << error.what() << std::endl;
       Synchronize();
-      auto remained_statments = Parse();
-      statements.insert(statements.end(), remained_statments.begin(), remained_statments.end());
+      Parse();
+      statements.clear();
     }
   }
 
@@ -118,8 +120,13 @@ Stmt Parser::ExprStmt() {
   Expr expr = Expression();
   if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
     return Stmt(new ExprStmtState(expr));
+  } else {
+    if (GlobalSetting().interactive_mode) {
+      return Stmt(new PrintStmtState(expr));
+    } else {
+      throw Error(Peek(), "Non-interactive mode must have ; after expression");
+    }
   }
-  return Stmt(new PrintStmtState(expr));
 }
 Stmt Parser::Declaration() {
   if (AdvanceIfMatchAny<TokenType::VAR>()) {

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "lox/global_setting/global_setting.h"
 #include "lox/parser.h"
 #include "lox/scanner.h"
 #include "lox/visitors/ast_printer/ast_printer.h"
@@ -24,14 +25,18 @@ std::string Lox::CLIHelpString() { return std::string(); }
 
 Error Lox::RunFile(const std::string &file_path) {
   std::ifstream infile(file_path);
-  return RunStream(&infile, false);
+  GlobalSetting().interactive_mode = false;
+  return RunStream(&infile);
 }
 
-Error Lox::RunPrompt() { return RunStream(&std::cin, true); }
+Error Lox::RunPrompt() {
+  GlobalSetting().interactive_mode = true;
+  return RunStream(&std::cin);
+}
 
-Error Lox::RunStream(std::istream *istream, bool interactive_mode) {
+Error Lox::RunStream(std::istream *istream) {
   Error err;
-  if (interactive_mode) {
+  if (GlobalSetting().interactive_mode) {
     std::string one_line;
     std::cout << ">> ";
     while (std::getline(*istream, one_line)) {
