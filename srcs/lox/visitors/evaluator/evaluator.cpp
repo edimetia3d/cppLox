@@ -119,4 +119,12 @@ object::LoxObject StmtEvaluator::Visit(BlockStmtState* state) {
   }
   return object::LoxObject::VoidObject();
 }
+object::LoxObject StmtEvaluator::Visit(IfStmtState* state) {
+  if ((expr_evaluator_.Eval(state->condition)).IsValueTrue()) {
+    Eval(state->thenBranch);
+  } else if (state->elseBranch.IsValid()) {
+    Eval(state->elseBranch);
+  }
+  return object::LoxObject::VoidObject();
+}
 }  // namespace lox

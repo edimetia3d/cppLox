@@ -41,6 +41,7 @@ class StmtPrinter : public StmtVisitor {
   object::LoxObject Visit(ExprStmtState* state) override;
   object::LoxObject Visit(VarDeclStmtState* state) override;
   object::LoxObject Visit(BlockStmtState* state) override;
+  object::LoxObject Visit(IfStmtState* state) override;
 
  private:
   ExprPrinter expr_printer_;

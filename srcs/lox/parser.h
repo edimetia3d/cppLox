@@ -84,6 +84,7 @@ class Parser {
   Stmt ExprStmt();
   Stmt BlockStmt();
   std::vector<Stmt> Blocks();
+  Stmt IfStmt();
   Expr Expression() { return Assignment(); }
   Expr Assignment();
 

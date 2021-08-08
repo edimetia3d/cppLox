@@ -67,4 +67,13 @@ object::LoxObject StmtPrinter::Visit(BlockStmtState* state) {
   str += (tab + "}");
   return object::LoxObject(str);
 }
+object::LoxObject StmtPrinter::Visit(IfStmtState* state) {
+  std::string ret = "if ( " + expr_printer_.Print(state->condition) + " )\n";
+  ret += "{\n" + Print(state->thenBranch) + "}\n";
+  if (state->elseBranch.IsValid()) {
+    ret += "{\n" + Print(state->elseBranch) + "}\n";
+  }
+  return object::LoxObject(ret);
+}
+
 }  // namespace lox

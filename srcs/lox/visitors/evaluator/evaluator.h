@@ -54,6 +54,7 @@ class StmtEvaluator : public StmtVisitor {
   object::LoxObject Visit(ExprStmtState* state) override;
   object::LoxObject Visit(VarDeclStmtState* state) override;
   object::LoxObject Visit(BlockStmtState* state) override;
+  object::LoxObject Visit(IfStmtState* state) override;
   ExprEvaluator expr_evaluator_;
 
   struct EnterNewScopeGuard {
