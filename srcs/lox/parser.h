@@ -82,6 +82,7 @@ class Parser {
   Stmt Statement();
   Stmt PrintStmt();
   Stmt WhileStmt();
+  Stmt ForStmtSugar();
   Stmt ExprStmt();
   Stmt BlockStmt();
   std::vector<Stmt> Blocks();

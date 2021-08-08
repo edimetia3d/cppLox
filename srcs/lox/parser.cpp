@@ -103,6 +103,7 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
 lox::Stmt lox::Parser::Statement() {
   if (AdvanceIfMatchAny<TokenType::IF>()) return IfStmt();
   if (AdvanceIfMatchAny<TokenType::WHILE>()) return WhileStmt();
+  if (AdvanceIfMatchAny<TokenType::FOR>()) return ForStmtSugar();
   if (AdvanceIfMatchAny<TokenType::PRINT>()) return PrintStmt();
   if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) return BlockStmt();
 
@@ -181,6 +182,48 @@ Stmt Parser::WhileStmt() {
   Stmt body = Statement();
 
   return Stmt(new WhileStmtState(condition, body));
+}
+Stmt Parser::ForStmtSugar() {
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
+
+  Stmt initializer(nullptr);
+  if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
+  } else if (Check(TokenType::VAR)) {
+    initializer = Declaration();
+  } else {
+    initializer = ExprStmt();
+  }
+
+  Expr condition(nullptr);
+  if (!Check(TokenType::SEMICOLON)) {
+    condition = Expression();
+  }
+  Consume(TokenType::SEMICOLON, "Expect ';' after loop condition.");
+
+  Expr increment(nullptr);
+  if (!Check(TokenType::RIGHT_PAREN)) {
+    increment = Expression();
+  }
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
+  Stmt body = Statement();
+
+  if (increment.IsValid()) {
+    std::vector<Stmt> body_with_increasement = {body};
+    body_with_increasement.push_back(Stmt(new ExprStmtState(increment)));
+    body = Stmt(new BlockStmtState(body_with_increasement));
+  }
+  if (!condition.IsValid()) {
+    auto tmp_true_token = Token(TokenType::TRUE, "for_sugar_true", Peek().line_);
+    condition = Expr(new LiteralState(tmp_true_token));
+  }
+  body = Stmt(new WhileStmtState(condition, body));
+
+  if (initializer.IsValid()) {
+    std::vector<Stmt> body_with_initializer = {initializer, body};
+    body = Stmt(new BlockStmtState(body_with_initializer));
+  }
+
+  return body;
 }
 
 }  // namespace lox
