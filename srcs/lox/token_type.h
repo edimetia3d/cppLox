@@ -22,9 +22,11 @@ enum class TokenType {
 
   // Keywords.
   AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-  PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+  PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,BREAK,CONTINUE,
 
-  EOF_TOKEN
+  EOF_TOKEN,
+
+  _TOKEN_COUNT_NUMBER
 };
 // clang-format on
 }  // namespace lox

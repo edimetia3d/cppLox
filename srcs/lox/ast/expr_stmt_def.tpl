@@ -13,5 +13,6 @@ Stmt{
     "ExprStmt"       : "Expr expression",
     "PrintStmt"      : "Expr expression",
     "BlockStmt"      : "std::vector<Stmt> statements",
-    "IfStmt"         : "Expr condition, Stmt thenBranch, Stmt elseBranch"
+    "IfStmt"         : "Expr condition, Stmt thenBranch, Stmt elseBranch",
+    "BreakStmt"      : "Token src_token",
 }

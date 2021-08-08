@@ -26,8 +26,10 @@ class Error {
 
   int ToErrCode();
   void Append(const Error &new_err);
+  const Token &SourceToken() const { return token_; }
 
  private:
+  Token token_{TokenType::_TOKEN_COUNT_NUMBER, "None", -1};
   std::string message_;
   std::string RecursiveMessage(int level);
   std::vector<ErrorNode> sub_errors;
@@ -52,8 +54,7 @@ struct ParserError : public std::exception {
     return last_err.c_str();
   }
 
- private:
-  Error err;
+  lox::Error err;
 };
 
 #define ERR_STR(STR) Error(std::string("[") + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "] " + STR)

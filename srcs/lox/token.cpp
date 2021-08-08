@@ -23,7 +23,9 @@ static std::map<std::string,TokenType> g_reserved_map{
     {"this",   TokenType::THIS},
     {"true",   TokenType::TRUE},
     {"var",    TokenType::VAR},
-    {"while",  TokenType::WHILE}
+    {"while",  TokenType::WHILE},
+    {"break",  TokenType::BREAK},
+    {"continue",  TokenType::CONTINUE}
 };
 // clang-format on
 

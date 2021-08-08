@@ -42,6 +42,7 @@ class Parser {
  private:
   const std::vector<Token>& tokens;
   int current_idx = 0;
+  int while_loop_level = 0;
 
   const Token& Peek() { return tokens[current_idx]; }
 
@@ -82,6 +83,7 @@ class Parser {
   Stmt Statement();
   Stmt PrintStmt();
   Stmt WhileStmt();
+  Stmt BreakStmt();
   Stmt ForStmtSugar();
   Stmt ExprStmt();
   Stmt BlockStmt();

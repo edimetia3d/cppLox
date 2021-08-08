@@ -105,6 +105,7 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
 lox::Stmt lox::Parser::Statement() {
   if (AdvanceIfMatchAny<TokenType::IF>()) return IfStmt();
   if (AdvanceIfMatchAny<TokenType::WHILE>()) return WhileStmt();
+  if (AdvanceIfMatchAny<TokenType::BREAK, TokenType::CONTINUE>()) return BreakStmt();
   if (AdvanceIfMatchAny<TokenType::FOR>()) return ForStmtSugar();
   if (AdvanceIfMatchAny<TokenType::PRINT>()) return PrintStmt();
   if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) return BlockStmt();
@@ -186,7 +187,9 @@ Stmt Parser::WhileStmt() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
   Expr condition = Expression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
+  ++while_loop_level;
   Stmt body = Statement();
+  --while_loop_level;
 
   return Stmt(new WhileStmtState(condition, body));
 }
@@ -212,7 +215,9 @@ Stmt Parser::ForStmtSugar() {
     increment = Expression();
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
+  ++while_loop_level;
   Stmt body = Statement();
+  --while_loop_level;
 
   if (increment.IsValid()) {
     std::vector<Stmt> body_with_increasement = {body};
@@ -231,6 +236,18 @@ Stmt Parser::ForStmtSugar() {
   }
 
   return body;
+}
+Stmt Parser::BreakStmt() {
+  auto src_token = Previous();
+  if (src_token.type_ == TokenType::CONTINUE) {
+    throw Error(Previous(), " 'continue' not supported yet.");
+  }
+  if (while_loop_level) {
+    Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token.lexeme_);
+    return Stmt(new BreakStmtState(src_token));
+  } else {
+    throw Error(Previous(), std::string("Nothing to ") + src_token.lexeme_);
+  }
 }
 
 }  // namespace lox

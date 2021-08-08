@@ -143,8 +143,18 @@ object::LoxObject StmtEvaluator::Visit(IfStmtState* state) {
 }
 object::LoxObject StmtEvaluator::Visit(WhileStmtState* state) {
   while ((expr_evaluator_.Eval(state->condition)).IsValueTrue()) {
-    Eval(state->body);
+    try {
+      Eval(state->body);
+    } catch (RuntimeError& err) {
+      if (err.err.SourceToken().type_ == TokenType::BREAK) {
+        break;
+      }
+      throw;
+    }
   }
   return object::LoxObject::VoidObject();
+}
+object::LoxObject StmtEvaluator::Visit(BreakStmtState* state) {
+  throw RuntimeError(Error(state->src_token, "Hit break"));
 }
 }  // namespace lox

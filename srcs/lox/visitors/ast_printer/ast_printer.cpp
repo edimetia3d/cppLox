@@ -87,5 +87,6 @@ object::LoxObject StmtPrinter::Visit(WhileStmtState* state) {
   ret += "{\n" + Print(state->body) + "}\n";
   return object::LoxObject(ret);
 }
+object::LoxObject StmtPrinter::Visit(BreakStmtState* state) { return object::LoxObject(state->src_token.lexeme_); }
 
 }  // namespace lox
