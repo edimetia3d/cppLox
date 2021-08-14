@@ -23,6 +23,11 @@ class Stmt {
   bool IsValid() { return static_cast<bool>(state_); }
   object::LoxObject Accept(StmtVisitor* visitor);
 
+  template <class T>
+  T* DownCastState() {
+    return dynamic_cast<T*>(state_.get());
+  }
+
  private:
   std::shared_ptr<StmtState> state_;
 };

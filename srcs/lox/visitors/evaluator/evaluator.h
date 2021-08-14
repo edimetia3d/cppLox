@@ -12,9 +12,11 @@
 #include "lox/ast/stmt.h"
 #include "lox/lox_object/lox_object.h"
 namespace lox {
+class StmtEvaluator;
 class ExprEvaluator : public ExprVisitor {
  public:
-  explicit ExprEvaluator(std::shared_ptr<Environment> env) : work_env_(std::move(env)) {}
+  explicit ExprEvaluator(std::shared_ptr<Environment> env, StmtEvaluator* parent)
+      : work_env_(std::move(env)), parent_(parent) {}
   object::LoxObject Eval(Expr expr) {
     assert(expr.IsValid());
     return expr.Accept(this);
@@ -36,11 +38,12 @@ class ExprEvaluator : public ExprVisitor {
   object::LoxObject Visit(AssignState* state) override;
   object::LoxObject Visit(CallState* state) override;
   std::shared_ptr<Environment> work_env_;
+  StmtEvaluator* parent_;
 };
 
 class StmtEvaluator : public StmtVisitor {
  public:
-  explicit StmtEvaluator(std::shared_ptr<Environment> env) : expr_evaluator_(env) {}
+  explicit StmtEvaluator(std::shared_ptr<Environment> env) : expr_evaluator_(env, this) {}
   object::LoxObject Eval(Stmt stmt) {
     assert(stmt.IsValid());
     return stmt.Accept(this);
@@ -51,16 +54,6 @@ class StmtEvaluator : public StmtVisitor {
     return expr_evaluator_.WorkEnv(new_env);
   }
 
- protected:
-  object::LoxObject Visit(PrintStmtState* state) override;
-  object::LoxObject Visit(WhileStmtState* state) override;
-  object::LoxObject Visit(ExprStmtState* state) override;
-  object::LoxObject Visit(BreakStmtState* state) override;
-  object::LoxObject Visit(VarDeclStmtState* state) override;
-  object::LoxObject Visit(BlockStmtState* state) override;
-  object::LoxObject Visit(IfStmtState* state) override;
-  ExprEvaluator expr_evaluator_;
-
   struct EnterNewScopeGuard {
     EnterNewScopeGuard(StmtEvaluator* ev) : evaluator(ev) {
       backup = evaluator->WorkEnv(std::make_shared<Environment>(evaluator->WorkEnv()));
@@ -69,6 +62,17 @@ class StmtEvaluator : public StmtVisitor {
     std::shared_ptr<Environment> backup;
     StmtEvaluator* evaluator;
   };
+
+ protected:
+  object::LoxObject Visit(PrintStmtState* state) override;
+  object::LoxObject Visit(WhileStmtState* state) override;
+  object::LoxObject Visit(ExprStmtState* state) override;
+  object::LoxObject Visit(BreakStmtState* state) override;
+  object::LoxObject Visit(VarDeclStmtState* state) override;
+  object::LoxObject Visit(FunctionStmtState* state) override;
+  object::LoxObject Visit(BlockStmtState* state) override;
+  object::LoxObject Visit(IfStmtState* state) override;
+  ExprEvaluator expr_evaluator_;
 };
 
 }  // namespace lox

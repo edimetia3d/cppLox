@@ -101,5 +101,24 @@ object::LoxObject StmtPrinter::Visit(WhileStmtState* state) {
   return object::LoxObject(ret);
 }
 object::LoxObject StmtPrinter::Visit(BreakStmtState* state) { return object::LoxObject(state->src_token.lexeme_); }
+object::LoxObject StmtPrinter::Visit(FunctionStmtState* state) {
+  std::string ret = "fun ";
+  ret += state->name.lexeme_ + " (";
+  int i = 0;
+  for (auto& param : state->params) {
+    if (i > 0) {
+      ret += ",";
+    }
+    ret += param.lexeme_;
+    ++i;
+  }
+  ret += "){\n";
+  for (auto& stmt : state->body) {
+    ret += Print(stmt);
+    ret += "\n";
+  }
+  ret += "}";
+  return object::LoxObject(ret);
+}
 
 }  // namespace lox

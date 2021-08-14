@@ -12,6 +12,7 @@ Stmt{
     "VarDeclStmt"    : "Token name, Expr initializer",
     "WhileStmt"      : "Expr condition, Stmt body",
     "ExprStmt"       : "Expr expression",
+    "FunctionStmt"   : "Token name, std::vector<Token> params, std::vector<Stmt> body",
     "PrintStmt"      : "Expr expression",
     "BlockStmt"      : "std::vector<Stmt> statements",
     "IfStmt"         : "Expr condition, Stmt thenBranch, Stmt elseBranch",

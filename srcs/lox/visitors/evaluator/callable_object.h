@@ -11,14 +11,18 @@
 #include "lox/lox_object/lox_object.h"
 #include "lox/visitors/evaluator/evaluator.h"
 namespace lox {
-class LoxCallableState;
+class LoxCallableState : public object::LoxObjectState {
+ public:
+  virtual int Arity() = 0;
+  virtual object::LoxObject Call(StmtEvaluator* evaluator, std::vector<object::LoxObject> arguments) = 0;
+};
 
 class LoxCallable : public object::LoxObject {
  public:
   explicit LoxCallable(const object::LoxObject obj) : object::LoxObject(obj) {}
   bool IsValid();
   int Arity();
-  object::LoxObject Call(ExprEvaluator* interpreter, std::vector<object::LoxObject> arguments);
+  object::LoxObject Call(StmtEvaluator* evaluator, std::vector<object::LoxObject> arguments);
 
  protected:
   LoxCallableState* ObjectState();

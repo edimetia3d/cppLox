@@ -1,0 +1,17 @@
+fun sayHi(first, last) {
+  print "Hi, " + first + " " + last + "!";
+}
+
+sayHi("Dear", "Reader");
+print sayHi;
+
+fun printN(n){
+    if (n>0){
+        printN(n-1);
+        print n;
+    }
+    else{
+        print 0;
+    }
+}
+printN(8);

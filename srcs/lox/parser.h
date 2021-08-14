@@ -87,6 +87,7 @@ class Parser {
     return TokenRecursiveMatch<types...>::Run(this);
   }
   Stmt Declaration();
+  Stmt Function(const std::string& kind);
   Stmt Statement();
   Stmt PrintStmt();
   Stmt WhileStmt();

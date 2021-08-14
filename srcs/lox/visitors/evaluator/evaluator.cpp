@@ -8,7 +8,7 @@
 
 #include "lox/error.h"
 #include "lox/visitors/evaluator/callable_object.h"
-
+#include "lox/visitors/evaluator/lox_function.h"
 namespace lox {
 
 object::LoxObject ExprEvaluator::Visit(LiteralState* state) {
@@ -126,7 +126,7 @@ object::LoxObject ExprEvaluator::Visit(CallState* state) {
     throw RuntimeError(Error(state->paren, "Wrong arg number"));
   }
   try {
-    auto ret = function.Call(this, arguments);
+    auto ret = function.Call(parent_, arguments);
     return ret;
   } catch (const char* msg) {
     throw RuntimeError(Error(state->paren, msg));
@@ -180,5 +180,10 @@ object::LoxObject StmtEvaluator::Visit(WhileStmtState* state) {
 }
 object::LoxObject StmtEvaluator::Visit(BreakStmtState* state) {
   throw RuntimeError(Error(state->src_token, "Hit break"));
+}
+object::LoxObject StmtEvaluator::Visit(FunctionStmtState* state) {
+  auto fn = object::LoxObject(new LoxFunctionState(state));
+  WorkEnv()->Define(state->name.lexeme_, fn);
+  return fn;
 }
 }  // namespace lox

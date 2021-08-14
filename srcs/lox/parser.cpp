@@ -132,6 +132,7 @@ Stmt Parser::ExprStmt() {
   return Stmt(nullptr);
 }
 Stmt Parser::Declaration() {
+  if (AdvanceIfMatchAny<TokenType::FUN>()) return Function("function");
   if (AdvanceIfMatchAny<TokenType::VAR>()) {
     auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after key `var`.");
     Expr init_expr(nullptr);
@@ -279,6 +280,24 @@ Expr Parser::FinishCall(const Expr& callee) {
   Token paren = Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
 
   return Expr(new CallState(callee, paren, arguments));
+}
+Stmt Parser::Function(const std::string& kind) {
+  Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
+  std::vector<Token> parameters;
+  if (!Check(TokenType::RIGHT_PAREN)) {
+    do {
+      if (parameters.size() >= 255) {
+        Error(Peek(), "Can't have more than 255 parameters.");
+      }
+
+      parameters.push_back(Consume(TokenType::IDENTIFIER, "Expect parameter name."));
+    } while (AdvanceIfMatchAny<TokenType::COMMA>());
+  }
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
+  Consume(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
+  std::vector<Stmt> body = Blocks();
+  return Stmt(new FunctionStmtState(name, parameters, body));
 }
 
 }  // namespace lox
