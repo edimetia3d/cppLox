@@ -28,6 +28,7 @@ class ExprPrinter : public ExprVisitor {
   object::LoxObject Visit(UnaryState* state) override;
   object::LoxObject Visit(VariableState* state) override;
   object::LoxObject Visit(AssignState* state) override;
+  object::LoxObject Visit(CallState* state) override;
 };
 
 class StmtPrinter : public StmtVisitor {

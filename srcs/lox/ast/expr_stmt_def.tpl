@@ -5,6 +5,7 @@ Expr{
     "Grouping": "Expr expression",
     "Literal": "Token value",
     "Unary": "Token op, Expr right",
+    "Call" : "Expr callee, Token paren, std::vector<Expr> arguments",
     "Variable" : "Token name",
 }
 Stmt{

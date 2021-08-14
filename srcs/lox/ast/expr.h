@@ -7,6 +7,7 @@
 #define CPPLOX_SRCS_LOX_AST_EXPR_H
 
 #include <memory>
+#include <vector>
 
 #include "lox/lox_object/lox_object.h"
 #include "lox/token.h"

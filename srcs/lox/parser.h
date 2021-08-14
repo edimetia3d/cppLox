@@ -7,6 +7,7 @@
 
 #include <error.h>
 
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -43,12 +44,18 @@ class Parser {
   const std::vector<Token>& tokens;
   int current_idx = 0;
   int while_loop_level = 0;
+  bool err_found = false;
 
   const Token& Peek() { return tokens[current_idx]; }
 
   Token Consume(TokenType type, const std::string& message);
 
-  ParserError Error(Token token, const std::string& msg) { return ParserError(lox::Error(token, msg)); }
+  ParserError Error(Token token, const std::string& msg) {
+    err_found = true;
+    auto err = ParserError(lox::Error(token, msg));
+    std::cout << err.what() << std::endl;
+    return err;
+  }
 
   bool IsAtEnd() { return Peek().type_ == TokenType::EOF_TOKEN; }
 
@@ -124,6 +131,10 @@ class Parser {
   Expr Factor();
 
   Expr Unary();
+
+  Expr Call();
+
+  Expr FinishCall(const Expr& callee);
 
   Expr Primary();
 };

@@ -7,14 +7,11 @@
 #include <memory>
 #include <string>
 
+#include "lox/lox_object/lox_object_state.h"
 #include "lox/token.h"
-
 namespace lox {
 
 namespace object {
-
-struct LoxObjectState;
-using LoxObjectStatePtr = std::shared_ptr<LoxObjectState>;
 
 class LoxObject {
  public:
@@ -52,6 +49,9 @@ class LoxObject {
   const T& AsNative() const {
     return *static_cast<T*>(RawObjPtr());
   }
+
+ protected:
+  LoxObjectState* ObjectState();
 
  private:
   void* RawObjPtr();

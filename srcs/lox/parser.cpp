@@ -44,7 +44,7 @@ lox::Expr lox::Parser::Unary() {
     auto right = this->Unary();
     return Expr(new lox::UnaryState(op, right));
   }
-  return Primary();
+  return Call();
 }
 lox::Expr lox::Parser::Primary() {
   if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
@@ -93,14 +93,15 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
       auto stmt = Declaration();
       statements.push_back(stmt);
     } catch (ParserError& error) {
-      std::cout << error.what() << std::endl;
       Synchronize();
       Parse();
-      statements.clear();
     }
   }
-
-  return statements;
+  if (err_found) {
+    return {};
+  } else {
+    return statements;
+  }
 }
 lox::Stmt lox::Parser::Statement() {
   if (AdvanceIfMatchAny<TokenType::IF>()) return IfStmt();
@@ -125,9 +126,10 @@ Stmt Parser::ExprStmt() {
     if (GlobalSetting().interactive_mode) {
       return Stmt(new PrintStmtState(expr));
     } else {
-      throw Error(Peek(), "Non-interactive mode must have ; after expression");
+      Error(Peek(), "Non-interactive mode must have ; after expression");
     }
   }
+  return Stmt(nullptr);
 }
 Stmt Parser::Declaration() {
   if (AdvanceIfMatchAny<TokenType::VAR>()) {
@@ -154,7 +156,7 @@ Expr Parser::Assignment() {
       return Expr(new AssignState(name, value));
     }
 
-    throw Error(equals, "Invalid assignment target.");
+    Error(equals, "Invalid assignment target.");
   }
 
   return expr;
@@ -240,14 +242,43 @@ Stmt Parser::ForStmtSugar() {
 Stmt Parser::BreakStmt() {
   auto src_token = Previous();
   if (src_token.type_ == TokenType::CONTINUE) {
-    throw Error(Previous(), " 'continue' not supported yet.");
+    Error(Previous(), " 'continue' not supported yet.");
   }
   if (while_loop_level) {
     Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token.lexeme_);
     return Stmt(new BreakStmtState(src_token));
   } else {
-    throw Error(Previous(), std::string("Nothing to ") + src_token.lexeme_);
+    Error(Previous(), std::string("Nothing to ") + src_token.lexeme_);
   }
+  return Stmt(nullptr);
+}
+Expr Parser::Call() {
+  Expr expr = Primary();
+
+  while (true) {
+    if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
+      expr = FinishCall(expr);
+    } else {
+      break;
+    }
+  }
+
+  return expr;
+}
+Expr Parser::FinishCall(const Expr& callee) {
+  std::vector<Expr> arguments;
+  if (!Check(TokenType::RIGHT_PAREN)) {
+    do {
+      if (arguments.size() >= 255) {
+        Error(Peek(), "Can't have more than 255 arguments.");
+      }
+      arguments.push_back(Expression());
+    } while (AdvanceIfMatchAny<TokenType::COMMA>());
+  }
+
+  Token paren = Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
+
+  return Expr(new CallState(callee, paren, arguments));
 }
 
 }  // namespace lox

@@ -7,6 +7,8 @@
 #include <iostream>
 
 #include "lox/error.h"
+#include "lox/visitors/evaluator/callable_object.h"
+
 namespace lox {
 
 object::LoxObject ExprEvaluator::Visit(LiteralState* state) {
@@ -107,6 +109,28 @@ object::LoxObject ExprEvaluator::Visit(AssignState* state) {
     throw RuntimeError(Error(state->name, msg));
   }
   return value;
+}
+object::LoxObject ExprEvaluator::Visit(CallState* state) {
+  auto callee = Eval(state->callee);
+
+  std::vector<object::LoxObject> arguments;
+  for (Expr argument : state->arguments) {
+    arguments.push_back(Eval(argument));
+  }
+
+  LoxCallable function = static_cast<LoxCallable>(callee);
+  if (!function.IsValid()) {
+    throw RuntimeError(Error(state->paren, "Not a callable object"));
+  }
+  if (arguments.size() != function.Arity()) {
+    throw RuntimeError(Error(state->paren, "Wrong arg number"));
+  }
+  try {
+    auto ret = function.Call(this, arguments);
+    return ret;
+  } catch (const char* msg) {
+    throw RuntimeError(Error(state->paren, msg));
+  }
 }
 
 object::LoxObject StmtEvaluator::Visit(PrintStmtState* state) {
