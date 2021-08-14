@@ -7,10 +7,10 @@
 namespace lox {
 
 int LoxFunctionState::Arity() { return function->params.size(); }
-LoxFunctionState::LoxFunctionState(const FunctionStmtState *state)
-    : function(new FunctionStmtState(state->name, state->params, state->body)) {}
+LoxFunctionState::LoxFunctionState(const FunctionStmtState *state, std::shared_ptr<Environment> closure)
+    : function(new FunctionStmtState(state->name, state->params, state->body)), closure(std::move(closure)) {}
 object::LoxObject LoxFunctionState::Call(StmtEvaluator *evaluator, std::vector<object::LoxObject> arguments) {
-  StmtEvaluator::EnterNewScopeGuard guard(evaluator);
+  StmtEvaluator::EnterNewScopeGuard guard(evaluator, closure);
   int N = function->params.size();
   for (int i = 0; i < N; ++i) {
     evaluator->WorkEnv()->Define(function->params[i].lexeme_, arguments[i]);

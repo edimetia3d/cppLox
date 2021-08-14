@@ -24,3 +24,19 @@ fun fib(n) {
 for (var i = 0; i < 20; i = i + 1) {
   print fib(i);
 }
+
+fun makeCounter() {
+  var i = 0;
+  fun count() {
+    i = i + 1;
+    print i;
+    j=j+1;
+    print j;
+  }
+
+  return count;
+}
+var counter = makeCounter();
+var j = 1000;
+counter(); // "1".
+counter(); // "2".

@@ -190,7 +190,7 @@ object::LoxObject StmtEvaluator::Visit(BreakStmtState* state) {
   throw RuntimeError(Error(state->src_token, "Hit break"));
 }
 object::LoxObject StmtEvaluator::Visit(FunctionStmtState* state) {
-  auto fn = object::LoxObject(new LoxFunctionState(state));
+  auto fn = object::LoxObject(new LoxFunctionState(state, WorkEnv()));
   WorkEnv()->Define(state->name.lexeme_, fn);
   return fn;
 }
