@@ -11,13 +11,16 @@
 #include "lox/parser.h"
 #include "lox/scanner.h"
 #include "lox/visitors/ast_printer/ast_printer.h"
+#include "lox/visitors/evaluator/callable_object.h"
 #include "lox/visitors/evaluator/environment.h"
 #include "lox/visitors/evaluator/evaluator.h"
-
 namespace lox {
 static bool g_debug = true;
 Lox::Lox() {
   global_env_ = std::make_shared<Environment>();
+  for (auto it : BuiltinCallables()) {
+    global_env_->Define(it.first, it.second);
+  }
   evaluator_ = std::make_shared<StmtEvaluator>(global_env_);
 }
 

@@ -18,6 +18,8 @@ using LoxObjectStatePtr = std::shared_ptr<LoxObjectState>;
 struct LoxObjectState {
   template <class RealT>
   LoxObjectState(const RealT &v) : raw_value(new RealT{v}) {}
+
+  LoxObjectState() : raw_value(nullptr){};
   std::shared_ptr<void> raw_value;
   virtual LoxObjectStatePtr operator-() { throw "Not supported"; }
   virtual bool IsTrue() { return raw_value.get(); };

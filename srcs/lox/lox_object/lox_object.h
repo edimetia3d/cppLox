@@ -16,7 +16,8 @@ namespace object {
 class LoxObject {
  public:
   LoxObject() = default;
-  LoxObject(LoxObjectStatePtr ptr) : lox_object_state_(ptr) {}
+  explicit LoxObject(LoxObjectStatePtr ptr) : lox_object_state_(std::move(ptr)) {}
+  explicit LoxObject(LoxObjectState* ptr) : lox_object_state_(ptr) {}
   explicit LoxObject(bool);
   explicit LoxObject(double);
   explicit LoxObject(char* v) : LoxObject(std::string(v)){};

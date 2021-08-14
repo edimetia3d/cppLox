@@ -104,7 +104,7 @@ LoxObject::LoxObject(bool v) : lox_object_state_(new Bool(v)) {}
 LoxObject::LoxObject(double v) : lox_object_state_(new Number(v)) {}
 LoxObject::LoxObject(const std::string &v) : lox_object_state_(new String(v)) {}
 LoxObject LoxObject::VoidObject() { return LoxObject(LoxObjectStatePtr(nullptr)); }
-LoxObject LoxObject::operator-() { return -(*lox_object_state_); }
+LoxObject LoxObject::operator-() { return LoxObject(-(*lox_object_state_)); }
 std::string LoxObject::ToString() { return lox_object_state_->ToString(); }
 LoxObjectState *LoxObject::ObjectState() { return lox_object_state_.get(); }
 bool LoxObject::IsValueTrue() {

@@ -24,6 +24,6 @@ class LoxCallable : public object::LoxObject {
   LoxCallableState* ObjectState();
 };
 
-std::map<std::string, LoxCallable> BuiltinCallables();
+const std::map<std::string, object::LoxObject>& BuiltinCallables();
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_LOX_OBJECT_CALLABLE_OBJECT_H_
