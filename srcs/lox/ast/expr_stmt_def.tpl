@@ -14,6 +14,7 @@ Stmt{
     "ExprStmt"       : "Expr expression",
     "FunctionStmt"   : "Token name, std::vector<Token> params, std::vector<Stmt> body",
     "PrintStmt"      : "Expr expression",
+    "ReturnStmt"     : "Token keyword, Expr value",
     "BlockStmt"      : "std::vector<Stmt> statements",
     "IfStmt"         : "Expr condition, Stmt thenBranch, Stmt elseBranch",
     "BreakStmt"      : "Token src_token",

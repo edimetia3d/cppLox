@@ -18,8 +18,7 @@ object::LoxObject LoxFunctionState::Call(StmtEvaluator *evaluator, std::vector<o
   for (auto &stmt : function->body) {
     evaluator->Eval(stmt);
   }
-  // todo: support return value
-  return object::LoxObject(0.0);
+  return object::LoxObject::VoidObject();
 }
 std::string LoxFunctionState::ToString() { return std::string("Function ") + function->name.lexeme_; }
 }  // namespace lox

@@ -120,5 +120,8 @@ object::LoxObject StmtPrinter::Visit(FunctionStmtState* state) {
   ret += "}";
   return object::LoxObject(ret);
 }
+object::LoxObject StmtPrinter::Visit(ReturnStmtState* state) {
+  return object::LoxObject(std::string("return") + expr_printer_.Print(state->value) + ";");
+}
 
 }  // namespace lox

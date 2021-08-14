@@ -44,6 +44,7 @@ class Parser {
   const std::vector<Token>& tokens;
   int current_idx = 0;
   int while_loop_level = 0;
+  int func_def_level = 0;
   bool err_found = false;
 
   const Token& Peek() { return tokens[current_idx]; }
@@ -90,6 +91,7 @@ class Parser {
   Stmt Function(const std::string& kind);
   Stmt Statement();
   Stmt PrintStmt();
+  Stmt ReturnStmt();
   Stmt WhileStmt();
   Stmt BreakStmt();
   Stmt ForStmtSugar();

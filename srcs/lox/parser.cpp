@@ -109,6 +109,7 @@ lox::Stmt lox::Parser::Statement() {
   if (AdvanceIfMatchAny<TokenType::BREAK, TokenType::CONTINUE>()) return BreakStmt();
   if (AdvanceIfMatchAny<TokenType::FOR>()) return ForStmtSugar();
   if (AdvanceIfMatchAny<TokenType::PRINT>()) return PrintStmt();
+  if (AdvanceIfMatchAny<TokenType::RETURN>()) return ReturnStmt();
   if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) return BlockStmt();
 
   return ExprStmt();
@@ -282,6 +283,7 @@ Expr Parser::FinishCall(const Expr& callee) {
   return Expr(new CallState(callee, paren, arguments));
 }
 Stmt Parser::Function(const std::string& kind) {
+  ++func_def_level;
   Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
   Consume(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
   std::vector<Token> parameters;
@@ -297,7 +299,23 @@ Stmt Parser::Function(const std::string& kind) {
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
   Consume(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
   std::vector<Stmt> body = Blocks();
+  --func_def_level;
   return Stmt(new FunctionStmtState(name, parameters, body));
+}
+Stmt Parser::ReturnStmt() {
+  Token keyword = Previous();
+  if (func_def_level) {
+    Expr value(nullptr);
+    if (!Check(TokenType::SEMICOLON)) {
+      value = Expression();
+    }
+
+    Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
+    return Stmt(new ReturnStmtState(keyword, value));
+  } else {
+    Error(Previous(), std::string("Cannot return here."));
+  }
+  return Stmt(nullptr);
 }
 
 }  // namespace lox

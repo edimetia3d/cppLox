@@ -9,7 +9,14 @@
 #include "lox/error.h"
 #include "lox/visitors/evaluator/callable_object.h"
 #include "lox/visitors/evaluator/lox_function.h"
+
 namespace lox {
+
+struct ReturnValue : public std::exception {
+  explicit ReturnValue(object::LoxObject obj) : ret(std::move(obj)) {}
+
+  object::LoxObject ret;
+};
 
 object::LoxObject ExprEvaluator::Visit(LiteralState* state) {
   switch (state->value.type_) {
@@ -126,8 +133,9 @@ object::LoxObject ExprEvaluator::Visit(CallState* state) {
     throw RuntimeError(Error(state->paren, "Wrong arg number"));
   }
   try {
-    auto ret = function.Call(parent_, arguments);
-    return ret;
+    return function.Call(parent_, arguments);
+  } catch (ReturnValue& ret) {
+    return ret.ret;
   } catch (const char* msg) {
     throw RuntimeError(Error(state->paren, msg));
   }
@@ -185,5 +193,12 @@ object::LoxObject StmtEvaluator::Visit(FunctionStmtState* state) {
   auto fn = object::LoxObject(new LoxFunctionState(state));
   WorkEnv()->Define(state->name.lexeme_, fn);
   return fn;
+}
+object::LoxObject StmtEvaluator::Visit(ReturnStmtState* state) {
+  auto ret = object::LoxObject::VoidObject();
+  if (state->value.IsValid()) {
+    ret = expr_evaluator_.Eval(state->value);
+  }
+  throw ReturnValue(ret);
 }
 }  // namespace lox
