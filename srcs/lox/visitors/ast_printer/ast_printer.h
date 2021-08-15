@@ -13,11 +13,15 @@
 #include "lox/lox_object/lox_object.h"
 
 namespace lox {
-class ExprPrinter : public ExprVisitor {
+class AstPrinter : public ExprVisitor, public StmtVisitor {
  public:
   std::string Print(Expr expr) {
     assert(expr.IsValid());
     return expr.Accept(this).AsNative<std::string>();
+  }
+  std::string Print(Stmt stmt) {
+    assert(stmt.IsValid());
+    return stmt.Accept(this).AsNative<std::string>();
   }
 
  protected:
@@ -29,16 +33,6 @@ class ExprPrinter : public ExprVisitor {
   object::LoxObject Visit(VariableState* state) override;
   object::LoxObject Visit(AssignState* state) override;
   object::LoxObject Visit(CallState* state) override;
-};
-
-class StmtPrinter : public StmtVisitor {
- public:
-  std::string Print(Stmt stmt) {
-    assert(stmt.IsValid());
-    return stmt.Accept(this).AsNative<std::string>();
-  }
-
- protected:
   object::LoxObject Visit(PrintStmtState* state) override;
   object::LoxObject Visit(ReturnStmtState* state) override;
   object::LoxObject Visit(WhileStmtState* state) override;
@@ -48,9 +42,6 @@ class StmtPrinter : public StmtVisitor {
   object::LoxObject Visit(FunctionStmtState* state) override;
   object::LoxObject Visit(BlockStmtState* state) override;
   object::LoxObject Visit(IfStmtState* state) override;
-
- private:
-  ExprPrinter expr_printer_;
 };
 
 }  // namespace lox

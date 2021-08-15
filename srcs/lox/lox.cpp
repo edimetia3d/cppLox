@@ -68,7 +68,7 @@ void Lox::Eval(const std::string &code) {
   try {
     for (auto &stmt : statements) {
       if (g_debug) {
-        static StmtPrinter printer;
+        static AstPrinter printer;
         std::cout << "Debug Stmt: `" << printer.Print(stmt) << "`" << std::endl;
       }
       evaluator_->Eval(stmt);

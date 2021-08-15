@@ -7,31 +7,31 @@
 
 namespace lox {
 
-object::LoxObject ExprPrinter::Visit(LogicalState* state) {
+object::LoxObject AstPrinter::Visit(LogicalState* state) {
   std::string left_expr = Print(state->left);
   std::string op = state->op.lexeme_;
   std::string right_expr = Print(state->right);
   return object::LoxObject(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
 }
 
-object::LoxObject lox::ExprPrinter::Visit(BinaryState* state) {
+object::LoxObject lox::AstPrinter::Visit(BinaryState* state) {
   std::string left_expr = Print(state->left);
   std::string op = state->op.lexeme_;
   std::string right_expr = Print(state->right);
   return object::LoxObject(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
 }
-object::LoxObject ExprPrinter::Visit(LiteralState* state) { return object::LoxObject(state->value.lexeme_); }
-object::LoxObject lox::ExprPrinter::Visit(GroupingState* state) {
+object::LoxObject AstPrinter::Visit(LiteralState* state) { return object::LoxObject(state->value.lexeme_); }
+object::LoxObject lox::AstPrinter::Visit(GroupingState* state) {
   return object::LoxObject(std::string("(") + Print(state->expression) + std::string(")"));
 }
-object::LoxObject ExprPrinter::Visit(UnaryState* state) {
+object::LoxObject AstPrinter::Visit(UnaryState* state) {
   return object::LoxObject(std::string("(") + state->op.lexeme_ + Print(state->right) + std::string(")"));
 }
-object::LoxObject ExprPrinter::Visit(VariableState* state) { return object::LoxObject(state->name.lexeme_); }
-object::LoxObject ExprPrinter::Visit(AssignState* state) {
+object::LoxObject AstPrinter::Visit(VariableState* state) { return object::LoxObject(state->name.lexeme_); }
+object::LoxObject AstPrinter::Visit(AssignState* state) {
   return object::LoxObject(std::string("(") + state->name.lexeme_ + " = " + Print(state->value) + std::string(")"));
 }
-object::LoxObject ExprPrinter::Visit(CallState* state) {
+object::LoxObject AstPrinter::Visit(CallState* state) {
   std::string ret = "";
   ret = ret + Print(state->callee) + "(";
   int i = 0;
@@ -45,16 +45,14 @@ object::LoxObject ExprPrinter::Visit(CallState* state) {
   return object::LoxObject(ret + ")");
 }
 
-object::LoxObject StmtPrinter::Visit(PrintStmtState* state) {
-  return object::LoxObject(std::string("print ") + expr_printer_.Print(state->expression) + ";");
+object::LoxObject AstPrinter::Visit(PrintStmtState* state) {
+  return object::LoxObject(std::string("print ") + Print(state->expression) + ";");
 }
-object::LoxObject StmtPrinter::Visit(ExprStmtState* state) {
-  return object::LoxObject(expr_printer_.Print(state->expression) + ";");
-}
-object::LoxObject StmtPrinter::Visit(VarDeclStmtState* state) {
+object::LoxObject AstPrinter::Visit(ExprStmtState* state) { return object::LoxObject(Print(state->expression) + ";"); }
+object::LoxObject AstPrinter::Visit(VarDeclStmtState* state) {
   std::string init = "(NoInit)";
   if (state->initializer.IsValid()) {
-    init = " = " + expr_printer_.Print(state->initializer);
+    init = " = " + Print(state->initializer);
   }
   return object::LoxObject(std::string("var ") + state->name.lexeme_ + init + ";");
 }
@@ -72,7 +70,7 @@ struct Level {
 std::map<void*, Level::V> Level::nest_level;
 }  // namespace
 
-object::LoxObject StmtPrinter::Visit(BlockStmtState* state) {
+object::LoxObject AstPrinter::Visit(BlockStmtState* state) {
   Level level(this);
   std::string tab_base = "  ";
   std::string tab = "";
@@ -87,21 +85,21 @@ object::LoxObject StmtPrinter::Visit(BlockStmtState* state) {
   str += (tab + "}");
   return object::LoxObject(str);
 }
-object::LoxObject StmtPrinter::Visit(IfStmtState* state) {
-  std::string ret = "if ( " + expr_printer_.Print(state->condition) + " )\n";
+object::LoxObject AstPrinter::Visit(IfStmtState* state) {
+  std::string ret = "if ( " + Print(state->condition) + " )\n";
   ret += "{\n" + Print(state->thenBranch) + "}\n";
   if (state->elseBranch.IsValid()) {
     ret += "{\n" + Print(state->elseBranch) + "}\n";
   }
   return object::LoxObject(ret);
 }
-object::LoxObject StmtPrinter::Visit(WhileStmtState* state) {
-  std::string ret = "while ( " + expr_printer_.Print(state->condition) + " )\n";
+object::LoxObject AstPrinter::Visit(WhileStmtState* state) {
+  std::string ret = "while ( " + Print(state->condition) + " )\n";
   ret += "{\n" + Print(state->body) + "}\n";
   return object::LoxObject(ret);
 }
-object::LoxObject StmtPrinter::Visit(BreakStmtState* state) { return object::LoxObject(state->src_token.lexeme_); }
-object::LoxObject StmtPrinter::Visit(FunctionStmtState* state) {
+object::LoxObject AstPrinter::Visit(BreakStmtState* state) { return object::LoxObject(state->src_token.lexeme_); }
+object::LoxObject AstPrinter::Visit(FunctionStmtState* state) {
   std::string ret = "fun ";
   ret += state->name.lexeme_ + " (";
   int i = 0;
@@ -120,10 +118,10 @@ object::LoxObject StmtPrinter::Visit(FunctionStmtState* state) {
   ret += "}";
   return object::LoxObject(ret);
 }
-object::LoxObject StmtPrinter::Visit(ReturnStmtState* state) {
+object::LoxObject AstPrinter::Visit(ReturnStmtState* state) {
   std::string ret = "return";
   if (state->value.IsValid()) {
-    ret += expr_printer_.Print(state->value);
+    ret += Print(state->value);
   }
   return object::LoxObject(ret + ";");
 }
