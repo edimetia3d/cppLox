@@ -53,8 +53,11 @@ class Evaluator : public ExprVisitor, public StmtVisitor {
     Evaluator* evaluator;
   };
 
+  void EnvReslove(void* p, int distance) { env_reslove_map[p] = distance; }
+
  protected:
   std::shared_ptr<Environment> work_env_;
+  std::map<void*, int> env_reslove_map;
   object::LoxObject Visit(LogicalState* state) override;
   object::LoxObject Visit(BinaryState* state) override;
   object::LoxObject Visit(GroupingState* state) override;
