@@ -192,6 +192,7 @@ object::LoxObject StmtEvaluator::Visit(BreakStmtState* state) {
 object::LoxObject StmtEvaluator::Visit(FunctionStmtState* state) {
   auto fn = object::LoxObject(new LoxFunctionState(state, WorkEnv()));
   WorkEnv()->Define(state->name.lexeme_, fn);
+  FreezeEnv();
   return fn;
 }
 object::LoxObject StmtEvaluator::Visit(ReturnStmtState* state) {

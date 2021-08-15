@@ -28,6 +28,12 @@ class ExprEvaluator : public ExprVisitor {
     return old_env;
   }
 
+  std::shared_ptr<Environment> FreezeEnv() {
+    auto old_env = work_env_;
+    work_env_ = Environment::Make(old_env);
+    return old_env;
+  }
+
  protected:
   object::LoxObject Visit(LogicalState* state) override;
   object::LoxObject Visit(BinaryState* state) override;
@@ -53,13 +59,17 @@ class StmtEvaluator : public StmtVisitor {
   std::shared_ptr<Environment> WorkEnv(std::shared_ptr<Environment> new_env) {
     return expr_evaluator_.WorkEnv(new_env);
   }
+  std::shared_ptr<Environment> FreezeEnv() { return expr_evaluator_.FreezeEnv(); }
 
   struct EnterNewScopeGuard {
-    EnterNewScopeGuard(StmtEvaluator* ev, std::shared_ptr<Environment> new_work_env = nullptr) : evaluator(ev) {
-      if (!new_work_env) {
-        new_work_env = Environment::Make(evaluator->WorkEnv());
+    EnterNewScopeGuard(StmtEvaluator* ev, std::shared_ptr<Environment> base_env = nullptr) : evaluator(ev) {
+      std::shared_ptr<Environment> new_env;
+      if (!base_env) {
+        new_env = Environment::Make(evaluator->WorkEnv());
+      } else {
+        new_env = Environment::Make(base_env);
       }
-      backup = evaluator->WorkEnv(new_work_env);
+      backup = evaluator->WorkEnv(new_env);
     }
     ~EnterNewScopeGuard() { evaluator->WorkEnv(backup); }
     std::shared_ptr<Environment> backup;

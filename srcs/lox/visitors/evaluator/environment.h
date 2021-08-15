@@ -23,12 +23,6 @@ class Environment {
   void Set(std::string var_name, object::LoxObject value);
   object::LoxObject Get(std::string var_name);
 
-  std::shared_ptr<Environment> Copy() {
-    auto p = Make();
-    *p = *this;
-    return p;
-  }
-
  private:
   Environment() {}
   Environment(std::shared_ptr<Environment> parent) : parent_(parent) {}

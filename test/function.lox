@@ -24,7 +24,7 @@ fun fib(n) {
 for (var i = 0; i < 20; i = i + 1) {
   print fib(i);
 }
-
+var j = 1000;
 fun makeCounter() {
   var i = 0;
   fun count() {
@@ -36,7 +36,10 @@ fun makeCounter() {
 
   return count;
 }
+var j = 2000;
 var counter = makeCounter();
-var j = 1000;
+var j = 3000;
 counter(); // "1".
 counter(); // "2".
+print j;
+
