@@ -57,7 +57,7 @@ class StmtEvaluator : public StmtVisitor {
   struct EnterNewScopeGuard {
     EnterNewScopeGuard(StmtEvaluator* ev, std::shared_ptr<Environment> new_work_env = nullptr) : evaluator(ev) {
       if (!new_work_env) {
-        new_work_env = std::make_shared<Environment>(evaluator->WorkEnv());
+        new_work_env = Environment::Make(evaluator->WorkEnv());
       }
       backup = evaluator->WorkEnv(new_work_env);
     }

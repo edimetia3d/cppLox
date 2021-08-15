@@ -17,7 +17,7 @@
 namespace lox {
 static bool g_debug = true;
 Lox::Lox() {
-  global_env_ = std::make_shared<Environment>();
+  global_env_ = Environment::Make();
   for (auto it : BuiltinCallables()) {
     global_env_->Define(it.first, it.second);
   }

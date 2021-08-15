@@ -5,22 +5,34 @@
 #ifndef CPPLOX_SRCS_LOX_ENVIRONMENT_H_
 #define CPPLOX_SRCS_LOX_ENVIRONMENT_H_
 #include <map>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "lox/lox_object/lox_object.h"
 namespace lox {
 
 class Environment {
  public:
-  Environment() {}
-  Environment(std::shared_ptr<Environment> enclosing) : enclosing_(enclosing) {}
+  static std::shared_ptr<Environment> Make() { return std::shared_ptr<Environment>(new Environment); };
+  static std::shared_ptr<Environment> Make(std::shared_ptr<Environment> parent) {
+    return std::shared_ptr<Environment>(new Environment(parent));
+  };
   void Define(std::string var_name, object::LoxObject value);
   void Remove(std::string var_name);
   void Set(std::string var_name, object::LoxObject value);
   object::LoxObject Get(std::string var_name);
 
+  std::shared_ptr<Environment> Copy() {
+    auto p = Make();
+    *p = *this;
+    return p;
+  }
+
  private:
-  std::shared_ptr<Environment> enclosing_;
+  Environment() {}
+  Environment(std::shared_ptr<Environment> parent) : parent_(parent) {}
+  std::shared_ptr<Environment> parent_;
   std::map<std::string, object::LoxObject> map;
 };
 
