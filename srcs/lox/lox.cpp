@@ -14,6 +14,7 @@
 #include "lox/visitors/evaluator/callable_object.h"
 #include "lox/visitors/evaluator/environment.h"
 #include "lox/visitors/evaluator/evaluator.h"
+#include "lox/visitors/resolver_pass/resolve_map.h"
 #include "lox/visitors/resolver_pass/resovler.h"
 namespace lox {
 static bool g_debug = true;
@@ -22,7 +23,9 @@ Lox::Lox() {
   for (auto it : BuiltinCallables()) {
     global_env_->Define(it.first, it.second);
   }
+  resolve_map_ = std::make_shared<EnvResolveMap>();
   evaluator_ = std::make_shared<Evaluator>(global_env_);
+  evaluator_->SetActiveResolveMap(resolve_map_);
 }
 
 std::string Lox::CLIHelpString() { return std::string(); }
@@ -65,7 +68,7 @@ void Lox::Eval(const std::string &code) {
   Parser parser(scanner.Tokens());
   auto statements = parser.Parse();
 
-  Resovler resovler(evaluator_.get());
+  Resovler resovler(resolve_map_);
   try {
     for (auto &stmt : statements) {
       resovler.Resolve(stmt);

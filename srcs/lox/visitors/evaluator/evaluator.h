@@ -11,6 +11,7 @@
 #include "lox/ast/expr.h"
 #include "lox/ast/stmt.h"
 #include "lox/lox_object/lox_object.h"
+#include "lox/visitors/resolver_pass/resolve_map.h"
 namespace lox {
 class Evaluator : public ExprVisitor, public StmtVisitor {
  public:
@@ -18,12 +19,16 @@ class Evaluator : public ExprVisitor, public StmtVisitor {
 
   object::LoxObject Eval(Expr expr) {
     assert(expr.IsValid());
+    assert(active_map_);
     return expr.Accept(this);
   }
   object::LoxObject Eval(Stmt stmt) {
     assert(stmt.IsValid());
+    assert(active_map_);
     return stmt.Accept(this);
   }
+
+  void SetActiveResolveMap(std::shared_ptr<EnvResolveMap> map) { active_map_ = map; }
 
   std::shared_ptr<Environment>& WorkEnv() { return work_env_; }
   std::shared_ptr<Environment> WorkEnv(std::shared_ptr<Environment> new_env) {
@@ -53,11 +58,10 @@ class Evaluator : public ExprVisitor, public StmtVisitor {
     Evaluator* evaluator;
   };
 
-  void EnvReslove(void* p, int distance) { env_reslove_map[p] = distance; }
 
  protected:
   std::shared_ptr<Environment> work_env_;
-  std::map<void*, int> env_reslove_map;
+  std::shared_ptr<EnvResolveMap> active_map_;
   object::LoxObject Visit(LogicalState* state) override;
   object::LoxObject Visit(BinaryState* state) override;
   object::LoxObject Visit(GroupingState* state) override;

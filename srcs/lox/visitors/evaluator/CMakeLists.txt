@@ -7,4 +7,4 @@ add_library(evaluator evaluator.cpp callable_object.cc lox_function.cc)
 target_link_libraries(evaluator PUBLIC lox_object)
 target_link_libraries(evaluator PUBLIC ast)
 target_link_libraries(evaluator PUBLIC environment)
-
+target_link_libraries(evaluator PRIVATE resolve_map)

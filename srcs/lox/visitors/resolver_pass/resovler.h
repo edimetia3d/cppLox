@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -14,12 +15,12 @@
 #include "lox/ast/stmt.h"
 #include "lox/lox_object/lox_object.h"
 #include "lox/visitors/evaluator/evaluator.h"
-
+#include "lox/visitors/resolver_pass/resolve_map.h"
 namespace lox {
 
 class Resovler : public StmtVisitor, public ExprVisitor {
  public:
-  Resovler(Evaluator* ev) { evaluator_ = ev; }
+  Resovler(std::shared_ptr<EnvResolveMap> map) : map_(std::move(map)) {}
   using Scope = std::map<std::string, bool>;
   void Resolve(Stmt stmt) {
     assert(stmt.IsValid());
@@ -58,7 +59,7 @@ class Resovler : public StmtVisitor, public ExprVisitor {
   object::LoxObject Visit(IfStmtState* state) override;
 
   std::vector<Scope> scopes{Scope()};
-  Evaluator* evaluator_;
+  std::shared_ptr<EnvResolveMap> map_;
 };
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_

@@ -12,6 +12,7 @@
 namespace lox {
 class Evaluator;
 class Environment;
+class EnvResolveMap;
 class Lox {
  public:
   Lox();
@@ -31,6 +32,7 @@ class Lox {
  private:
   Error RunStream(std::istream *istream);
   std::shared_ptr<Evaluator> evaluator_;
+  std::shared_ptr<EnvResolveMap> resolve_map_;
   std::shared_ptr<Environment> global_env_;
 };
 

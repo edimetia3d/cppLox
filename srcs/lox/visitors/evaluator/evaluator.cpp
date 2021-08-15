@@ -99,7 +99,7 @@ object::LoxObject Evaluator::Visit(BinaryState* state) {
 object::LoxObject Evaluator::Visit(VariableState* state) {
   auto ret = object::LoxObject::VoidObject();
   try {
-    ret = WorkEnv()->GetByDistance(env_reslove_map[state])->Get(state->name.lexeme_);
+    ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name.lexeme_);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }
@@ -111,7 +111,7 @@ object::LoxObject Evaluator::Visit(VariableState* state) {
 object::LoxObject Evaluator::Visit(AssignState* state) {
   auto value = Eval(state->value);
   try {
-    WorkEnv()->GetByDistance(env_reslove_map[state])->Set(state->name.lexeme_, value);
+    WorkEnv()->GetByDistance(active_map_->Get(state))->Set(state->name.lexeme_, value);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }

@@ -37,7 +37,7 @@ object::LoxObject Resovler::Visit(VariableState *state) {
 void Resovler::ResolveLocal(ExprState *state, Token name) {
   for (int i = scopes.size() - 1; i >= 0; i--) {
     if (scopes[i].contains(name.lexeme_)) {
-      evaluator_->EnvReslove(state, scopes.size() - 1 - i);
+      map_->Set(state, scopes.size() - 1 - i);
       return;
     }
   }
