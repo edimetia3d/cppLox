@@ -99,7 +99,7 @@ object::LoxObject Evaluator::Visit(BinaryState* state) {
 object::LoxObject Evaluator::Visit(VariableState* state) {
   auto ret = object::LoxObject::VoidObject();
   try {
-    ret = WorkEnv()->Get(state->name.lexeme_);
+    ret = WorkEnv()->GetByDistance(env_reslove_map[state])->Get(state->name.lexeme_);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }
@@ -111,7 +111,7 @@ object::LoxObject Evaluator::Visit(VariableState* state) {
 object::LoxObject Evaluator::Visit(AssignState* state) {
   auto value = Eval(state->value);
   try {
-    WorkEnv()->Set(state->name.lexeme_, value);
+    WorkEnv()->GetByDistance(env_reslove_map[state])->Set(state->name.lexeme_, value);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }
@@ -190,7 +190,7 @@ object::LoxObject Evaluator::Visit(BreakStmtState* state) { throw RuntimeError(E
 object::LoxObject Evaluator::Visit(FunctionStmtState* state) {
   auto fn = object::LoxObject(new LoxFunctionState(state, WorkEnv()));
   WorkEnv()->Define(state->name.lexeme_, fn);
-  FreezeEnv();
+  // FreezeEnv(); use freeze env to "copy" capture
   return fn;
 }
 object::LoxObject Evaluator::Visit(ReturnStmtState* state) {

@@ -2,7 +2,9 @@
 // LICENSE: MIT
 //
 
-#include "resovler.h"
+#include "lox/visitors/resolver_pass/resovler.h"
+
+#include "lox/error.h"
 
 namespace lox {
 static auto RETNULL = object::LoxObject::VoidObject();
@@ -25,8 +27,8 @@ object::LoxObject Resovler::Visit(VarDeclStmtState *state) {
 }
 void Resovler::Define(Token token) { scopes.back()[token.lexeme_] = true; }
 object::LoxObject Resovler::Visit(VariableState *state) {
-  if (scopes.back().contains(state->name.lexeme_) == false) {
-    throw "Can't read local variable in its own initializer.";
+  if (scopes.back().contains(state->name.lexeme_) and scopes.back()[state->name.lexeme_] == false) {
+    throw ResolveError(Error(state->name, "Can't read local variable in its own initializer."));
   }
 
   ResolveLocal(state, state->name);
@@ -111,7 +113,10 @@ object::LoxObject Resovler::Visit(ExprStmtState *state) {
 object::LoxObject Resovler::Visit(IfStmtState *state) {
   Resolve(state->condition);
   Resolve(state->thenBranch);
-  Resolve(state->elseBranch);
+  if (state->elseBranch.IsValid()) {
+    Resolve(state->elseBranch);
+  }
+
   return RETNULL;
 }
 }  // namespace lox

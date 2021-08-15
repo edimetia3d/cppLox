@@ -22,6 +22,13 @@ class Environment {
   void Remove(std::string var_name);
   void Set(std::string var_name, object::LoxObject value);
   object::LoxObject Get(std::string var_name);
+  Environment* GetByDistance(int distance = 0) {
+    auto ret = this;
+    for (int i = 0; i < distance; ++i) {
+      ret = ret->parent_.get();
+    }
+    return ret;
+  }
 
  private:
   Environment() {}

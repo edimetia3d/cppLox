@@ -14,6 +14,7 @@
 #include "lox/visitors/evaluator/callable_object.h"
 #include "lox/visitors/evaluator/environment.h"
 #include "lox/visitors/evaluator/evaluator.h"
+#include "lox/visitors/resolver_pass/resovler.h"
 namespace lox {
 static bool g_debug = true;
 Lox::Lox() {
@@ -64,7 +65,16 @@ void Lox::Eval(const std::string &code) {
   Parser parser(scanner.Tokens());
   auto statements = parser.Parse();
 
-  std::string output;
+  Resovler resovler(evaluator_.get());
+  try {
+    for (auto &stmt : statements) {
+      resovler.Resolve(stmt);
+    }
+  } catch (ResolveError &err) {
+    std::cout << err.what() << std::endl;
+    return;
+  }
+
   try {
     for (auto &stmt : statements) {
       if (g_debug) {

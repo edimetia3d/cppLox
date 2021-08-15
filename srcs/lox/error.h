@@ -57,6 +57,17 @@ struct ParserError : public std::exception {
   lox::Error err;
 };
 
+struct ResolveError : public std::exception {
+  explicit ResolveError(const Error &err) : err(err) {}
+  const char *what() noexcept {
+    static std::string last_err;
+    last_err = std::string("ResolveError: ") + err.Message().c_str();
+    return last_err.c_str();
+  }
+
+  lox::Error err;
+};
+
 #define ERR_STR(STR) Error(std::string("[") + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "] " + STR)
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_ERROR_H_
