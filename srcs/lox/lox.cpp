@@ -21,7 +21,7 @@ Lox::Lox() {
   for (auto it : BuiltinCallables()) {
     global_env_->Define(it.first, it.second);
   }
-  evaluator_ = std::make_shared<StmtEvaluator>(global_env_);
+  evaluator_ = std::make_shared<Evaluator>(global_env_);
 }
 
 std::string Lox::CLIHelpString() { return std::string(); }

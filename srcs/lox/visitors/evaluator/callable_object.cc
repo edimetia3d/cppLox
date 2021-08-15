@@ -9,7 +9,7 @@
 #include "lox/lox_object/lox_object_state.h"
 namespace lox {
 
-object::LoxObject LoxCallable::Call(StmtEvaluator* evaluator, std::vector<object::LoxObject> arguments) {
+object::LoxObject LoxCallable::Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) {
   return ObjectState()->Call(evaluator, arguments);
 }
 int LoxCallable::Arity() { return ObjectState()->Arity(); }
@@ -20,7 +20,7 @@ bool LoxCallable::IsValid() { return LoxObject::IsValid() && ObjectState() != nu
 class Clock : public LoxCallableState {
  public:
   int Arity() override { return 0; }
-  object::LoxObject Call(StmtEvaluator* evaluator, std::vector<object::LoxObject> arguments) {
+  object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) {
     double clk = clock();
     object::LoxObjectStatePtr();
     return object::LoxObject(clk);

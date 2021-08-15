@@ -18,7 +18,7 @@ struct ReturnValue : public std::exception {
   object::LoxObject ret;
 };
 
-object::LoxObject ExprEvaluator::Visit(LiteralState* state) {
+object::LoxObject Evaluator::Visit(LiteralState* state) {
   switch (state->value.type_) {
     case TokenType::NUMBER:
       return object::LoxObject(std::stod(state->value.lexeme_));
@@ -32,8 +32,8 @@ object::LoxObject ExprEvaluator::Visit(LiteralState* state) {
       throw RuntimeError(Error(state->value, "Not a valid Literal."));
   }
 }
-object::LoxObject ExprEvaluator::Visit(GroupingState* state) { return Eval(state->expression); }
-object::LoxObject ExprEvaluator::Visit(UnaryState* state) {
+object::LoxObject Evaluator::Visit(GroupingState* state) { return Eval(state->expression); }
+object::LoxObject Evaluator::Visit(UnaryState* state) {
   auto right = Eval(state->right);
 
   switch (state->op.type_) {
@@ -51,7 +51,7 @@ object::LoxObject ExprEvaluator::Visit(UnaryState* state) {
   }
 }
 
-object::LoxObject ExprEvaluator::Visit(LogicalState* state) {
+object::LoxObject Evaluator::Visit(LogicalState* state) {
   auto left = Eval(state->left);
   if (state->op.type_ == TokenType::AND) {
     if (left.IsValueTrue()) {
@@ -64,7 +64,7 @@ object::LoxObject ExprEvaluator::Visit(LogicalState* state) {
   return left;
 }
 
-object::LoxObject ExprEvaluator::Visit(BinaryState* state) {
+object::LoxObject Evaluator::Visit(BinaryState* state) {
   auto left = Eval(state->left);
   auto right = Eval(state->right);
   try {
@@ -96,7 +96,7 @@ object::LoxObject ExprEvaluator::Visit(BinaryState* state) {
     throw RuntimeError(Error(state->op, msg));
   }
 }
-object::LoxObject ExprEvaluator::Visit(VariableState* state) {
+object::LoxObject Evaluator::Visit(VariableState* state) {
   auto ret = object::LoxObject::VoidObject();
   try {
     ret = WorkEnv()->Get(state->name.lexeme_);
@@ -108,7 +108,7 @@ object::LoxObject ExprEvaluator::Visit(VariableState* state) {
   }
   return ret;
 }
-object::LoxObject ExprEvaluator::Visit(AssignState* state) {
+object::LoxObject Evaluator::Visit(AssignState* state) {
   auto value = Eval(state->value);
   try {
     WorkEnv()->Set(state->name.lexeme_, value);
@@ -117,7 +117,7 @@ object::LoxObject ExprEvaluator::Visit(AssignState* state) {
   }
   return value;
 }
-object::LoxObject ExprEvaluator::Visit(CallState* state) {
+object::LoxObject Evaluator::Visit(CallState* state) {
   auto callee = Eval(state->callee);
 
   std::vector<object::LoxObject> arguments;
@@ -133,7 +133,7 @@ object::LoxObject ExprEvaluator::Visit(CallState* state) {
     throw RuntimeError(Error(state->paren, "Wrong arg number"));
   }
   try {
-    return function.Call(parent_, arguments);
+    return function.Call(this, arguments);
   } catch (ReturnValue& ret) {
     return ret.ret;
   } catch (const char* msg) {
@@ -141,40 +141,40 @@ object::LoxObject ExprEvaluator::Visit(CallState* state) {
   }
 }
 
-object::LoxObject StmtEvaluator::Visit(PrintStmtState* state) {
-  auto ret_v = expr_evaluator_.Eval(state->expression);
+object::LoxObject Evaluator::Visit(PrintStmtState* state) {
+  auto ret_v = Eval(state->expression);
   std::cout << ret_v.ToString() << std::endl;
   return object::LoxObject::VoidObject();
 }
-object::LoxObject StmtEvaluator::Visit(ExprStmtState* state) {
-  expr_evaluator_.Eval(state->expression);
+object::LoxObject Evaluator::Visit(ExprStmtState* state) {
+  Eval(state->expression);
   return object::LoxObject::VoidObject();
 }
-object::LoxObject StmtEvaluator::Visit(VarDeclStmtState* state) {
+object::LoxObject Evaluator::Visit(VarDeclStmtState* state) {
   auto value = object::LoxObject::VoidObject();
   if (state->initializer.IsValid()) {
-    value = expr_evaluator_.Eval(state->initializer);
+    value = Eval(state->initializer);
   }
   WorkEnv()->Define(state->name.lexeme_, value);
   return object::LoxObject::VoidObject();
 }
-object::LoxObject StmtEvaluator::Visit(BlockStmtState* state) {
+object::LoxObject Evaluator::Visit(BlockStmtState* state) {
   EnterNewScopeGuard guard(this);
   for (auto& stmt : state->statements) {
     Eval(stmt);
   }
   return object::LoxObject::VoidObject();
 }
-object::LoxObject StmtEvaluator::Visit(IfStmtState* state) {
-  if ((expr_evaluator_.Eval(state->condition)).IsValueTrue()) {
+object::LoxObject Evaluator::Visit(IfStmtState* state) {
+  if ((Eval(state->condition)).IsValueTrue()) {
     Eval(state->thenBranch);
   } else if (state->elseBranch.IsValid()) {
     Eval(state->elseBranch);
   }
   return object::LoxObject::VoidObject();
 }
-object::LoxObject StmtEvaluator::Visit(WhileStmtState* state) {
-  while ((expr_evaluator_.Eval(state->condition)).IsValueTrue()) {
+object::LoxObject Evaluator::Visit(WhileStmtState* state) {
+  while ((Eval(state->condition)).IsValueTrue()) {
     try {
       Eval(state->body);
     } catch (RuntimeError& err) {
@@ -186,19 +186,17 @@ object::LoxObject StmtEvaluator::Visit(WhileStmtState* state) {
   }
   return object::LoxObject::VoidObject();
 }
-object::LoxObject StmtEvaluator::Visit(BreakStmtState* state) {
-  throw RuntimeError(Error(state->src_token, "Hit break"));
-}
-object::LoxObject StmtEvaluator::Visit(FunctionStmtState* state) {
+object::LoxObject Evaluator::Visit(BreakStmtState* state) { throw RuntimeError(Error(state->src_token, "Hit break")); }
+object::LoxObject Evaluator::Visit(FunctionStmtState* state) {
   auto fn = object::LoxObject(new LoxFunctionState(state, WorkEnv()));
   WorkEnv()->Define(state->name.lexeme_, fn);
   FreezeEnv();
   return fn;
 }
-object::LoxObject StmtEvaluator::Visit(ReturnStmtState* state) {
+object::LoxObject Evaluator::Visit(ReturnStmtState* state) {
   auto ret = object::LoxObject::VoidObject();
   if (state->value.IsValid()) {
-    ret = expr_evaluator_.Eval(state->value);
+    ret = Eval(state->value);
   }
   throw ReturnValue(ret);
 }

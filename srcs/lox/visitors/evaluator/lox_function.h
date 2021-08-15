@@ -12,7 +12,7 @@ class LoxFunctionState : public LoxCallableState {
  public:
   explicit LoxFunctionState(const FunctionStmtState *state, std::shared_ptr<Environment> closure);
 
-  object::LoxObject Call(StmtEvaluator *evaluator, std::vector<object::LoxObject> arguments) override;
+  object::LoxObject Call(Evaluator *evaluator, std::vector<object::LoxObject> arguments) override;
 
   int Arity() override;
 

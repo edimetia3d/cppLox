@@ -10,7 +10,7 @@
 #include "lox/error.h"
 
 namespace lox {
-class StmtEvaluator;
+class Evaluator;
 class Environment;
 class Lox {
  public:
@@ -30,7 +30,7 @@ class Lox {
 
  private:
   Error RunStream(std::istream *istream);
-  std::shared_ptr<StmtEvaluator> evaluator_;
+  std::shared_ptr<Evaluator> evaluator_;
   std::shared_ptr<Environment> global_env_;
 };
 

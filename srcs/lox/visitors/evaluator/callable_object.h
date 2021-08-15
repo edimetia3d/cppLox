@@ -14,7 +14,7 @@ namespace lox {
 class LoxCallableState : public object::LoxObjectState {
  public:
   virtual int Arity() = 0;
-  virtual object::LoxObject Call(StmtEvaluator* evaluator, std::vector<object::LoxObject> arguments) = 0;
+  virtual object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) = 0;
 };
 
 class LoxCallable : public object::LoxObject {
@@ -22,7 +22,7 @@ class LoxCallable : public object::LoxObject {
   explicit LoxCallable(const object::LoxObject obj) : object::LoxObject(obj) {}
   bool IsValid();
   int Arity();
-  object::LoxObject Call(StmtEvaluator* evaluator, std::vector<object::LoxObject> arguments);
+  object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments);
 
  protected:
   LoxCallableState* ObjectState();
