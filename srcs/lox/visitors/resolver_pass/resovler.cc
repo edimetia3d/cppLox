@@ -119,4 +119,9 @@ object::LoxObject Resovler::Visit(IfStmtState *state) {
 
   return RETNULL;
 }
+object::LoxObject Resovler::Visit(ClassStmtState *state) {
+  Declare(state->name);
+  Define(state->name);
+  return RETNULL;
+}
 }  // namespace lox

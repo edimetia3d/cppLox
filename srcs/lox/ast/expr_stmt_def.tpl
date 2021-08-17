@@ -13,6 +13,7 @@ Stmt{
     "WhileStmt"      : "Expr condition, Stmt body",
     "ExprStmt"       : "Expr expression",
     "FunctionStmt"   : "Token name, std::vector<Token> params, std::vector<Stmt> body",
+    "ClassStmt"      : "Token name, std::vector<Stmt> methods",
     "PrintStmt"      : "Expr expression",
     "ReturnStmt"     : "Token keyword, Expr value",
     "BlockStmt"      : "std::vector<Stmt> statements",

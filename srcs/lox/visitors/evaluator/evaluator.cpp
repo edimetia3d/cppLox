@@ -8,8 +8,8 @@
 
 #include "lox/error.h"
 #include "lox/visitors/evaluator/callable_object.h"
+#include "lox/visitors/evaluator/lox_class.h"
 #include "lox/visitors/evaluator/lox_function.h"
-
 namespace lox {
 
 struct ReturnValue : public std::exception {
@@ -199,5 +199,11 @@ object::LoxObject Evaluator::Visit(ReturnStmtState* state) {
     ret = Eval(state->value);
   }
   throw ReturnValue(ret);
+}
+object::LoxObject Evaluator::Visit(ClassStmtState* state) {
+  WorkEnv()->Define(state->name.lexeme_, object::LoxObject::VoidObject());
+  auto klass = object::LoxObject(new LoxClassState(state->name.lexeme_));
+  WorkEnv()->Set(state->name.lexeme_, klass);
+  return object::LoxObject::VoidObject();
 }
 }  // namespace lox

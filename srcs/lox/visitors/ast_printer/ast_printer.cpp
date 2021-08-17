@@ -125,5 +125,10 @@ object::LoxObject AstPrinter::Visit(ReturnStmtState* state) {
   }
   return object::LoxObject(ret + ";");
 }
+object::LoxObject AstPrinter::Visit(ClassStmtState* state) {
+  std::string ret = "class ";
+  ret += state->name.lexeme_ + "{}";
+  return object::LoxObject(ret);
+}
 
 }  // namespace lox

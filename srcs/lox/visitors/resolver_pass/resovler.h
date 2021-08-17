@@ -55,6 +55,7 @@ class Resovler : public StmtVisitor, public ExprVisitor {
   object::LoxObject Visit(ExprStmtState* state) override;
   object::LoxObject Visit(VarDeclStmtState* state) override;
   object::LoxObject Visit(FunctionStmtState* state) override;
+  object::LoxObject Visit(ClassStmtState* state) override;
   object::LoxObject Visit(BlockStmtState* state) override;
   object::LoxObject Visit(IfStmtState* state) override;
 

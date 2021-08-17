@@ -88,7 +88,7 @@ class Parser {
     return TokenRecursiveMatch<types...>::Run(this);
   }
   Stmt Declaration();
-  Stmt Function(const std::string& kind);
+  Stmt FunctionDef(const std::string& kind);
   Stmt Statement();
   Stmt PrintStmt();
   Stmt ReturnStmt();
@@ -140,6 +140,7 @@ class Parser {
   Expr FinishCall(const Expr& callee);
 
   Expr Primary();
+  Stmt ClassDef();
 };
 
 template <TokenType type>

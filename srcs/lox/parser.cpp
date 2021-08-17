@@ -133,7 +133,8 @@ Stmt Parser::ExprStmt() {
   return Stmt(nullptr);
 }
 Stmt Parser::Declaration() {
-  if (AdvanceIfMatchAny<TokenType::FUN>()) return Function("function");
+  if (AdvanceIfMatchAny<TokenType::CLASS>()) return ClassDef();
+  if (AdvanceIfMatchAny<TokenType::FUN>()) return FunctionDef("function");
   if (AdvanceIfMatchAny<TokenType::VAR>()) {
     auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after key `var`.");
     Expr init_expr(nullptr);
@@ -282,7 +283,7 @@ Expr Parser::FinishCall(const Expr& callee) {
 
   return Expr(new CallState(callee, paren, arguments));
 }
-Stmt Parser::Function(const std::string& kind) {
+Stmt Parser::FunctionDef(const std::string& kind) {
   ++func_def_level;
   Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
   Consume(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
@@ -316,6 +317,19 @@ Stmt Parser::ReturnStmt() {
     Error(Previous(), std::string("Cannot return here."));
   }
   return Stmt(nullptr);
+}
+Stmt Parser::ClassDef() {
+  Token name = Consume(TokenType::IDENTIFIER, "Expect class name.");
+  Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
+
+  std::vector<Stmt> methods;
+  while (!Check(TokenType::RIGHT_BRACE) && !IsAtEnd()) {
+    methods.push_back(FunctionDef("method"));
+  }
+
+  Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
+
+  return Stmt(new ClassStmtState(name, methods));
 }
 
 }  // namespace lox

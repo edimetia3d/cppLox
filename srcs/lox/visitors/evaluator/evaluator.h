@@ -77,6 +77,7 @@ class Evaluator : public ExprVisitor, public StmtVisitor {
   object::LoxObject Visit(BreakStmtState* state) override;
   object::LoxObject Visit(VarDeclStmtState* state) override;
   object::LoxObject Visit(FunctionStmtState* state) override;
+  object::LoxObject Visit(ClassStmtState* state) override;
   object::LoxObject Visit(BlockStmtState* state) override;
   object::LoxObject Visit(IfStmtState* state) override;
 };
