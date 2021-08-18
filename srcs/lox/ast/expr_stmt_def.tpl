@@ -6,6 +6,7 @@ Expr{
     "Literal": "Token value",
     "Unary": "Token op, Expr right",
     "Call" : "Expr callee, Token paren, std::vector<Expr> arguments",
+    "GetAttr"  : "Expr src_object, Token attr_name",
     "Variable" : "Token name",
 }
 Stmt{

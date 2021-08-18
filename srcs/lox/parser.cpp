@@ -261,6 +261,9 @@ Expr Parser::Call() {
   while (true) {
     if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
       expr = FinishCall(expr);
+    } else if (AdvanceIfMatchAny<TokenType::DOT>()) {
+      Token name = Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
+      expr = Expr(new GetAttrState(expr, name));
     } else {
       break;
     }

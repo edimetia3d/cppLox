@@ -7,4 +7,10 @@
 namespace lox {
 
 std::string LoxClassInstanceState::ToString() { return std::string("Instance of ") + klass_->ToString(); }
+object::LoxObject LoxClassInstanceState::GetAttr(std::string attr) {
+  if (dict_.count(attr) == 0) {
+    return object::LoxObject::VoidObject();
+  }
+  return dict_[attr];
+}
 }  // namespace lox

@@ -8,6 +8,7 @@
 
 #include "lox/error.h"
 #include "lox/visitors/evaluator/callable_object.h"
+#include "lox/visitors/evaluator/class_instance.h"
 #include "lox/visitors/evaluator/lox_class.h"
 #include "lox/visitors/evaluator/lox_function.h"
 namespace lox {
@@ -125,15 +126,15 @@ object::LoxObject Evaluator::Visit(CallState* state) {
     arguments.push_back(Eval(argument));
   }
 
-  LoxCallable function = static_cast<LoxCallable>(callee);
-  if (!function.IsValid()) {
+  auto function = callee.DownCastState<LoxCallableState>();
+  if (!function) {
     throw RuntimeError(Error(state->paren, "Not a callable object"));
   }
-  if (arguments.size() != function.Arity()) {
+  if (arguments.size() != function->Arity()) {
     throw RuntimeError(Error(state->paren, "Wrong arg number"));
   }
   try {
-    return function.Call(this, arguments);
+    return function->Call(this, arguments);
   } catch (ReturnValue& ret) {
     return ret.ret;
   } catch (const char* msg) {
@@ -205,5 +206,17 @@ object::LoxObject Evaluator::Visit(ClassStmtState* state) {
   auto klass = object::LoxObject(new LoxClassState(state->name.lexeme_));
   WorkEnv()->Set(state->name.lexeme_, klass);
   return object::LoxObject::VoidObject();
+}
+object::LoxObject Evaluator::Visit(GetAttrState* state) {
+  auto object = Eval(state->src_object);
+  if (auto p = object.DownCastState<LoxClassInstanceState>()) {
+    auto ret = p->GetAttr(state->attr_name.lexeme_);
+    if (!ret.IsValid()) {
+      throw RuntimeError(Error(state->attr_name, "No attr found"));
+    }
+    return ret;
+  }
+
+  throw RuntimeError(Error(state->attr_name, "Only class instances have properties."));
 }
 }  // namespace lox

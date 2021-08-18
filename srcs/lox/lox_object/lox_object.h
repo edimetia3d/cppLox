@@ -51,8 +51,10 @@ class LoxObject {
     return *static_cast<T*>(RawObjPtr());
   }
 
- protected:
-  LoxObjectState* ObjectState();
+  template <class T>
+  T* DownCastState() {
+    return dynamic_cast<T*>(lox_object_state_.get());
+  }
 
  private:
   void* RawObjPtr();

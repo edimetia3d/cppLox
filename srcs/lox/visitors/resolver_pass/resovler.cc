@@ -124,4 +124,10 @@ object::LoxObject Resovler::Visit(ClassStmtState *state) {
   Define(state->name);
   return RETNULL;
 }
+object::LoxObject Resovler::Visit(GetAttrState *state) {
+  Resolve(state->src_object);
+  // this may be a recursive call, only top level name need be resovled, all attr will be "resolved" by GetAttr
+  // at runtime.
+  return RETNULL;
+}
 }  // namespace lox
