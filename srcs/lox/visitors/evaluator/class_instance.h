@@ -18,6 +18,8 @@ class LoxClassInstanceState : public object::LoxObjectState {
 
   object::LoxObject GetAttr(std::string attr);
 
+  void SetAttr(std::string attr, object::LoxObject value);
+
  private:
   LoxClassState* klass_;
   std::map<std::string, object::LoxObject> dict_;

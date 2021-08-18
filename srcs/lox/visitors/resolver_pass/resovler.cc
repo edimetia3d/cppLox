@@ -130,4 +130,9 @@ object::LoxObject Resovler::Visit(GetAttrState *state) {
   // at runtime.
   return RETNULL;
 }
+object::LoxObject Resovler::Visit(SetAttrState *state) {
+  Resolve(state->src_object);
+  Resolve(state->value);
+  return RETNULL;
+}
 }  // namespace lox

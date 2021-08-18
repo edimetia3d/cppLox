@@ -13,4 +13,5 @@ object::LoxObject LoxClassInstanceState::GetAttr(std::string attr) {
   }
   return dict_[attr];
 }
+void LoxClassInstanceState::SetAttr(std::string attr, object::LoxObject value) { dict_[attr] = value; }
 }  // namespace lox

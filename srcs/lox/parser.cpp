@@ -157,6 +157,8 @@ Expr Parser::Assignment() {
     if (auto state = expr.DownCastState<VariableState>()) {
       Token name = state->name;
       return Expr(new AssignState(name, value));
+    } else if (auto state = expr.DownCastState<GetAttrState>()) {
+      return Expr(new SetAttrState(state->src_object, state->attr_name, value));
     }
 
     Error(equals, "Invalid assignment target.");
@@ -257,7 +259,10 @@ Stmt Parser::BreakStmt() {
 }
 Expr Parser::Call() {
   Expr expr = Primary();
-
+  // We treat a.b as a sugar of GetAttr(a,"b"),but implement it as a new ast node
+  // So, technically, only top level symbol will be treated as a variable at runtime, all .x.y follows is
+  // just function call.
+  // and more , if something like `a.b.c=d` a SetAttr will be called, so `SetAttr(GetAttr(a,"b"),"c",d)`will be called
   while (true) {
     if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
       expr = FinishCall(expr);

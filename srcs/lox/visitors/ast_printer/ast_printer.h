@@ -34,6 +34,7 @@ class AstPrinter : public ExprVisitor, public StmtVisitor {
   object::LoxObject Visit(AssignState* state) override;
   object::LoxObject Visit(CallState* state) override;
   object::LoxObject Visit(GetAttrState* state) override;
+  object::LoxObject Visit(SetAttrState* state) override;
   object::LoxObject Visit(PrintStmtState* state) override;
   object::LoxObject Visit(ReturnStmtState* state) override;
   object::LoxObject Visit(WhileStmtState* state) override;

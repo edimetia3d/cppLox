@@ -7,6 +7,7 @@ Expr{
     "Unary": "Token op, Expr right",
     "Call" : "Expr callee, Token paren, std::vector<Expr> arguments",
     "GetAttr"  : "Expr src_object, Token attr_name",
+    "SetAttr"  : "Expr src_object, Token attr_name, Expr value",
     "Variable" : "Token name",
 }
 Stmt{

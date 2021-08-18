@@ -219,4 +219,14 @@ object::LoxObject Evaluator::Visit(GetAttrState* state) {
 
   throw RuntimeError(Error(state->attr_name, "Only class instances have properties."));
 }
+object::LoxObject Evaluator::Visit(SetAttrState* state) {
+  auto object = Eval(state->src_object);
+  if (auto p = object.DownCastState<LoxClassInstanceState>()) {
+    auto ret = Eval(state->value);
+    p->SetAttr(state->attr_name.lexeme_, Eval(state->value));
+    return ret;
+  }
+
+  throw RuntimeError(Error(state->attr_name, "Only class instances have properties."));
+}
 }  // namespace lox
