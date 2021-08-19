@@ -8,7 +8,7 @@ namespace lox {
 
 int LoxFunctionState::Arity() { return function->params.size(); }
 LoxFunctionState::LoxFunctionState(const FunctionStmt *state, std::shared_ptr<Environment> closure, bool is_init_method)
-    : function(new FunctionStmt(state->name, state->params, state->body)),
+    : function(MakeStmt<FunctionStmt>(state->name, state->params, state->body)),
       closure(std::move(closure)),
       is_init_method(is_init_method) {}
 object::LoxObject LoxFunctionState::Call(Evaluator *evaluator, std::vector<object::LoxObject> arguments) {

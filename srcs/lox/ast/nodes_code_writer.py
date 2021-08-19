@@ -27,9 +27,11 @@ protected:
 class_template = """
 class {class_name}{target_key}:public {target_key}Base
 {{
-public:
+private:
 explicit {class_name}{target_key}({init_params})
 :{init}{{}}
+friend {target_key}Base;
+public:
 {member_def}
 object::LoxObject Accept({target_key}Visitor * visitor) override {{
   return visitor->Visit(this);

@@ -114,7 +114,7 @@ class Parser {
     while (AdvanceIfMatchAny<MATCH_TYPES...>()) {
       Token op = Previous();
       auto r_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-      expr = Expr(new BinaryExpr(expr, op, r_expr));
+      expr = MakeExpr<BinaryExpr>(expr, op, r_expr);
     }
     // ok now it's done
     return expr;

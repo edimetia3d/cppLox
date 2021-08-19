@@ -12,12 +12,17 @@
 
 namespace lox {
 class StmtBase;
+using Stmt = std::shared_ptr<StmtBase>;
 template <class T>
 concept SubclassOfStmt = std::is_base_of<StmtBase, T>::value;
 
 class StmtVisitor;
 class StmtBase {
  public:
+  template <SubclassOfStmt SubT, class... Args>
+  static std::shared_ptr<SubT> Make(Args... args) {
+    return std::shared_ptr<SubT>(new SubT(args...));
+  }
   virtual ~StmtBase() {}
 
   virtual object::LoxObject Accept(StmtVisitor* visitor) = 0;
@@ -28,9 +33,12 @@ class StmtBase {
   }
 };
 
-using Stmt = std::shared_ptr<StmtBase>;
-
 static inline bool IsValid(const Stmt& stmt) { return stmt.get(); }
+
+template <SubclassOfStmt SubT, class... Args>
+std::shared_ptr<SubT> MakeStmt(Args... args) {
+  return StmtBase::Make<SubT, Args...>(args...);
+}
 }  // namespace lox
 
 #ifdef DYNAMIC_GEN_DECL
