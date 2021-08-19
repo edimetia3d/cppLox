@@ -43,8 +43,6 @@ class Parser {
  private:
   const std::vector<Token>& tokens;
   int current_idx = 0;
-  int while_loop_level = 0;
-  int func_def_level = 0;
   bool err_found = false;
 
   const Token& Peek() { return tokens[current_idx]; }

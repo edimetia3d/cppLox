@@ -194,10 +194,7 @@ Stmt Parser::WhileStmt() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
   Expr condition = Expression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
-  ++while_loop_level;
   Stmt body = Statement();
-  --while_loop_level;
-
   return Stmt(new WhileStmtState(condition, body));
 }
 Stmt Parser::ForStmtSugar() {
@@ -222,9 +219,7 @@ Stmt Parser::ForStmtSugar() {
     increment = Expression();
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
-  ++while_loop_level;
   Stmt body = Statement();
-  --while_loop_level;
 
   if (increment.IsValid()) {
     std::vector<Stmt> body_with_increasement = {body};
@@ -249,13 +244,8 @@ Stmt Parser::BreakStmt() {
   if (src_token.type_ == TokenType::CONTINUE) {
     Error(Previous(), " 'continue' not supported yet.");
   }
-  if (while_loop_level) {
-    Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token.lexeme_);
-    return Stmt(new BreakStmtState(src_token));
-  } else {
-    Error(Previous(), std::string("Nothing to ") + src_token.lexeme_);
-  }
-  return Stmt(nullptr);
+  Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token.lexeme_);
+  return Stmt(new BreakStmtState(src_token));
 }
 Expr Parser::Call() {
   Expr expr = Primary();
@@ -292,7 +282,6 @@ Expr Parser::FinishCall(const Expr& callee) {
   return Expr(new CallState(callee, paren, arguments));
 }
 Stmt Parser::FunctionDef(const std::string& kind) {
-  ++func_def_level;
   Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
   Consume(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
   std::vector<Token> parameters;
@@ -308,23 +297,17 @@ Stmt Parser::FunctionDef(const std::string& kind) {
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
   Consume(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
   std::vector<Stmt> body = Blocks();
-  --func_def_level;
   return Stmt(new FunctionStmtState(name, parameters, body));
 }
 Stmt Parser::ReturnStmt() {
   Token keyword = Previous();
-  if (func_def_level) {
-    Expr value(nullptr);
-    if (!Check(TokenType::SEMICOLON)) {
-      value = Expression();
-    }
-
-    Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
-    return Stmt(new ReturnStmtState(keyword, value));
-  } else {
-    Error(Previous(), std::string("Cannot return here."));
+  Expr value(nullptr);
+  if (!Check(TokenType::SEMICOLON)) {
+    value = Expression();
   }
-  return Stmt(nullptr);
+
+  Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
+  return Stmt(new ReturnStmtState(keyword, value));
 }
 Stmt Parser::ClassDef() {
   Token name = Consume(TokenType::IDENTIFIER, "Expect class name.");

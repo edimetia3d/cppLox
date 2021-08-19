@@ -52,10 +52,12 @@ object::LoxObject Resovler::Visit(FunctionStmtState *state) {
   Declare(state->name);
   Define(state->name);
 
-  ResolveFunction(state);
+  ResolveFunction(state, FunctionType::FUNCTION);
   return RETNULL;
 }
-void Resovler::ResolveFunction(FunctionStmtState *state) {
+void Resovler::ResolveFunction(FunctionStmtState *state, FunctionType type) {
+  auto previous_type = current_function_type;
+  current_function_type = type;
   BeginScope();
   for (Token param : state->params) {
     Declare(param);
@@ -65,6 +67,7 @@ void Resovler::ResolveFunction(FunctionStmtState *state) {
     Resolve(stmt);
   }
   EndScope();
+  current_function_type = previous_type;
 }
 object::LoxObject Resovler::Visit(LogicalState *state) {
   Resolve(state->left);
@@ -97,15 +100,25 @@ object::LoxObject Resovler::Visit(PrintStmtState *state) {
   return RETNULL;
 }
 object::LoxObject Resovler::Visit(ReturnStmtState *state) {
+  if (current_function_type == FunctionType::NONE) {
+    throw ResolveError(Error(state->keyword, "Cannot return at here"));
+  }
   Resolve(state->value);
   return RETNULL;
 }
 object::LoxObject Resovler::Visit(WhileStmtState *state) {
+  ++while_loop_level;
   Resolve(state->condition);
   Resolve(state->body);
+  --while_loop_level;
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(BreakStmtState *state) { return RETNULL; }
+object::LoxObject Resovler::Visit(BreakStmtState *state) {
+  if (while_loop_level == 0) {
+    throw ResolveError(Error(state->src_token, "Nothing to break here."));
+  }
+  return RETNULL;
+}
 object::LoxObject Resovler::Visit(ExprStmtState *state) {
   Resolve(state->expression);
   return RETNULL;
@@ -121,6 +134,10 @@ object::LoxObject Resovler::Visit(IfStmtState *state) {
 }
 object::LoxObject Resovler::Visit(ClassStmtState *state) {
   Declare(state->name);
+  for (auto fn_decl : state->methods) {
+    auto fn_state = fn_decl.DownCastState<FunctionStmtState>();
+    ResolveFunction(fn_state, FunctionType::METHOD);
+  }
   Define(state->name);
   return RETNULL;
 }

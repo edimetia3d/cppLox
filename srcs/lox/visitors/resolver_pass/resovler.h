@@ -18,6 +18,12 @@
 #include "lox/visitors/resolver_pass/resolve_map.h"
 namespace lox {
 
+enum class FunctionType {
+  NONE,
+  FUNCTION,
+  METHOD,
+};
+
 class Resovler : public StmtVisitor, public ExprVisitor {
  public:
   Resovler(std::shared_ptr<EnvResolveMap> map) : map_(std::move(map)) {}
@@ -38,7 +44,7 @@ class Resovler : public StmtVisitor, public ExprVisitor {
   void Declare(Token token);
   void Define(Token token);
   void ResolveLocal(ExprState* state, Token name);
-  void ResolveFunction(FunctionStmtState* state);
+  void ResolveFunction(FunctionStmtState* state, FunctionType type);
   object::LoxObject Visit(LogicalState* state) override;
   object::LoxObject Visit(BinaryState* state) override;
   object::LoxObject Visit(GroupingState* state) override;
@@ -63,6 +69,8 @@ class Resovler : public StmtVisitor, public ExprVisitor {
 
   std::vector<Scope> scopes{Scope()};
   std::shared_ptr<EnvResolveMap> map_;
+  FunctionType current_function_type = FunctionType::NONE;
+  int while_loop_level = 0;
 };
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_

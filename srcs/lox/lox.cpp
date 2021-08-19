@@ -88,6 +88,7 @@ void Lox::Eval(const std::string &code) {
     }
   } catch (RuntimeError &rt_err) {
     std::cout << rt_err.what() << std::endl;
+    return;
   }
 }
 }  // namespace lox
