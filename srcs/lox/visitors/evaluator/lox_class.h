@@ -11,13 +11,22 @@
 namespace lox {
 class LoxClassState : public LoxCallableState {
  public:
-  explicit LoxClassState(std::string name) : name_(name) {}
+  explicit LoxClassState(std::string name, std::map<std::string, object::LoxObject> methods)
+      : name_(name), methods_(methods) {}
   int Arity() override;
   object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) override;
   std::string ToString() override;
 
+  object::LoxObject GetMethod(std::string name) {
+    if (methods_.count(name) != 0) {
+      return methods_[name];
+    }
+    return object::LoxObject::VoidObject();
+  }
+
  private:
   std::string name_;
+  std::map<std::string, object::LoxObject> methods_;
 };
 }  // namespace lox
 

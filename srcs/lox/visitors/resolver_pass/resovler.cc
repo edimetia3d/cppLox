@@ -135,6 +135,7 @@ object::LoxObject Resovler::Visit(IfStmtState *state) {
 object::LoxObject Resovler::Visit(ClassStmtState *state) {
   Declare(state->name);
   for (auto fn_decl : state->methods) {
+    // methods are attributes too, they are not name during resolve, and created at runtime.
     auto fn_state = fn_decl.DownCastState<FunctionStmtState>();
     ResolveFunction(fn_state, FunctionType::METHOD);
   }
@@ -143,11 +144,13 @@ object::LoxObject Resovler::Visit(ClassStmtState *state) {
 }
 object::LoxObject Resovler::Visit(GetAttrState *state) {
   Resolve(state->src_object);
+  // attr are not name during resolve, and created at runtime. so no need to call Define here
   // this may be a recursive call, only top level name need be resovled, all attr will be "resolved" by GetAttr
   // at runtime.
   return RETNULL;
 }
 object::LoxObject Resovler::Visit(SetAttrState *state) {
+  // attr are not name during resolve, and created at runtime. so no need to call Define here
   Resolve(state->src_object);
   Resolve(state->value);
   return RETNULL;

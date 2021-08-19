@@ -203,7 +203,15 @@ object::LoxObject Evaluator::Visit(ReturnStmtState* state) {
 }
 object::LoxObject Evaluator::Visit(ClassStmtState* state) {
   WorkEnv()->Define(state->name.lexeme_, object::LoxObject::VoidObject());
-  auto klass = object::LoxObject(new LoxClassState(state->name.lexeme_));
+
+  std::map<std::string, object::LoxObject> methods;
+  for (auto& method_stmt : state->methods) {
+    auto method_state = method_stmt.DownCastState<FunctionStmtState>();
+    auto method = object::LoxObject(new LoxFunctionState(method_state, WorkEnv()));
+    methods[method_state->name.lexeme_] = method;
+  }
+
+  auto klass = object::LoxObject(new LoxClassState(state->name.lexeme_, methods));
   WorkEnv()->Set(state->name.lexeme_, klass);
   return object::LoxObject::VoidObject();
 }

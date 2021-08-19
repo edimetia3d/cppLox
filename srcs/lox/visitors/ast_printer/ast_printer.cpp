@@ -127,7 +127,11 @@ object::LoxObject AstPrinter::Visit(ReturnStmtState* state) {
 }
 object::LoxObject AstPrinter::Visit(ClassStmtState* state) {
   std::string ret = "class ";
-  ret += state->name.lexeme_ + "{}";
+  ret += state->name.lexeme_ + "{\n";
+  for (auto& method : state->methods) {
+    ret += Print(method);
+  }
+  ret += "}";
   return object::LoxObject(ret);
 }
 object::LoxObject AstPrinter::Visit(GetAttrState* state) {
