@@ -50,7 +50,7 @@ lox::Expr lox::Parser::Primary() {
   if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
     return Expr(new LiteralState(Previous()));
 
-  if (AdvanceIfMatchAny<TokenType::IDENTIFIER>()) {
+  if (AdvanceIfMatchAny<TokenType::IDENTIFIER, TokenType::THIS>()) {
     return Expr(new VariableState(Previous()));
   }
 

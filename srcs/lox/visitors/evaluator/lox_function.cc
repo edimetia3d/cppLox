@@ -21,4 +21,9 @@ object::LoxObject LoxFunctionState::Call(Evaluator *evaluator, std::vector<objec
   return object::LoxObject::VoidObject();
 }
 std::string LoxFunctionState::ToString() { return std::string("Function ") + function->name.lexeme_; }
+object::LoxObject LoxFunctionState::BindThis(object::LoxObject obj_this) {
+  auto new_env = Environment::Make(closure);
+  new_env->Define("this", obj_this);
+  return object::LoxObject(std::make_shared<LoxFunctionState>(function.get(), new_env));
+}
 }  // namespace lox

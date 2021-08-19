@@ -18,6 +18,8 @@ class LoxFunctionState : public LoxCallableState {
 
   std::string ToString() override;
 
+  object::LoxObject BindThis(object::LoxObject obj_this);
+
  private:
   std::shared_ptr<Environment> closure;
   std::shared_ptr<FunctionStmtState> function;

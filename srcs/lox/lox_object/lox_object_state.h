@@ -15,7 +15,7 @@ namespace object {
 
 class LoxObjectState;
 using LoxObjectStatePtr = std::shared_ptr<LoxObjectState>;
-struct LoxObjectState {
+struct LoxObjectState : std::enable_shared_from_this<LoxObjectState> {
   template <class RealT>
   LoxObjectState(const RealT &v) : raw_value(new RealT{v}) {}
 

@@ -27,6 +27,9 @@ object::LoxObject Resovler::Visit(VarDeclStmtState *state) {
 }
 void Resovler::Define(Token token) { scopes.back()[token.lexeme_] = true; }
 object::LoxObject Resovler::Visit(VariableState *state) {
+  if (state->name.type_ == TokenType::THIS && current_function_type != FunctionType::METHOD) {
+    throw ResolveError(Error(state->name, "Cannot read 'this' out of method"));
+  }
   if (scopes.back().contains(state->name.lexeme_) and scopes.back()[state->name.lexeme_] == false) {
     throw ResolveError(Error(state->name, "Can't read local variable in its own initializer."));
   }
@@ -133,6 +136,9 @@ object::LoxObject Resovler::Visit(IfStmtState *state) {
   return RETNULL;
 }
 object::LoxObject Resovler::Visit(ClassStmtState *state) {
+  BeginScope();
+  auto token_this = Token(TokenType::THIS, "this", state->name.line_);
+  Define(token_this);
   Declare(state->name);
   for (auto fn_decl : state->methods) {
     // methods are attributes too, they are not name during resolve, and created at runtime.
@@ -140,6 +146,7 @@ object::LoxObject Resovler::Visit(ClassStmtState *state) {
     ResolveFunction(fn_state, FunctionType::METHOD);
   }
   Define(state->name);
+  EndScope();
   return RETNULL;
 }
 object::LoxObject Resovler::Visit(GetAttrState *state) {
