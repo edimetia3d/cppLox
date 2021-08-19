@@ -33,7 +33,7 @@ class ExprBase {
   virtual object::LoxObject Accept(ExprVisitor* visitor) = 0;
 
   template <SubclassOfExprState T>
-  T* DownCastState() {
+  T* DownCast() {
     return dynamic_cast<T*>(this);
   }
 };

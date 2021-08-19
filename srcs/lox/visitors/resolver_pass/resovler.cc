@@ -110,7 +110,7 @@ object::LoxObject Resovler::Visit(ReturnStmt *state) {
   }
   if (current_function_type == FunctionType::INITIALIZER) {
     if (IsValid(state->value)) {
-      auto p = state->value->DownCastState<VariableExpr>();
+      auto p = state->value->DownCast<VariableExpr>();
       if (p == nullptr || p->name.lexeme_ != "this") {
         throw ResolveError(Error(state->keyword, "INITIALIZER must return 'this'"));
       }
@@ -155,7 +155,7 @@ object::LoxObject Resovler::Visit(ClassStmt *state) {
   for (auto fn_decl : state->methods) {
     auto fn_type = FunctionType::METHOD;
     // methods are attributes too, they are not name during resolve, and created at runtime.
-    auto fn_state = fn_decl->DownCastState<FunctionStmt>();
+    auto fn_state = fn_decl->DownCast<FunctionStmt>();
     if (fn_state->name.lexeme_ == "init") {
       fn_type = FunctionType::INITIALIZER;
     }

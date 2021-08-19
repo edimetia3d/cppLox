@@ -198,7 +198,7 @@ object::LoxObject Evaluator::Visit(ClassStmt* state) {
 
   std::map<std::string, object::LoxObject> methods;
   for (auto& method_stmt : state->methods) {
-    auto method_state = method_stmt->DownCastState<FunctionStmt>();
+    auto method_state = method_stmt->DownCast<FunctionStmt>();
     auto method =
         object::LoxObject(new LoxFunctionState(method_state, WorkEnv(), method_state->name.lexeme_ == "init"));
     methods[method_state->name.lexeme_] = method;

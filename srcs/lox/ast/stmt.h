@@ -28,7 +28,7 @@ class StmtBase {
   virtual object::LoxObject Accept(StmtVisitor* visitor) = 0;
 
   template <SubclassOfStmt T>
-  T* DownCastState() {
+  T* DownCast() {
     return dynamic_cast<T*>(this);
   }
 };

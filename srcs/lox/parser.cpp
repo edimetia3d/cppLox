@@ -154,10 +154,10 @@ Expr Parser::Assignment() {
     Token equals = Previous();
     Expr value = Assignment();  // use recurse to impl the right-associative
 
-    if (auto state = expr->DownCastState<VariableExpr>()) {
+    if (auto state = expr->DownCast<VariableExpr>()) {
       Token name = state->name;
       return MakeExpr<AssignExpr>(name, value);
-    } else if (auto state = expr->DownCastState<GetAttrExpr>()) {
+    } else if (auto state = expr->DownCast<GetAttrExpr>()) {
       return MakeExpr<SetAttrExpr>(state->src_object, state->attr_name, value);
     }
 
