@@ -1,0 +1,14 @@
+class Foo {
+  init(radius) {
+    this.radius = radius;
+  }
+
+  printme(){
+    print this.radius;
+    print this.new_attr;
+  }
+}
+
+var foo = Foo(4);
+foo.new_attr = "abc";
+foo.printme();

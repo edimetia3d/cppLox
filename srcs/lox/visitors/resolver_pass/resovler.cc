@@ -27,8 +27,10 @@ object::LoxObject Resovler::Visit(VarDeclStmtState *state) {
 }
 void Resovler::Define(Token token) { scopes.back()[token.lexeme_] = true; }
 object::LoxObject Resovler::Visit(VariableState *state) {
-  if (state->name.type_ == TokenType::THIS && current_function_type != FunctionType::METHOD) {
-    throw ResolveError(Error(state->name, "Cannot read 'this' out of method"));
+  if (state->name.type_ == TokenType::THIS) {
+    if (current_function_type != FunctionType::METHOD && current_function_type != FunctionType::INITIALIZER) {
+      throw ResolveError(Error(state->name, "Cannot read 'this' out of method"));
+    }
   }
   if (scopes.back().contains(state->name.lexeme_) and scopes.back()[state->name.lexeme_] == false) {
     throw ResolveError(Error(state->name, "Can't read local variable in its own initializer."));
@@ -106,7 +108,17 @@ object::LoxObject Resovler::Visit(ReturnStmtState *state) {
   if (current_function_type == FunctionType::NONE) {
     throw ResolveError(Error(state->keyword, "Cannot return at here"));
   }
-  Resolve(state->value);
+  if (current_function_type == FunctionType::INITIALIZER) {
+    if (state->value.IsValid()) {
+      auto p = state->value.DownCastState<VariableState>();
+      if (p == nullptr || p->name.lexeme_ != "this") {
+        throw ResolveError(Error(state->keyword, "INITIALIZER must return 'this'"));
+      }
+    }
+  }
+  if (state->value.IsValid()) {
+    Resolve(state->value);
+  }
   return RETNULL;
 }
 object::LoxObject Resovler::Visit(WhileStmtState *state) {
@@ -141,9 +153,13 @@ object::LoxObject Resovler::Visit(ClassStmtState *state) {
   Define(token_this);
   Declare(state->name);
   for (auto fn_decl : state->methods) {
+    auto fn_type = FunctionType::METHOD;
     // methods are attributes too, they are not name during resolve, and created at runtime.
     auto fn_state = fn_decl.DownCastState<FunctionStmtState>();
-    ResolveFunction(fn_state, FunctionType::METHOD);
+    if (fn_state->name.lexeme_ == "init") {
+      fn_type = FunctionType::INITIALIZER;
+    }
+    ResolveFunction(fn_state, fn_type);
   }
   Define(state->name);
   EndScope();

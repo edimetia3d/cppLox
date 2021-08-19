@@ -13,6 +13,13 @@
 #include "lox/lox_object/lox_object.h"
 #include "lox/visitors/resolver_pass/resolve_map.h"
 namespace lox {
+
+struct ReturnValue : public std::exception {
+  explicit ReturnValue(object::LoxObject obj) : ret(std::move(obj)) {}
+
+  object::LoxObject ret;
+};
+
 class Evaluator : public ExprVisitor, public StmtVisitor {
  public:
   explicit Evaluator(std::shared_ptr<Environment> env) : work_env_(std::move(env)) {}

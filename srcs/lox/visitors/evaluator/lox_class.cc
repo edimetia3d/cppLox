@@ -8,9 +8,21 @@
 
 namespace lox {
 
-int LoxClassState::Arity() { return 0; }
+int LoxClassState::Arity() {
+  auto initializer = GetMethod("init");
+  if (initializer.IsValid()) {
+    return initializer.DownCastState<LoxFunctionState>()->Arity();
+  }
+  return 0;
+}
 object::LoxObject LoxClassState::Call(Evaluator *evaluator, std::vector<object::LoxObject> arguments) {
-  return object::LoxObject(new LoxClassInstanceState(this));
+  auto ret = object::LoxObject(new LoxClassInstanceState(this));
+  auto initializer = GetMethod("init");
+  if (initializer.IsValid()) {
+    auto init_fn = initializer.DownCastState<LoxFunctionState>()->BindThis(ret);
+    init_fn.DownCastState<LoxCallableState>()->Call(evaluator, arguments);
+  }
+  return ret;
 }
 std::string LoxClassState::ToString() { return std::string("class ") + name_; }
 }  // namespace lox

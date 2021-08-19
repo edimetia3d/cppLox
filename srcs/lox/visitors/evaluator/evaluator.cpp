@@ -13,12 +13,6 @@
 #include "lox/visitors/evaluator/lox_function.h"
 namespace lox {
 
-struct ReturnValue : public std::exception {
-  explicit ReturnValue(object::LoxObject obj) : ret(std::move(obj)) {}
-
-  object::LoxObject ret;
-};
-
 object::LoxObject Evaluator::Visit(LiteralState* state) {
   switch (state->value.type_) {
     case TokenType::NUMBER:
@@ -135,8 +129,6 @@ object::LoxObject Evaluator::Visit(CallState* state) {
   }
   try {
     return function->Call(this, arguments);
-  } catch (ReturnValue& ret) {
-    return ret.ret;
   } catch (const char* msg) {
     throw RuntimeError(Error(state->paren, msg));
   }
@@ -207,7 +199,8 @@ object::LoxObject Evaluator::Visit(ClassStmtState* state) {
   std::map<std::string, object::LoxObject> methods;
   for (auto& method_stmt : state->methods) {
     auto method_state = method_stmt.DownCastState<FunctionStmtState>();
-    auto method = object::LoxObject(new LoxFunctionState(method_state, WorkEnv()));
+    auto method =
+        object::LoxObject(new LoxFunctionState(method_state, WorkEnv(), method_state->name.lexeme_ == "init"));
     methods[method_state->name.lexeme_] = method;
   }
 
