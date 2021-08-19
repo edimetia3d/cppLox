@@ -16,13 +16,6 @@ protected:
 {virtual_visit_decls}
 }};
 
-class {target_key}State {{
- public:
-  virtual ~{target_key}State() {{}}
-  
-  virtual object::LoxObject Accept({target_key}Visitor * visitor) = 0;
-
-}};
 
 
 {class_decls}
@@ -32,10 +25,10 @@ class {target_key}State {{
 """
 
 class_template = """
-class {class_name}State:public {target_key}State
+class {class_name}{target_key}:public {target_key}Base
 {{
 public:
-explicit {class_name}State({init_params})
+explicit {class_name}{target_key}({init_params})
 :{init}{{}}
 {member_def}
 object::LoxObject Accept({target_key}Visitor * visitor) override {{
@@ -67,10 +60,10 @@ def gen_code(input_file_path, output_file_path, target_key = "Expr"):
         for class_name in all_def:
             type_id += 1
             virtual_visit_decls += f"""
-friend class {class_name}State;
-virtual object::LoxObject Visit({class_name}State *) = 0;
+friend class {class_name}{target_key};
+virtual object::LoxObject Visit({class_name}{target_key} *) = 0;
 """
-            class_forward_decl += f"""class {class_name}State;\n"""
+            class_forward_decl += f"""class {class_name}{target_key};\n"""
             member_list = all_def[class_name].split(",")
             member_def = ""
             member_init_params = []

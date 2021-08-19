@@ -30,13 +30,13 @@ class Resovler : public StmtVisitor, public ExprVisitor {
   Resovler(std::shared_ptr<EnvResolveMap> map) : map_(std::move(map)) {}
   using Scope = std::map<std::string, bool>;
   void Resolve(Stmt stmt) {
-    assert(stmt.IsValid());
-    stmt.Accept(this);
+    assert(IsValid(stmt));
+    stmt->Accept(this);
   }
 
   void Resolve(Expr expr) {
-    assert(expr.IsValid());
-    expr.Accept(this);
+    assert(IsValid(expr));
+    expr->Accept(this);
   }
 
  protected:
@@ -44,29 +44,29 @@ class Resovler : public StmtVisitor, public ExprVisitor {
   void EndScope() { scopes.erase(scopes.end() - 1); }
   void Declare(Token token);
   void Define(Token token);
-  void ResolveLocal(ExprState* state, Token name);
-  void ResolveFunction(FunctionStmtState* state, FunctionType type);
-  object::LoxObject Visit(LogicalState* state) override;
-  object::LoxObject Visit(BinaryState* state) override;
-  object::LoxObject Visit(GroupingState* state) override;
-  object::LoxObject Visit(LiteralState* state) override;
-  object::LoxObject Visit(UnaryState* state) override;
-  object::LoxObject Visit(VariableState* state) override;
-  object::LoxObject Visit(AssignState* state) override;
-  object::LoxObject Visit(CallState* state) override;
-  object::LoxObject Visit(GetAttrState* state) override;
-  object::LoxObject Visit(SetAttrState* state) override;
+  void ResolveLocal(ExprBase* state, Token name);
+  void ResolveFunction(FunctionStmt* state, FunctionType type);
+  object::LoxObject Visit(LogicalExpr* state) override;
+  object::LoxObject Visit(BinaryExpr* state) override;
+  object::LoxObject Visit(GroupingExpr* state) override;
+  object::LoxObject Visit(LiteralExpr* state) override;
+  object::LoxObject Visit(UnaryExpr* state) override;
+  object::LoxObject Visit(VariableExpr* state) override;
+  object::LoxObject Visit(AssignExpr* state) override;
+  object::LoxObject Visit(CallExpr* state) override;
+  object::LoxObject Visit(GetAttrExpr* state) override;
+  object::LoxObject Visit(SetAttrExpr* state) override;
 
-  object::LoxObject Visit(PrintStmtState* state) override;
-  object::LoxObject Visit(ReturnStmtState* state) override;
-  object::LoxObject Visit(WhileStmtState* state) override;
-  object::LoxObject Visit(BreakStmtState* state) override;
-  object::LoxObject Visit(ExprStmtState* state) override;
-  object::LoxObject Visit(VarDeclStmtState* state) override;
-  object::LoxObject Visit(FunctionStmtState* state) override;
-  object::LoxObject Visit(ClassStmtState* state) override;
-  object::LoxObject Visit(BlockStmtState* state) override;
-  object::LoxObject Visit(IfStmtState* state) override;
+  object::LoxObject Visit(PrintStmt* state) override;
+  object::LoxObject Visit(ReturnStmt* state) override;
+  object::LoxObject Visit(WhileStmt* state) override;
+  object::LoxObject Visit(BreakStmt* state) override;
+  object::LoxObject Visit(ExprStmt* state) override;
+  object::LoxObject Visit(VarDeclStmt* state) override;
+  object::LoxObject Visit(FunctionStmt* state) override;
+  object::LoxObject Visit(ClassStmt* state) override;
+  object::LoxObject Visit(BlockStmt* state) override;
+  object::LoxObject Visit(IfStmt* state) override;
 
   std::vector<Scope> scopes{Scope()};
   std::shared_ptr<EnvResolveMap> map_;

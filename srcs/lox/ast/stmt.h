@@ -11,30 +11,26 @@
 #include "lox/ast/expr.h"
 
 namespace lox {
-
-class StmtState;
-class StmtVisitor;
+class StmtBase;
 template <class T>
-concept SubclassOfStmtState = std::is_base_of<StmtState, T>::value;
+concept SubclassOfStmt = std::is_base_of<StmtBase, T>::value;
 
-class Stmt {
+class StmtVisitor;
+class StmtBase {
  public:
-  /**
-   * This fn will take ownership of object state_ pointed to
-   */
-  explicit Stmt(StmtState* state) : state_(state) {}
-  explicit Stmt(std::shared_ptr<StmtState> state) : state_(std::move(state)) {}
-  bool IsValid() { return static_cast<bool>(state_); }
-  object::LoxObject Accept(StmtVisitor* visitor);
+  virtual ~StmtBase() {}
 
-  template <SubclassOfStmtState T>
+  virtual object::LoxObject Accept(StmtVisitor* visitor) = 0;
+
+  template <SubclassOfStmt T>
   T* DownCastState() {
-    return dynamic_cast<T*>(state_.get());
+    return dynamic_cast<T*>(this);
   }
-
- private:
-  std::shared_ptr<StmtState> state_;
 };
+
+using Stmt = std::shared_ptr<StmtBase>;
+
+static inline bool IsValid(const Stmt& stmt) { return stmt.get(); }
 }  // namespace lox
 
 #ifdef DYNAMIC_GEN_DECL

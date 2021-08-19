@@ -14,7 +14,7 @@ Expr Parser::Or() {
   while (AdvanceIfMatchAny<TokenType::OR>()) {
     Token op = Previous();
     auto r_expr = And();
-    expr = Expr(new LogicalState(expr, op, r_expr));
+    expr = Expr(new LogicalExpr(expr, op, r_expr));
   }
   return expr;
 }
@@ -24,7 +24,7 @@ Expr Parser::And() {
   while (AdvanceIfMatchAny<TokenType::AND>()) {
     Token op = Previous();
     auto r_expr = Equality();
-    expr = Expr(new LogicalState(expr, op, r_expr));
+    expr = Expr(new LogicalExpr(expr, op, r_expr));
   }
   return expr;
 }
@@ -42,22 +42,22 @@ lox::Expr lox::Parser::Unary() {
   if (AdvanceIfMatchAny<TokenType::BANG, TokenType::MINUS>()) {
     Token op = Previous();
     auto right = this->Unary();
-    return Expr(new lox::UnaryState(op, right));
+    return Expr(new lox::UnaryExpr(op, right));
   }
   return Call();
 }
 lox::Expr lox::Parser::Primary() {
   if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
-    return Expr(new LiteralState(Previous()));
+    return Expr(new LiteralExpr(Previous()));
 
   if (AdvanceIfMatchAny<TokenType::IDENTIFIER, TokenType::THIS>()) {
-    return Expr(new VariableState(Previous()));
+    return Expr(new VariableExpr(Previous()));
   }
 
   if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
-    auto expr = Expression();
+    auto expr = ExpressionExpr();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-    return Expr(new GroupingState(expr));
+    return Expr(new GroupingExpr(expr));
   }
   throw Error(Peek(), "Primary get unknown token");
 }
@@ -104,28 +104,28 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
   }
 }
 lox::Stmt lox::Parser::Statement() {
-  if (AdvanceIfMatchAny<TokenType::IF>()) return IfStmt();
-  if (AdvanceIfMatchAny<TokenType::WHILE>()) return WhileStmt();
-  if (AdvanceIfMatchAny<TokenType::BREAK, TokenType::CONTINUE>()) return BreakStmt();
+  if (AdvanceIfMatchAny<TokenType::IF>()) return If();
+  if (AdvanceIfMatchAny<TokenType::WHILE>()) return While();
+  if (AdvanceIfMatchAny<TokenType::BREAK, TokenType::CONTINUE>()) return Break();
   if (AdvanceIfMatchAny<TokenType::FOR>()) return ForStmtSugar();
-  if (AdvanceIfMatchAny<TokenType::PRINT>()) return PrintStmt();
-  if (AdvanceIfMatchAny<TokenType::RETURN>()) return ReturnStmt();
-  if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) return BlockStmt();
+  if (AdvanceIfMatchAny<TokenType::PRINT>()) return Print();
+  if (AdvanceIfMatchAny<TokenType::RETURN>()) return Return();
+  if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) return Block();
 
-  return ExprStmt();
+  return ExpressionStmt();
 }
-Stmt Parser::PrintStmt() {
-  Expr value = Expression();
+Stmt Parser::Print() {
+  Expr value = ExpressionExpr();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  return Stmt(new PrintStmtState(value));
+  return Stmt(new PrintStmt(value));
 }
-Stmt Parser::ExprStmt() {
-  Expr expr = Expression();
+Stmt Parser::ExpressionStmt() {
+  Expr expr = ExpressionExpr();
   if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
-    return Stmt(new ExprStmtState(expr));
+    return Stmt(new ExprStmt(expr));
   } else {
     if (GlobalSetting().interactive_mode) {
-      return Stmt(new PrintStmtState(expr));
+      return Stmt(new PrintStmt(expr));
     } else {
       Error(Peek(), "Non-interactive mode must have ; after expression");
     }
@@ -139,10 +139,10 @@ Stmt Parser::Declaration() {
     auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after key `var`.");
     Expr init_expr(nullptr);
     if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
-      init_expr = Expression();
+      init_expr = ExpressionExpr();
     }
     Consume(TokenType::SEMICOLON, "Expect ; when var decl finish.");
-    return Stmt(new VarDeclStmtState(name, init_expr));
+    return Stmt(new VarDeclStmt(name, init_expr));
   }
 
   return Statement();
@@ -154,11 +154,11 @@ Expr Parser::Assignment() {
     Token equals = Previous();
     Expr value = Assignment();  // use recurse to impl the right-associative
 
-    if (auto state = expr.DownCastState<VariableState>()) {
+    if (auto state = expr->DownCastState<VariableExpr>()) {
       Token name = state->name;
-      return Expr(new AssignState(name, value));
-    } else if (auto state = expr.DownCastState<GetAttrState>()) {
-      return Expr(new SetAttrState(state->src_object, state->attr_name, value));
+      return Expr(new AssignExpr(name, value));
+    } else if (auto state = expr->DownCastState<GetAttrExpr>()) {
+      return Expr(new SetAttrExpr(state->src_object, state->attr_name, value));
     }
 
     Error(equals, "Invalid assignment target.");
@@ -166,8 +166,8 @@ Expr Parser::Assignment() {
 
   return expr;
 }
-Stmt Parser::BlockStmt() { return Stmt(new BlockStmtState(Blocks())); }
-std::vector<Stmt> Parser::Blocks() {
+Stmt Parser::Block() { return Stmt(new BlockStmt(GetBlocks())); }
+std::vector<Stmt> Parser::GetBlocks() {
   std::vector<Stmt> statements;
 
   while (!Check(TokenType::RIGHT_BRACE) && !IsAtEnd()) {
@@ -177,9 +177,9 @@ std::vector<Stmt> Parser::Blocks() {
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
   return statements;
 }
-Stmt Parser::IfStmt() {
+Stmt Parser::If() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
-  Expr condition = Expression();
+  Expr condition = ExpressionExpr();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
 
   Stmt thenBranch = Statement();
@@ -188,14 +188,14 @@ Stmt Parser::IfStmt() {
     elseBranch = Statement();
   }
 
-  return Stmt(new IfStmtState(condition, thenBranch, elseBranch));
+  return Stmt(new IfStmt(condition, thenBranch, elseBranch));
 }
-Stmt Parser::WhileStmt() {
+Stmt Parser::While() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
-  Expr condition = Expression();
+  Expr condition = ExpressionExpr();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
   Stmt body = Statement();
-  return Stmt(new WhileStmtState(condition, body));
+  return Stmt(new WhileStmt(condition, body));
 }
 Stmt Parser::ForStmtSugar() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
@@ -205,47 +205,47 @@ Stmt Parser::ForStmtSugar() {
   } else if (Check(TokenType::VAR)) {
     initializer = Declaration();
   } else {
-    initializer = ExprStmt();
+    initializer = ExpressionStmt();
   }
 
   Expr condition(nullptr);
   if (!Check(TokenType::SEMICOLON)) {
-    condition = Expression();
+    condition = ExpressionExpr();
   }
   Consume(TokenType::SEMICOLON, "Expect ';' after loop condition.");
 
   Expr increment(nullptr);
   if (!Check(TokenType::RIGHT_PAREN)) {
-    increment = Expression();
+    increment = ExpressionExpr();
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
   Stmt body = Statement();
 
-  if (increment.IsValid()) {
+  if (IsValid(increment)) {
     std::vector<Stmt> body_with_increasement = {body};
-    body_with_increasement.push_back(Stmt(new ExprStmtState(increment)));
-    body = Stmt(new BlockStmtState(body_with_increasement));
+    body_with_increasement.push_back(Stmt(new ExprStmt(increment)));
+    body = Stmt(new BlockStmt(body_with_increasement));
   }
-  if (!condition.IsValid()) {
+  if (!IsValid(condition)) {
     auto tmp_true_token = Token(TokenType::TRUE, "for_sugar_true", Peek().line_);
-    condition = Expr(new LiteralState(tmp_true_token));
+    condition = Expr(new LiteralExpr(tmp_true_token));
   }
-  body = Stmt(new WhileStmtState(condition, body));
+  body = Stmt(new WhileStmt(condition, body));
 
-  if (initializer.IsValid()) {
+  if (IsValid(initializer)) {
     std::vector<Stmt> body_with_initializer = {initializer, body};
-    body = Stmt(new BlockStmtState(body_with_initializer));
+    body = Stmt(new BlockStmt(body_with_initializer));
   }
 
   return body;
 }
-Stmt Parser::BreakStmt() {
+Stmt Parser::Break() {
   auto src_token = Previous();
   if (src_token.type_ == TokenType::CONTINUE) {
     Error(Previous(), " 'continue' not supported yet.");
   }
   Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token.lexeme_);
-  return Stmt(new BreakStmtState(src_token));
+  return Stmt(new BreakStmt(src_token));
 }
 Expr Parser::Call() {
   Expr expr = Primary();
@@ -258,7 +258,7 @@ Expr Parser::Call() {
       expr = FinishCall(expr);
     } else if (AdvanceIfMatchAny<TokenType::DOT>()) {
       Token name = Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
-      expr = Expr(new GetAttrState(expr, name));
+      expr = Expr(new GetAttrExpr(expr, name));
     } else {
       break;
     }
@@ -273,13 +273,13 @@ Expr Parser::FinishCall(const Expr& callee) {
       if (arguments.size() >= 255) {
         Error(Peek(), "Can't have more than 255 arguments.");
       }
-      arguments.push_back(Expression());
+      arguments.push_back(ExpressionExpr());
     } while (AdvanceIfMatchAny<TokenType::COMMA>());
   }
 
   Token paren = Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
 
-  return Expr(new CallState(callee, paren, arguments));
+  return Expr(new CallExpr(callee, paren, arguments));
 }
 Stmt Parser::FunctionDef(const std::string& kind) {
   Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
@@ -296,18 +296,18 @@ Stmt Parser::FunctionDef(const std::string& kind) {
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
   Consume(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
-  std::vector<Stmt> body = Blocks();
-  return Stmt(new FunctionStmtState(name, parameters, body));
+  std::vector<Stmt> body = GetBlocks();
+  return Stmt(new FunctionStmt(name, parameters, body));
 }
-Stmt Parser::ReturnStmt() {
+Stmt Parser::Return() {
   Token keyword = Previous();
   Expr value(nullptr);
   if (!Check(TokenType::SEMICOLON)) {
-    value = Expression();
+    value = ExpressionExpr();
   }
 
   Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
-  return Stmt(new ReturnStmtState(keyword, value));
+  return Stmt(new ReturnStmt(keyword, value));
 }
 Stmt Parser::ClassDef() {
   Token name = Consume(TokenType::IDENTIFIER, "Expect class name.");
@@ -320,7 +320,7 @@ Stmt Parser::ClassDef() {
 
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
 
-  return Stmt(new ClassStmtState(name, methods));
+  return Stmt(new ClassStmt(name, methods));
 }
 
 }  // namespace lox

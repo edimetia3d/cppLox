@@ -10,7 +10,7 @@
 namespace lox {
 class LoxFunctionState : public LoxCallableState {
  public:
-  explicit LoxFunctionState(const FunctionStmtState *state, std::shared_ptr<Environment> closure,
+  explicit LoxFunctionState(const FunctionStmt *state, std::shared_ptr<Environment> closure,
                             bool is_init_method = false);
 
   object::LoxObject Call(Evaluator *evaluator, std::vector<object::LoxObject> arguments) override;
@@ -24,7 +24,7 @@ class LoxFunctionState : public LoxCallableState {
  private:
   bool is_init_method = false;
   std::shared_ptr<Environment> closure;
-  std::shared_ptr<FunctionStmtState> function;
+  std::shared_ptr<FunctionStmt> function;
 };
 }  // namespace lox
 

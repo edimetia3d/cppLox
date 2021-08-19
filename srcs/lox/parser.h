@@ -88,16 +88,16 @@ class Parser {
   Stmt Declaration();
   Stmt FunctionDef(const std::string& kind);
   Stmt Statement();
-  Stmt PrintStmt();
-  Stmt ReturnStmt();
-  Stmt WhileStmt();
-  Stmt BreakStmt();
+  Stmt Print();
+  Stmt Return();
+  Stmt While();
+  Stmt Break();
   Stmt ForStmtSugar();
-  Stmt ExprStmt();
-  Stmt BlockStmt();
-  std::vector<Stmt> Blocks();
-  Stmt IfStmt();
-  Expr Expression() { return Assignment(); }
+  Stmt ExpressionStmt();
+  Stmt Block();
+  std::vector<Stmt> GetBlocks();
+  Stmt If();
+  Expr ExpressionExpr() { return Assignment(); }
   Expr Assignment();
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
@@ -114,7 +114,7 @@ class Parser {
     while (AdvanceIfMatchAny<MATCH_TYPES...>()) {
       Token op = Previous();
       auto r_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-      expr = Expr(new BinaryState(expr, op, r_expr));
+      expr = Expr(new BinaryExpr(expr, op, r_expr));
     }
     // ok now it's done
     return expr;

@@ -1,7 +1,5 @@
 
 add_library(ast
-        expr.cpp
-        stmt.cpp
         expr.h
         stmt.h
         )

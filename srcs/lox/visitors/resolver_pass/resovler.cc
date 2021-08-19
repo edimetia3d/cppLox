@@ -8,7 +8,7 @@
 
 namespace lox {
 static auto RETNULL = object::LoxObject::VoidObject();
-object::LoxObject Resovler::Visit(BlockStmtState *state) {
+object::LoxObject Resovler::Visit(BlockStmt *state) {
   BeginScope();
   for (auto &stmt : state->statements) {
     Resolve(stmt);
@@ -17,16 +17,16 @@ object::LoxObject Resovler::Visit(BlockStmtState *state) {
   return RETNULL;
 }
 void Resovler::Declare(Token token) { scopes.back()[token.lexeme_] = false; }
-object::LoxObject Resovler::Visit(VarDeclStmtState *state) {
+object::LoxObject Resovler::Visit(VarDeclStmt *state) {
   Declare(state->name);
-  if (state->initializer.IsValid()) {
+  if (IsValid(state->initializer)) {
     Resolve(state->initializer);
   }
   Define(state->name);
   return RETNULL;
 }
 void Resovler::Define(Token token) { scopes.back()[token.lexeme_] = true; }
-object::LoxObject Resovler::Visit(VariableState *state) {
+object::LoxObject Resovler::Visit(VariableExpr *state) {
   if (state->name.type_ == TokenType::THIS) {
     if (current_function_type != FunctionType::METHOD && current_function_type != FunctionType::INITIALIZER) {
       throw ResolveError(Error(state->name, "Cannot read 'this' out of method"));
@@ -39,7 +39,7 @@ object::LoxObject Resovler::Visit(VariableState *state) {
   ResolveLocal(state, state->name);
   return RETNULL;
 }
-void Resovler::ResolveLocal(ExprState *state, Token name) {
+void Resovler::ResolveLocal(ExprBase *state, Token name) {
   for (int i = scopes.size() - 1; i >= 0; i--) {
     if (scopes[i].contains(name.lexeme_)) {
       map_->Set(state, scopes.size() - 1 - i);
@@ -48,19 +48,19 @@ void Resovler::ResolveLocal(ExprState *state, Token name) {
   }
 }
 
-object::LoxObject Resovler::Visit(AssignState *state) {
+object::LoxObject Resovler::Visit(AssignExpr *state) {
   Resolve(state->value);
   ResolveLocal(state, state->name);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(FunctionStmtState *state) {
+object::LoxObject Resovler::Visit(FunctionStmt *state) {
   Declare(state->name);
   Define(state->name);
 
   ResolveFunction(state, FunctionType::FUNCTION);
   return RETNULL;
 }
-void Resovler::ResolveFunction(FunctionStmtState *state, FunctionType type) {
+void Resovler::ResolveFunction(FunctionStmt *state, FunctionType type) {
   auto previous_type = current_function_type;
   current_function_type = type;
   BeginScope();
@@ -74,80 +74,80 @@ void Resovler::ResolveFunction(FunctionStmtState *state, FunctionType type) {
   EndScope();
   current_function_type = previous_type;
 }
-object::LoxObject Resovler::Visit(LogicalState *state) {
+object::LoxObject Resovler::Visit(LogicalExpr *state) {
   Resolve(state->left);
   Resolve(state->right);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(BinaryState *state) {
+object::LoxObject Resovler::Visit(BinaryExpr *state) {
   Resolve(state->left);
   Resolve(state->right);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(GroupingState *state) {
+object::LoxObject Resovler::Visit(GroupingExpr *state) {
   Resolve(state->expression);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(LiteralState *state) { return RETNULL; }
-object::LoxObject Resovler::Visit(UnaryState *state) {
+object::LoxObject Resovler::Visit(LiteralExpr *state) { return RETNULL; }
+object::LoxObject Resovler::Visit(UnaryExpr *state) {
   Resolve(state->right);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(CallState *state) {
+object::LoxObject Resovler::Visit(CallExpr *state) {
   for (auto &expr : state->arguments) {
     Resolve(expr);
   }
   Resolve(state->callee);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(PrintStmtState *state) {
+object::LoxObject Resovler::Visit(PrintStmt *state) {
   Resolve(state->expression);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(ReturnStmtState *state) {
+object::LoxObject Resovler::Visit(ReturnStmt *state) {
   if (current_function_type == FunctionType::NONE) {
     throw ResolveError(Error(state->keyword, "Cannot return at here"));
   }
   if (current_function_type == FunctionType::INITIALIZER) {
-    if (state->value.IsValid()) {
-      auto p = state->value.DownCastState<VariableState>();
+    if (IsValid(state->value)) {
+      auto p = state->value->DownCastState<VariableExpr>();
       if (p == nullptr || p->name.lexeme_ != "this") {
         throw ResolveError(Error(state->keyword, "INITIALIZER must return 'this'"));
       }
     }
   }
-  if (state->value.IsValid()) {
+  if (IsValid(state->value)) {
     Resolve(state->value);
   }
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(WhileStmtState *state) {
+object::LoxObject Resovler::Visit(WhileStmt *state) {
   ++while_loop_level;
   Resolve(state->condition);
   Resolve(state->body);
   --while_loop_level;
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(BreakStmtState *state) {
+object::LoxObject Resovler::Visit(BreakStmt *state) {
   if (while_loop_level == 0) {
     throw ResolveError(Error(state->src_token, "Nothing to break here."));
   }
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(ExprStmtState *state) {
+object::LoxObject Resovler::Visit(ExprStmt *state) {
   Resolve(state->expression);
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(IfStmtState *state) {
+object::LoxObject Resovler::Visit(IfStmt *state) {
   Resolve(state->condition);
   Resolve(state->thenBranch);
-  if (state->elseBranch.IsValid()) {
+  if (IsValid(state->elseBranch)) {
     Resolve(state->elseBranch);
   }
 
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(ClassStmtState *state) {
+object::LoxObject Resovler::Visit(ClassStmt *state) {
   BeginScope();
   auto token_this = Token(TokenType::THIS, "this", state->name.line_);
   Define(token_this);
@@ -155,7 +155,7 @@ object::LoxObject Resovler::Visit(ClassStmtState *state) {
   for (auto fn_decl : state->methods) {
     auto fn_type = FunctionType::METHOD;
     // methods are attributes too, they are not name during resolve, and created at runtime.
-    auto fn_state = fn_decl.DownCastState<FunctionStmtState>();
+    auto fn_state = fn_decl->DownCastState<FunctionStmt>();
     if (fn_state->name.lexeme_ == "init") {
       fn_type = FunctionType::INITIALIZER;
     }
@@ -165,14 +165,14 @@ object::LoxObject Resovler::Visit(ClassStmtState *state) {
   EndScope();
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(GetAttrState *state) {
+object::LoxObject Resovler::Visit(GetAttrExpr *state) {
   Resolve(state->src_object);
   // attr are not name during resolve, and created at runtime. so no need to call Define here
   // this may be a recursive call, only top level name need be resovled, all attr will be "resolved" by GetAttr
   // at runtime.
   return RETNULL;
 }
-object::LoxObject Resovler::Visit(SetAttrState *state) {
+object::LoxObject Resovler::Visit(SetAttrExpr *state) {
   // attr are not name during resolve, and created at runtime. so no need to call Define here
   Resolve(state->src_object);
   Resolve(state->value);

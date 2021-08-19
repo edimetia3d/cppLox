@@ -15,30 +15,26 @@
 
 namespace lox {
 
-class ExprState;
-class ExprVisitor;
-
+class ExprBase;
 template <class T>
-concept SubclassOfExprState = std::is_base_of<ExprState, T>::value;
-class Expr {
- public:
-  /**
-   * This fn will take ownership of object state_ pointed to
-   */
-  explicit Expr(ExprState* state) : state_(state) {}
-  explicit Expr(std::shared_ptr<ExprState> state) : state_(std::move(state)) {}
-  bool IsValid() { return static_cast<bool>(state_); }
+concept SubclassOfExprState = std::is_base_of<ExprBase, T>::value;
 
-  object::LoxObject Accept(ExprVisitor* visitor);
+class ExprVisitor;
+class ExprBase {
+ public:
+  virtual ~ExprBase() {}
+
+  virtual object::LoxObject Accept(ExprVisitor* visitor) = 0;
 
   template <SubclassOfExprState T>
   T* DownCastState() {
-    return dynamic_cast<T*>(state_.get());
+    return dynamic_cast<T*>(this);
   }
-
- private:
-  std::shared_ptr<ExprState> state_;
 };
+
+using Expr = std::shared_ptr<ExprBase>;
+
+static inline bool IsValid(const Expr& expr) { return expr.get(); }
 }  // namespace lox
 
 #ifdef DYNAMIC_GEN_DECL
