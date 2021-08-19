@@ -5,6 +5,7 @@
 #ifndef CPPLOX_SRCS_LOX_AST_STMT_H_
 #define CPPLOX_SRCS_LOX_AST_STMT_H_
 
+#include <type_traits>
 #include <vector>
 
 #include "lox/ast/expr.h"
@@ -13,6 +14,9 @@ namespace lox {
 
 class StmtState;
 class StmtVisitor;
+template <class T>
+concept SubclassOfStmtState = std::is_base_of<StmtState, T>::value;
+
 class Stmt {
  public:
   /**
@@ -23,7 +27,7 @@ class Stmt {
   bool IsValid() { return static_cast<bool>(state_); }
   object::LoxObject Accept(StmtVisitor* visitor);
 
-  template <class T>
+  template <SubclassOfStmtState T>
   T* DownCastState() {
     return dynamic_cast<T*>(state_.get());
   }

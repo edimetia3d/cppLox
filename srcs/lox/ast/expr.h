@@ -7,6 +7,7 @@
 #define CPPLOX_SRCS_LOX_AST_EXPR_H
 
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "lox/lox_object/lox_object.h"
@@ -16,6 +17,9 @@ namespace lox {
 
 class ExprState;
 class ExprVisitor;
+
+template <class T>
+concept SubclassOfExprState = std::is_base_of<ExprState, T>::value;
 class Expr {
  public:
   /**
@@ -27,7 +31,7 @@ class Expr {
 
   object::LoxObject Accept(ExprVisitor* visitor);
 
-  template <class T>
+  template <SubclassOfExprState T>
   T* DownCastState() {
     return dynamic_cast<T*>(state_.get());
   }

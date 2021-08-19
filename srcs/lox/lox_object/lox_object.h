@@ -6,12 +6,16 @@
 #define CPPLOX_SRCS_LOX_EVALUATOR_LOX_OBJECT_H_
 #include <memory>
 #include <string>
+#include <type_traits>
 
 #include "lox/lox_object/lox_object_state.h"
 #include "lox/token.h"
 namespace lox {
 
 namespace object {
+
+template <class T>
+concept SubclassOfLoxObjectState = std::is_base_of<LoxObjectState, T>::value;
 
 class LoxObject {
  public:
@@ -51,7 +55,7 @@ class LoxObject {
     return *static_cast<T*>(RawObjPtr());
   }
 
-  template <class T>
+  template <SubclassOfLoxObjectState T>
   T* DownCastState() {
     return dynamic_cast<T*>(lox_object_state_.get());
   }
