@@ -18,12 +18,12 @@ namespace lox {
 class ExprBase;
 using Expr = std::shared_ptr<ExprBase>;
 template <class T>
-concept SubclassOfExprState = std::is_base_of<ExprBase, T>::value;
+concept SubclassOfExpr = std::is_base_of<ExprBase, T>::value;
 
 class ExprVisitor;
 class ExprBase {
  public:
-  template <SubclassOfExprState SubT, class... Args>
+  template <SubclassOfExpr SubT, class... Args>
   static std::shared_ptr<SubT> Make(Args... args) {
     return std::shared_ptr<SubT>(new SubT(args...));
   }
@@ -32,7 +32,7 @@ class ExprBase {
 
   virtual object::LoxObject Accept(ExprVisitor* visitor) = 0;
 
-  template <SubclassOfExprState T>
+  template <SubclassOfExpr T>
   T* DownCast() {
     return dynamic_cast<T*>(this);
   }
@@ -40,7 +40,7 @@ class ExprBase {
 
 static inline bool IsValid(const Expr& expr) { return expr.get(); }
 
-template <SubclassOfExprState SubT, class... Args>
+template <SubclassOfExpr SubT, class... Args>
 std::shared_ptr<SubT> MakeExpr(Args... args) {
   return ExprBase::Make<SubT, Args...>(args...);
 }

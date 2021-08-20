@@ -14,57 +14,62 @@ namespace lox {
 
 namespace object {
 
+class LoxObjectBase;
 template <class T>
-concept SubclassOfLoxObjectState = std::is_base_of<LoxObjectState, T>::value;
+concept SubclassOfLoxObject = std::is_base_of<LoxObjectBase, T>::value;
 
-class LoxObject {
- public:
-  LoxObject() = default;
-  explicit LoxObject(LoxObjectStatePtr ptr) : lox_object_state_(std::move(ptr)) {}
-  explicit LoxObject(LoxObjectState* ptr) : lox_object_state_(ptr) {}
-  explicit LoxObject(bool);
-  explicit LoxObject(double);
-  explicit LoxObject(char* v) : LoxObject(std::string(v)){};
-  explicit LoxObject(const std::string&);
-  static LoxObject VoidObject();
-  // Uary
-  LoxObject operator-();
+using LoxObject = std::shared_ptr<LoxObjectBase>;
+struct LoxObjectBase : std::enable_shared_from_this<LoxObjectBase> {
+  template <class RealT>
+  LoxObjectBase(const RealT& v) : raw_value(new RealT{v}) {}
 
-  // Binary
-  LoxObject operator-(LoxObject& rhs);
-  LoxObject operator+(LoxObject& rhs);
-  LoxObject operator*(LoxObject& rhs);
-  LoxObject operator/(LoxObject& rhs);
-  LoxObject operator==(LoxObject& rhs);
-  LoxObject operator!=(LoxObject& rhs);
-  LoxObject operator<(LoxObject& rhs);
-  LoxObject operator>(LoxObject& rhs);
-  LoxObject operator<=(LoxObject& rhs);
-  LoxObject operator>=(LoxObject& rhs);
-  std::string ToString();
-  bool IsValid() { return static_cast<bool>(lox_object_state_); }
-  bool IsValueTrue();
+  LoxObjectBase() : raw_value(nullptr){};
+  std::shared_ptr<void> raw_value;
+  virtual LoxObject operator-() { throw "Not supported"; }
+  virtual bool IsTrue() { return raw_value.get(); };
+  virtual std::string ToString() {
+    return std::string("LoxObjectBase at ") + std::to_string((uint64_t)raw_value.get());
+  };
 
   template <class T>
   T& AsNative() {
-    return *static_cast<T*>(RawObjPtr());
+    return *static_cast<T*>(raw_value.get());
   }
 
   template <class T>
   const T& AsNative() const {
-    return *static_cast<T*>(RawObjPtr());
+    return *static_cast<T*>(raw_value.get());
   }
 
-  template <SubclassOfLoxObjectState T>
+  template <SubclassOfLoxObject T>
   T* DownCastState() {
-    return dynamic_cast<T*>(lox_object_state_.get());
+    return dynamic_cast<T*>(this);
   }
 
- private:
-  void* RawObjPtr();
-  void* RawObjPtr() const;
-  LoxObjectStatePtr lox_object_state_;
+  virtual ~LoxObjectBase() = default;
 };
+
+bool IsValid(const LoxObject& obj) { return obj.get(); }
+LoxObject MakeLoxObject(bool);
+LoxObject MakeLoxObject(double);
+LoxObject MakeLoxObject(char* v);
+LoxObject MakeLoxObject(const std::string&);
+
+// Uary
+LoxObject operator-(const LoxObject& self);
+
+// Binary
+LoxObject operator-(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator+(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator*(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator/(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator==(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator!=(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator<(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator>(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator<=(const LoxObject& lhs, const LoxObject& rhs);
+LoxObject operator>=(const LoxObject& lhs, const LoxObject& rhs);
+
 }  // namespace object
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_EVALUATOR_LOX_OBJECT_H_

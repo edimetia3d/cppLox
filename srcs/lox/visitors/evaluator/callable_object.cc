@@ -14,7 +14,7 @@ class Clock : public LoxCallableState {
   int Arity() override { return 0; }
   object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) {
     double clk = clock();
-    object::LoxObjectStatePtr();
+    object::LoxObject();
     return object::LoxObject(clk);
   }
   std::string ToString() override;

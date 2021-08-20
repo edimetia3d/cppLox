@@ -10,7 +10,7 @@
 #include "lox/lox_object/lox_object_state.h"
 #include "lox/visitors/evaluator/lox_class.h"
 namespace lox {
-class LoxClassInstanceState : public object::LoxObjectState {
+class LoxClassInstanceState : public object::LoxObjectBase {
  public:
   LoxClassInstanceState(LoxClassState* klass) : klass_(klass) {}
 

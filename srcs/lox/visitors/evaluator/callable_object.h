@@ -11,7 +11,7 @@
 #include "lox/lox_object/lox_object.h"
 #include "lox/visitors/evaluator/evaluator.h"
 namespace lox {
-class LoxCallableState : public object::LoxObjectState {
+class LoxCallableState : public object::LoxObjectBase {
  public:
   virtual int Arity() = 0;
   virtual object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) = 0;
