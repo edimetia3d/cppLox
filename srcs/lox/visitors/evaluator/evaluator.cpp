@@ -122,15 +122,15 @@ object::LoxObject Evaluator::Visit(CallExpr* state) {
     arguments.push_back(Eval(argument));
   }
 
-  auto function = callee->DownCast<LoxFunction>();
-  if (!function) {
+  auto callable = callee->DownCast<LoxCallable>();
+  if (!callable) {
     throw RuntimeError(Error(state->paren, "Not a callable object"));
   }
-  if (arguments.size() != function->Arity()) {
+  if (arguments.size() != callable->Arity()) {
     throw RuntimeError(Error(state->paren, "Wrong arg number"));
   }
   try {
-    return function->Call(this, arguments);
+    return callable->Call(this, arguments);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->paren, msg));
   }
