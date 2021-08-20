@@ -1,11 +1,36 @@
-class Foo {
+class GG{
+    init(ggi) {
+        this.ggi = ggi;
+    }
+    printme(){
+        print this.ggi;
+    }
+}
+
+class Bar < GG{
+    init(gi) {
+        GG.init(gi+1);
+        this.gi = gi;
+    }
+    printme(){
+        print this.gi;
+        GG.printme();
+    }
+}
+
+class Foo < Bar {
   init(radius) {
+    Bar.init(radius+1);
     this.radius = radius;
   }
 
   printme(){
     print this.radius;
     print this.new_attr;
+    this.ggi=this.ggi+1;
+    Bar.printme();
+    this.ggi=this.ggi+1;
+    GG.printme();
   }
 }
 

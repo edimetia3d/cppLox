@@ -18,6 +18,8 @@ class LoxClassInstance : public object::LoxObjectBase {
   using RawValueT = LoxClassInstanceData;
   std::string ToString() const override;
 
+  bool IsInstanceOf(LoxClass* klass);
+
  private:
   RawValueT& Data() { return RawValue<RawValueT>(); }
   const RawValueT& Data() const { return RawValue<RawValueT>(); }

@@ -94,12 +94,7 @@ object::LoxObject Evaluator::Visit(BinaryExpr* state) {
   }
 }
 object::LoxObject Evaluator::Visit(VariableExpr* state) {
-  auto ret = object::VoidObject();
-  try {
-    ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name.lexeme_);
-  } catch (const char* msg) {
-    throw RuntimeError(Error(state->name, msg));
-  }
+  auto ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name.lexeme_);
   if (!IsValid(ret)) {
     throw RuntimeError(Error(state->name, "Doesnt reference to a valid value."));
   }
@@ -244,9 +239,14 @@ object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
     }
   } else if (auto klass = object->DownCast<LoxClass>()) {
     ret = klass->GetAttr(attr_name);
-    if (auto objcet_this = WorkEnv()->Get("this")) {
-      if (auto fn = ret->DownCast<LoxFunction>()) {
+    if (auto fn = ret->DownCast<LoxFunction>()) {
+      if (auto objcet_this = WorkEnv()->Get("this")) {
+        if (!(objcet_this->DownCast<LoxClassInstance>()->IsInstanceOf(klass))) {
+          throw RuntimeError(Error(state->attr_name, klass->ToString() + " is not superclass"));
+        }
         ret = fn->BindThis(objcet_this);
+      } else {
+        throw RuntimeError(Error(state->attr_name, "Cannot use method out of method"));
       }
     }
   } else {

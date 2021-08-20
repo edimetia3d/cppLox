@@ -25,7 +25,7 @@ object::LoxObject Environment::Get(std::string var_name) {
     if (parent_) {
       return parent_->Get(var_name);
     }
-    throw "Var Not found";
+    return object::VoidObject();
   }
   return map[var_name];
 }
