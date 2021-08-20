@@ -213,7 +213,8 @@ object::LoxObject Evaluator::Visit(ClassStmt* state) {
         throw RuntimeError(Error(state->name, "Base must be a class"));
       }
     }
-    std::map<std::string, object::LoxObject> methods;
+    LoxClassData class_data{.name = state->name.lexeme_, .superclass = std::static_pointer_cast<LoxClass>(superclass)};
+    klass = object::MakeLoxObject<LoxClass>(class_data);
     for (auto& method_stmt : state->methods) {
       auto method_state = method_stmt->DownCast<FunctionStmt>();
       LoxFunctionData fn_data{
@@ -222,34 +223,25 @@ object::LoxObject Evaluator::Visit(ClassStmt* state) {
           .function = std::static_pointer_cast<FunctionStmt>(method_state->shared_from_this()),
       };
       auto method = object::MakeLoxObject<LoxFunction>(fn_data);
-      methods[method_state->name.lexeme_] = method;
+      klass->SetAttr(method_state->name.lexeme_, method);
     }
-    LoxClassData class_data{
-        .name = state->name.lexeme_, .methods = methods, .superclass = std::static_pointer_cast<LoxClass>(superclass)};
-    klass = object::MakeLoxObject<LoxClass>(class_data);
   }
   WorkEnv()->Set(state->name.lexeme_, klass);
   return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
   auto object = Eval(state->src_object);
-  if (auto p = object->DownCast<LoxClassInstance>()) {
-    auto ret = p->GetAttr(state->attr_name.lexeme_);
-    if (!IsValid(ret)) {
-      throw RuntimeError(Error(state->attr_name, "No attr found"));
-    }
-    return ret;
+  auto ret = object->GetAttr(state->attr_name.lexeme_);
+  if (!IsValid(ret)) {
+    throw RuntimeError(Error(state->attr_name, "No attr found"));
   }
-
-  throw RuntimeError(Error(state->attr_name, "Only class instances have properties."));
+  return ret;
 }
 object::LoxObject Evaluator::Visit(SetAttrExpr* state) {
   auto object = Eval(state->src_object);
-  if (auto p = object->DownCast<LoxClassInstance>()) {
-    auto ret = Eval(state->value);
-    p->SetAttr(state->attr_name.lexeme_, Eval(state->value));
-    return ret;
-  }
+  auto ret = Eval(state->value);
+  object->SetAttr(state->attr_name.lexeme_, Eval(state->value));
+  return ret;
 
   throw RuntimeError(Error(state->attr_name, "Only class instances have properties."));
 }

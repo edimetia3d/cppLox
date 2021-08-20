@@ -7,15 +7,16 @@
 namespace lox {
 
 std::string LoxClassInstance::ToString() const { return std::string("Instance of ") + Data().klass->ToString(); }
-object::LoxObject LoxClassInstance::GetAttr(std::string attr) {
-  if (Data().dict.count(attr) != 0) {
-    return Data().dict[attr];
+object::LoxObject LoxClassInstance::GetAttr(const std::string& attr) {
+  if (dict.contains(attr)) {
+    return dict[attr];
   }
-  auto ret = Data().klass->GetMethod(attr);
+  auto ret = Data().klass->GetAttr(attr);
   if (IsValid(ret)) {
-    ret = ret->DownCast<LoxFunction>()->BindThis(shared_from_this());
+    if (auto function = ret->DownCast<LoxFunction>()) {
+      ret = function->BindThis(shared_from_this());
+    }
   }
   return ret;
 }
-void LoxClassInstance::SetAttr(std::string attr, object::LoxObject value) { Data().dict[attr] = value; }
 }  // namespace lox

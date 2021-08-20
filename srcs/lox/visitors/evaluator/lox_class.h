@@ -12,7 +12,6 @@ namespace lox {
 class LoxClass;
 struct LoxClassData {
   std::string name;
-  std::map<std::string, object::LoxObject> methods;
   std::shared_ptr<LoxClass> superclass;
 };
 class LoxClass : public LoxCallable {
@@ -22,12 +21,12 @@ class LoxClass : public LoxCallable {
   object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) override;
   std::string ToString() const override;
 
-  object::LoxObject GetMethod(std::string name) {
-    if (Data().methods.count(name) != 0) {
-      return Data().methods[name];
+  object::LoxObject GetAttr(const std::string& name) override {
+    if (dict.contains(name)) {
+      return dict[name];
     }
     if (Data().superclass) {
-      return Data().superclass->GetMethod(name);
+      return Data().superclass->GetAttr(name);
     }
     return object::VoidObject();
   }

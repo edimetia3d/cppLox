@@ -4,6 +4,7 @@
 
 #ifndef CPPLOX_SRCS_LOX_EVALUATOR_LOX_OBJECT_H_
 #define CPPLOX_SRCS_LOX_EVALUATOR_LOX_OBJECT_H_
+#include <map>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -21,7 +22,10 @@ concept SubclassOfLoxObject = std::is_base_of<LoxObjectBase, T>::value;
  protected:                                         \
   CLASS_NAME() = default;                           \
   friend class LoxObjectBase
+
 using LoxObject = std::shared_ptr<LoxObjectBase>;
+static inline LoxObject VoidObject() { return LoxObject(nullptr); }
+
 class LoxObjectBase : public std::enable_shared_from_this<LoxObjectBase> {
  public:
   template <SubclassOfLoxObject SubT>
@@ -40,6 +44,15 @@ class LoxObjectBase : public std::enable_shared_from_this<LoxObjectBase> {
   virtual std::string ToString() const {
     return std::string("LoxObjectBase at ") + std::to_string((uint64_t)raw_value.get());
   };
+
+  virtual LoxObject GetAttr(const std::string& name) {
+    if (dict.contains(name)) {
+      return dict[name];
+    }
+    return VoidObject();
+  }
+
+  virtual void SetAttr(std::string name, LoxObject obj) { dict[name] = obj; }
 
   template <class T>
   T& AsNative() {
@@ -60,7 +73,7 @@ class LoxObjectBase : public std::enable_shared_from_this<LoxObjectBase> {
 
  protected:
   std::shared_ptr<void> raw_value;
-  std::shared_ptr<void> extra_data;
+  std::map<std::string, object::LoxObject> dict;
   template <class RawValueT>
   static void TypeDeleter(RawValueT* p) {
     delete p;
@@ -124,8 +137,6 @@ LoxObject operator<(const LoxObject& lhs, const LoxObject& rhs);
 LoxObject operator>(const LoxObject& lhs, const LoxObject& rhs);
 LoxObject operator<=(const LoxObject& lhs, const LoxObject& rhs);
 LoxObject operator>=(const LoxObject& lhs, const LoxObject& rhs);
-
-static inline LoxObject VoidObject() { return LoxObject(nullptr); }
 
 template <SubclassOfLoxObject SubT>
 static inline std::shared_ptr<SubT> MakeLoxObject(typename SubT::RawValueT v) {

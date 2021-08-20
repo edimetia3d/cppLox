@@ -12,16 +12,13 @@
 namespace lox {
 struct LoxClassInstanceData {
   std::shared_ptr<LoxClass> klass;
-  std::map<std::string, object::LoxObject> dict;
 };
 class LoxClassInstance : public object::LoxObjectBase {
  public:
   using RawValueT = LoxClassInstanceData;
   std::string ToString() const override;
 
-  object::LoxObject GetAttr(std::string attr);
-
-  void SetAttr(std::string attr, object::LoxObject value);
+  object::LoxObject GetAttr(const std::string& attr) override;
 
  private:
   RawValueT& Data() { return AsNative<RawValueT>(); }
