@@ -32,6 +32,7 @@ class LoxClass : public LoxCallable {
   }
 
  private:
+  std::shared_ptr<LoxFunction> GetInitFn();
   RawValueT& Data() { return AsNative<RawValueT>(); }
   const RawValueT& Data() const { return AsNative<RawValueT>(); }
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(LoxClass);
