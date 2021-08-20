@@ -23,6 +23,8 @@ object::LoxObject Evaluator::Visit(LiteralExpr* state) {
       return object::MakeLoxObject(true);
     case TokenType::FALSE:
       return object::MakeLoxObject(false);
+    case TokenType::NIL:
+      return object::VoidObject();
     default:
       throw RuntimeError(Error(state->value, "Not a valid Literal."));
   }
