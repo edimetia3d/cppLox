@@ -16,13 +16,13 @@ namespace lox {
 object::LoxObject Evaluator::Visit(LiteralExpr* state) {
   switch (state->value.type_) {
     case TokenType::NUMBER:
-      return object::LoxObject(std::stod(state->value.lexeme_));
+      return object::MakeLoxObject(std::stod(state->value.lexeme_));
     case TokenType::STRING:
-      return object::LoxObject(std::string(state->value.lexeme_.begin() + 1, state->value.lexeme_.end() - 1));
+      return object::MakeLoxObject(std::string(state->value.lexeme_.begin() + 1, state->value.lexeme_.end() - 1));
     case TokenType::TRUE:
-      return object::LoxObject(true);
+      return object::MakeLoxObject(true);
     case TokenType::FALSE:
-      return object::LoxObject(false);
+      return object::MakeLoxObject(false);
     default:
       throw RuntimeError(Error(state->value, "Not a valid Literal."));
   }
@@ -36,7 +36,7 @@ object::LoxObject Evaluator::Visit(UnaryExpr* state) {
       return -right;
     case TokenType::BANG:
       try {
-        return object::LoxObject(right.IsValueTrue());
+        return object::MakeLoxObject(IsValueTrue(right));
       } catch (const char* msg) {
         throw RuntimeError(Error(state->op, msg));
       }
@@ -49,11 +49,11 @@ object::LoxObject Evaluator::Visit(UnaryExpr* state) {
 object::LoxObject Evaluator::Visit(LogicalExpr* state) {
   auto left = Eval(state->left);
   if (state->op.type_ == TokenType::AND) {
-    if (left.IsValueTrue()) {
+    if (IsValueTrue(left)) {
       return Eval(state->right);
     }
 
-  } else if (!left.IsValueTrue()) {
+  } else if (!IsValueTrue(left)) {
     return Eval(state->right);
   }
   return left;
@@ -92,13 +92,13 @@ object::LoxObject Evaluator::Visit(BinaryExpr* state) {
   }
 }
 object::LoxObject Evaluator::Visit(VariableExpr* state) {
-  auto ret = object::LoxObject::VoidObject();
+  auto ret = object::VoidObject();
   try {
     ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name.lexeme_);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }
-  if (!ret.IsValid()) {
+  if (!IsValid(ret)) {
     throw RuntimeError(Error(state->name, "Doesnt reference to a valid value."));
   }
   return ret;
@@ -120,7 +120,7 @@ object::LoxObject Evaluator::Visit(CallExpr* state) {
     arguments.push_back(Eval(argument));
   }
 
-  auto function = callee.DownCastState<LoxCallableState>();
+  auto function = callee->DownCast<LoxFunction>();
   if (!function) {
     throw RuntimeError(Error(state->paren, "Not a callable object"));
   }
@@ -136,38 +136,38 @@ object::LoxObject Evaluator::Visit(CallExpr* state) {
 
 object::LoxObject Evaluator::Visit(PrintStmt* state) {
   auto ret_v = Eval(state->expression);
-  std::cout << ret_v.ToString() << std::endl;
-  return object::LoxObject::VoidObject();
+  std::cout << ret_v->ToString() << std::endl;
+  return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(ExprStmt* state) {
   Eval(state->expression);
-  return object::LoxObject::VoidObject();
+  return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(VarDeclStmt* state) {
-  auto value = object::LoxObject::VoidObject();
+  auto value = object::VoidObject();
   if (IsValid(state->initializer)) {
     value = Eval(state->initializer);
   }
   WorkEnv()->Define(state->name.lexeme_, value);
-  return object::LoxObject::VoidObject();
+  return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(BlockStmt* state) {
   EnterNewScopeGuard guard(this);
   for (auto& stmt : state->statements) {
     Eval(stmt);
   }
-  return object::LoxObject::VoidObject();
+  return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(IfStmt* state) {
-  if ((Eval(state->condition)).IsValueTrue()) {
+  if (IsValueTrue((Eval(state->condition)))) {
     Eval(state->thenBranch);
   } else if (IsValid(state->elseBranch)) {
     Eval(state->elseBranch);
   }
-  return object::LoxObject::VoidObject();
+  return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(WhileStmt* state) {
-  while ((Eval(state->condition)).IsValueTrue()) {
+  while (IsValueTrue((Eval(state->condition)))) {
     try {
       Eval(state->body);
     } catch (RuntimeError& err) {
@@ -177,42 +177,52 @@ object::LoxObject Evaluator::Visit(WhileStmt* state) {
       throw;
     }
   }
-  return object::LoxObject::VoidObject();
+  return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(BreakStmt* state) { throw RuntimeError(Error(state->src_token, "Hit break")); }
 object::LoxObject Evaluator::Visit(FunctionStmt* state) {
-  auto fn = object::LoxObject(new LoxFunctionState(state, WorkEnv()));
+  LoxFunctionData fn_data{
+      .is_init_method = false,
+      .closure = WorkEnv(),
+      .function = std::static_pointer_cast<FunctionStmt>(state->shared_from_this()),
+
+  };
+  auto fn = object::MakeLoxObject<LoxFunction>(fn_data);
   WorkEnv()->Define(state->name.lexeme_, fn);
   // FreezeEnv(); use freeze env to "copy" capture
   return fn;
 }
 object::LoxObject Evaluator::Visit(ReturnStmt* state) {
-  auto ret = object::LoxObject::VoidObject();
+  auto ret = object::VoidObject();
   if (IsValid(state->value)) {
     ret = Eval(state->value);
   }
   throw ReturnValue(ret);
 }
 object::LoxObject Evaluator::Visit(ClassStmt* state) {
-  WorkEnv()->Define(state->name.lexeme_, object::LoxObject::VoidObject());
+  WorkEnv()->Define(state->name.lexeme_, object::VoidObject());
 
   std::map<std::string, object::LoxObject> methods;
   for (auto& method_stmt : state->methods) {
     auto method_state = method_stmt->DownCast<FunctionStmt>();
-    auto method =
-        object::LoxObject(new LoxFunctionState(method_state, WorkEnv(), method_state->name.lexeme_ == "init"));
+    LoxFunctionData fn_data{
+        .is_init_method = method_state->name.lexeme_ == "init",
+        .closure = WorkEnv(),
+        .function = std::static_pointer_cast<FunctionStmt>(method_state->shared_from_this()),
+    };
+    auto method = object::MakeLoxObject<LoxFunction>(fn_data);
     methods[method_state->name.lexeme_] = method;
   }
-
-  auto klass = object::LoxObject(new LoxClassState(state->name.lexeme_, methods));
+  LoxClassData class_data{.name = state->name.lexeme_, .methods = methods};
+  auto klass = object::MakeLoxObject<LoxClass>(class_data);
   WorkEnv()->Set(state->name.lexeme_, klass);
-  return object::LoxObject::VoidObject();
+  return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
   auto object = Eval(state->src_object);
-  if (auto p = object.DownCastState<LoxClassInstanceState>()) {
+  if (auto p = object->DownCast<LoxClassInstance>()) {
     auto ret = p->GetAttr(state->attr_name.lexeme_);
-    if (!ret.IsValid()) {
+    if (!IsValid(ret)) {
       throw RuntimeError(Error(state->attr_name, "No attr found"));
     }
     return ret;
@@ -222,7 +232,7 @@ object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
 }
 object::LoxObject Evaluator::Visit(SetAttrExpr* state) {
   auto object = Eval(state->src_object);
-  if (auto p = object.DownCastState<LoxClassInstanceState>()) {
+  if (auto p = object->DownCast<LoxClassInstance>()) {
     auto ret = Eval(state->value);
     p->SetAttr(state->attr_name.lexeme_, Eval(state->value));
     return ret;

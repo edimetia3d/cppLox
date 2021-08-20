@@ -7,22 +7,26 @@
 
 #include <map>
 
-#include "lox/lox_object/lox_object_state.h"
+#include "lox/lox_object/lox_object.h"
 #include "lox/visitors/evaluator/lox_class.h"
 namespace lox {
-class LoxClassInstanceState : public object::LoxObjectBase {
+struct LoxClassInstanceData {
+  std::shared_ptr<LoxClass> klass;
+  std::map<std::string, object::LoxObject> dict;
+};
+class LoxClassInstance : public object::LoxObjectBase {
  public:
-  LoxClassInstanceState(LoxClassState* klass) : klass_(klass) {}
-
-  std::string ToString() override;
+  using RawValueT = LoxClassInstanceData;
+  std::string ToString() const override;
 
   object::LoxObject GetAttr(std::string attr);
 
   void SetAttr(std::string attr, object::LoxObject value);
 
  private:
-  LoxClassState* klass_;
-  std::map<std::string, object::LoxObject> dict_;
+  RawValueT& Data() { return AsNative<RawValueT>(); }
+  const RawValueT& Data() const { return AsNative<RawValueT>(); }
+  LOX_OBJECT_CTOR_SHARED_PTR_ONLY(LoxClassInstance);
 };
 }  // namespace lox
 

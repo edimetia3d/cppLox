@@ -17,11 +17,11 @@ class AstPrinter : public ExprVisitor, public StmtVisitor {
  public:
   std::string Print(Expr expr) {
     assert(IsValid(expr));
-    return expr->Accept(this).AsNative<std::string>();
+    return expr->Accept(this)->AsNative<std::string>();
   }
   std::string Print(Stmt stmt) {
     assert(IsValid(stmt));
-    return stmt->Accept(this).AsNative<std::string>();
+    return stmt->Accept(this)->AsNative<std::string>();
   }
 
  protected:

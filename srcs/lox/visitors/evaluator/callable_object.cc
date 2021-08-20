@@ -6,23 +6,25 @@
 
 #include <time.h>
 
-#include "lox/lox_object/lox_object_state.h"
 namespace lox {
 
-class Clock : public LoxCallableState {
+class Clock : public LoxCallable {
  public:
+  using ClockDummyData = int;
+  using RawValueT = ClockDummyData;
   int Arity() override { return 0; }
   object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) {
     double clk = clock();
     object::LoxObject();
-    return object::LoxObject(clk);
+    return object::MakeLoxObject(clk);
   }
-  std::string ToString() override;
+  std::string ToString() const override;
+  LOX_OBJECT_CTOR_SHARED_PTR_ONLY(Clock);
 };
-std::string Clock::ToString() { return "builtin function Clock"; }
+std::string Clock::ToString() const { return "builtin function Clock"; }
 
 const std::map<std::string, object::LoxObject>& BuiltinCallables() {
-  static std::map<std::string, object::LoxObject> map{{"Clock", object::LoxObject(new Clock)}};
+  static std::map<std::string, object::LoxObject> map{{"Clock", object::MakeLoxObject<Clock>(0)}};
   return map;
 };
 }  // namespace lox

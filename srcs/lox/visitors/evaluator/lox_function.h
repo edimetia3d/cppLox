@@ -8,23 +8,27 @@
 #include "lox/visitors/evaluator/callable_object.h"
 #include "lox/visitors/evaluator/environment.h"
 namespace lox {
-class LoxFunctionState : public LoxCallableState {
+struct LoxFunctionData {
+  bool is_init_method = false;
+  std::shared_ptr<Environment> closure;
+  std::shared_ptr<FunctionStmt> function;
+};
+class LoxFunction : public LoxCallable {
  public:
-  explicit LoxFunctionState(const FunctionStmt *state, std::shared_ptr<Environment> closure,
-                            bool is_init_method = false);
+  using RawValueT = LoxFunctionData;
 
-  object::LoxObject Call(Evaluator *evaluator, std::vector<object::LoxObject> arguments) override;
+  object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) override;
 
   int Arity() override;
 
-  std::string ToString() override;
+  std::string ToString() const override;
 
   object::LoxObject BindThis(object::LoxObject obj_this);
 
  private:
-  bool is_init_method = false;
-  std::shared_ptr<Environment> closure;
-  std::shared_ptr<FunctionStmt> function;
+  RawValueT& Data() { return AsNative<RawValueT>(); }
+  const RawValueT& Data() const { return AsNative<RawValueT>(); }
+  LOX_OBJECT_CTOR_SHARED_PTR_ONLY(LoxFunction);
 };
 }  // namespace lox
 

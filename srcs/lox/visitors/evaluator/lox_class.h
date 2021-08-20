@@ -9,24 +9,28 @@
 #include "lox/ast/stmt.h"
 #include "lox/visitors/evaluator/lox_function.h"
 namespace lox {
-class LoxClassState : public LoxCallableState {
+struct LoxClassData {
+  std::string name;
+  std::map<std::string, object::LoxObject> methods;
+};
+class LoxClass : public LoxCallable {
  public:
-  explicit LoxClassState(std::string name, std::map<std::string, object::LoxObject> methods)
-      : name_(name), methods_(methods) {}
+  using RawValueT = LoxClassData;
   int Arity() override;
   object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) override;
-  std::string ToString() override;
+  std::string ToString() const override;
 
   object::LoxObject GetMethod(std::string name) {
-    if (methods_.count(name) != 0) {
-      return methods_[name];
+    if (Data().methods.count(name) != 0) {
+      return Data().methods[name];
     }
-    return object::LoxObject::VoidObject();
+    return object::VoidObject();
   }
 
  private:
-  std::string name_;
-  std::map<std::string, object::LoxObject> methods_;
+  RawValueT& Data() { return AsNative<RawValueT>(); }
+  const RawValueT& Data() const { return AsNative<RawValueT>(); }
+  LOX_OBJECT_CTOR_SHARED_PTR_ONLY(LoxClass);
 };
 }  // namespace lox
 

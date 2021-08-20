@@ -7,7 +7,7 @@
 #include "lox/error.h"
 
 namespace lox {
-static auto RETNULL = object::LoxObject::VoidObject();
+static auto RETNULL = object::VoidObject();
 object::LoxObject Resovler::Visit(BlockStmt *state) {
   BeginScope();
   for (auto &stmt : state->statements) {

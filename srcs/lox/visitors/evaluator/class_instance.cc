@@ -6,16 +6,16 @@
 
 namespace lox {
 
-std::string LoxClassInstanceState::ToString() { return std::string("Instance of ") + klass_->ToString(); }
-object::LoxObject LoxClassInstanceState::GetAttr(std::string attr) {
-  if (dict_.count(attr) != 0) {
-    return dict_[attr];
+std::string LoxClassInstance::ToString() const { return std::string("Instance of ") + Data().klass->ToString(); }
+object::LoxObject LoxClassInstance::GetAttr(std::string attr) {
+  if (Data().dict.count(attr) != 0) {
+    return Data().dict[attr];
   }
-  auto ret = klass_->GetMethod(attr);
-  if (ret.IsValid()) {
-    ret = ret.DownCastState<LoxFunctionState>()->BindThis(object::LoxObject(shared_from_this()));
+  auto ret = Data().klass->GetMethod(attr);
+  if (IsValid(ret)) {
+    ret = ret->DownCast<LoxFunction>()->BindThis(shared_from_this());
   }
   return ret;
 }
-void LoxClassInstanceState::SetAttr(std::string attr, object::LoxObject value) { dict_[attr] = value; }
+void LoxClassInstance::SetAttr(std::string attr, object::LoxObject value) { Data().dict[attr] = value; }
 }  // namespace lox

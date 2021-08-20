@@ -17,7 +17,7 @@ template <class T>
 concept SubclassOfStmt = std::is_base_of<StmtBase, T>::value;
 
 class StmtVisitor;
-class StmtBase {
+class StmtBase : public std::enable_shared_from_this<StmtBase> {
  public:
   template <SubclassOfStmt SubT, class... Args>
   static std::shared_ptr<SubT> Make(Args... args) {
