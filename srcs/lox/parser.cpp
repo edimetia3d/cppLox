@@ -311,6 +311,11 @@ Stmt Parser::Return() {
 }
 Stmt Parser::ClassDef() {
   Token name = Consume(TokenType::IDENTIFIER, "Expect class name.");
+  auto superclass = Expr();
+  if (AdvanceIfMatchAny<TokenType::LESS>()) {
+    Consume(TokenType::IDENTIFIER, "Expect superclass name after '<' .");
+    superclass = MakeExpr<VariableExpr>(Previous());
+  }
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
 
   std::vector<Stmt> methods;
@@ -320,7 +325,7 @@ Stmt Parser::ClassDef() {
 
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
 
-  return MakeStmt<ClassStmt>(name, methods);
+  return MakeStmt<ClassStmt>(name, superclass, methods);
 }
 
 }  // namespace lox

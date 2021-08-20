@@ -149,6 +149,9 @@ object::LoxObject Resovler::Visit(IfStmt *state) {
 }
 object::LoxObject Resovler::Visit(ClassStmt *state) {
   BeginScope();
+  if (IsValid(state->superclass)) {
+    Resolve(state->superclass);
+  }
   auto token_this = Token(TokenType::THIS, "this", state->name.line_);
   Define(token_this);
   Declare(state->name);

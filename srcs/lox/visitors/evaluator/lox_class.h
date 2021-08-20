@@ -9,9 +9,11 @@
 #include "lox/ast/stmt.h"
 #include "lox/visitors/evaluator/lox_function.h"
 namespace lox {
+class LoxClass;
 struct LoxClassData {
   std::string name;
   std::map<std::string, object::LoxObject> methods;
+  std::shared_ptr<LoxClass> superclass;
 };
 class LoxClass : public LoxCallable {
  public:
@@ -23,6 +25,9 @@ class LoxClass : public LoxCallable {
   object::LoxObject GetMethod(std::string name) {
     if (Data().methods.count(name) != 0) {
       return Data().methods[name];
+    }
+    if (Data().superclass) {
+      return Data().superclass->GetMethod(name);
     }
     return object::VoidObject();
   }

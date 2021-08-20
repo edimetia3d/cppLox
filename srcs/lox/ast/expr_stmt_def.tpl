@@ -15,7 +15,7 @@ Stmt{
     "While"      : "Expr condition, Stmt body",
     "Expr"       : "Expr expression",
     "Function"   : "Token name, std::vector<Token> params, std::vector<Stmt> body",
-    "Class"      : "Token name, std::vector<Stmt> methods",
+    "Class"      : "Token name, Expr superclass, std::vector<Stmt> methods",
     "Print"      : "Expr expression",
     "Return"     : "Token keyword, Expr value",
     "Block"      : "std::vector<Stmt> statements",

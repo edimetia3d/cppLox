@@ -127,7 +127,12 @@ object::LoxObject AstPrinter::Visit(ReturnStmt* state) {
 }
 object::LoxObject AstPrinter::Visit(ClassStmt* state) {
   std::string ret = "class ";
-  ret += state->name.lexeme_ + "{\n";
+  ret += state->name.lexeme_;
+  if (IsValid(state->superclass)) {
+    ret += " < ";
+    ret += Print(state->superclass);
+  }
+  ret += "{\n";
   for (auto& method : state->methods) {
     ret += Print(method);
   }

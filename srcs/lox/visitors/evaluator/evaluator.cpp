@@ -203,20 +203,31 @@ object::LoxObject Evaluator::Visit(ReturnStmt* state) {
 }
 object::LoxObject Evaluator::Visit(ClassStmt* state) {
   WorkEnv()->Define(state->name.lexeme_, object::VoidObject());
-
-  std::map<std::string, object::LoxObject> methods;
-  for (auto& method_stmt : state->methods) {
-    auto method_state = method_stmt->DownCast<FunctionStmt>();
-    LoxFunctionData fn_data{
-        .is_init_method = method_state->name.lexeme_ == "init",
-        .closure = WorkEnv(),
-        .function = std::static_pointer_cast<FunctionStmt>(method_state->shared_from_this()),
-    };
-    auto method = object::MakeLoxObject<LoxFunction>(fn_data);
-    methods[method_state->name.lexeme_] = method;
+  auto klass = object::VoidObject();
+  {
+    EnterNewScopeGuard(this, WorkEnv());
+    auto superclass = object::VoidObject();
+    if (IsValid(state->superclass)) {
+      superclass = Eval(state->superclass);
+      if (!superclass->DownCast<LoxClass>()) {
+        throw RuntimeError(Error(state->name, "Base must be a class"));
+      }
+    }
+    std::map<std::string, object::LoxObject> methods;
+    for (auto& method_stmt : state->methods) {
+      auto method_state = method_stmt->DownCast<FunctionStmt>();
+      LoxFunctionData fn_data{
+          .is_init_method = method_state->name.lexeme_ == "init",
+          .closure = WorkEnv(),
+          .function = std::static_pointer_cast<FunctionStmt>(method_state->shared_from_this()),
+      };
+      auto method = object::MakeLoxObject<LoxFunction>(fn_data);
+      methods[method_state->name.lexeme_] = method;
+    }
+    LoxClassData class_data{
+        .name = state->name.lexeme_, .methods = methods, .superclass = std::static_pointer_cast<LoxClass>(superclass)};
+    klass = object::MakeLoxObject<LoxClass>(class_data);
   }
-  LoxClassData class_data{.name = state->name.lexeme_, .methods = methods};
-  auto klass = object::MakeLoxObject<LoxClass>(class_data);
   WorkEnv()->Set(state->name.lexeme_, klass);
   return object::VoidObject();
 }
