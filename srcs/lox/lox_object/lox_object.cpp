@@ -9,16 +9,16 @@
 namespace lox {
 namespace object {
 
-struct Bool : public LoxObjectBase {
+class Bool : public LoxObjectBase {
+ public:
   using RealT = bool;
-  explicit Bool(const RealT &v) : LoxObjectBase(v) {}
   LoxObject operator-() override;
   bool IsTrue() override { return AsNative<RealT>(); }
   std::string ToString() override { return (AsNative<RealT>() ? "true" : "false"); }
 };
-struct Number : public LoxObjectBase {
+class Number : public LoxObjectBase {
+ public:
   using RealT = double;
-  explicit Number(const RealT &v) : LoxObjectBase(v) {}
   bool IsTrue() override { return static_cast<bool>(AsNative<RealT>()); }
   std::string ToString() override { return std::to_string(AsNative<RealT>()); }
   LoxObject operator-() override { return LoxObject(new Number(-AsNative<RealT>())); }
@@ -26,9 +26,9 @@ struct Number : public LoxObjectBase {
 
 LoxObject Bool::operator-() { return LoxObject(new Number(-AsNative<RealT>())); }
 
-struct String : public LoxObjectBase {
+class String : public LoxObjectBase {
+ public:
   using RealT = std::string;
-  explicit String(const RealT &v) : LoxObjectBase(v) {}
   std::string ToString() override { return std::string("\"") + AsNative<RealT>() + "\""; }
   LoxObject operator-() override { throw "`!` is not supported on String"; }
 };

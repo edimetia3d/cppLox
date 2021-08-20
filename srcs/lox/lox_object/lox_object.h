@@ -19,13 +19,18 @@ template <class T>
 concept SubclassOfLoxObject = std::is_base_of<LoxObjectBase, T>::value;
 
 using LoxObject = std::shared_ptr<LoxObjectBase>;
-struct LoxObjectBase : std::enable_shared_from_this<LoxObjectBase> {
-  template <class RealT>
-  LoxObjectBase(const RealT& v) : raw_value(new RealT{v}) {}
+class LoxObjectBase : std::enable_shared_from_this<LoxObjectBase> {
+ public:
+  template <SubclassOfLoxObject SubT>
+  static std::shared_ptr<SubT> Make(typename SubT::RealT v) {
+    static_assert(sizeof(SubT) == sizeof(LoxObjectBase));  // Only Base are allowed to hold data
+    auto ret = std::shared_ptr<SubT>(static_cast<SubT*>(new LoxObjectBase(v)));
+    ret->Init();  // subclass could init extra data here
+    return ret;
+  }
 
-  LoxObjectBase() : raw_value(nullptr){};
-  std::shared_ptr<void> raw_value;
   virtual LoxObject operator-() { throw "Not supported"; }
+  virtual void Init(){};
   virtual bool IsTrue() { return raw_value.get(); };
   virtual std::string ToString() {
     return std::string("LoxObjectBase at ") + std::to_string((uint64_t)raw_value.get());
@@ -47,13 +52,21 @@ struct LoxObjectBase : std::enable_shared_from_this<LoxObjectBase> {
   }
 
   virtual ~LoxObjectBase() = default;
+
+ protected:
+  std::shared_ptr<void> raw_value;
+  std::shared_ptr<void> extra_data;
+
+ private:
+  template <class RealT>
+  explicit LoxObjectBase(const RealT& v) : raw_value(new RealT{v}) {}  // disable subclass creation
 };
 
 bool IsValid(const LoxObject& obj) { return obj.get(); }
-LoxObject MakeLoxObject(bool);
-LoxObject MakeLoxObject(double);
-LoxObject MakeLoxObject(char* v);
-LoxObject MakeLoxObject(const std::string&);
+template <SubclassOfLoxObject SubT>
+static std::shared_ptr<SubT> MakeLoxObject(typename SubT::RealT v) {
+  return LoxObjectBase::Make<SubT>(v);
+}
 
 // Uary
 LoxObject operator-(const LoxObject& self);
