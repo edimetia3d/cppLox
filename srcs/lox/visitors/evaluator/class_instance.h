@@ -18,11 +18,9 @@ class LoxClassInstance : public object::LoxObjectBase {
   using RawValueT = LoxClassInstanceData;
   std::string ToString() const override;
 
-  object::LoxObject GetAttr(const std::string& attr) override;
-
  private:
-  RawValueT& Data() { return AsNative<RawValueT>(); }
-  const RawValueT& Data() const { return AsNative<RawValueT>(); }
+  RawValueT& Data() { return RawValue<RawValueT>(); }
+  const RawValueT& Data() const { return RawValue<RawValueT>(); }
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(LoxClassInstance);
 };
 }  // namespace lox

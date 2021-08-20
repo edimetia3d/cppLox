@@ -26,8 +26,8 @@ class LoxFunction : public LoxCallable {
   object::LoxObject BindThis(object::LoxObject obj_this);
 
  private:
-  RawValueT& Data() { return AsNative<RawValueT>(); }
-  const RawValueT& Data() const { return AsNative<RawValueT>(); }
+  RawValueT& Data() { return RawValue<RawValueT>(); }
+  const RawValueT& Data() const { return RawValue<RawValueT>(); }
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(LoxFunction);
 };
 }  // namespace lox

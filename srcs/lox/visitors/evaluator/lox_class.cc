@@ -31,10 +31,8 @@ std::shared_ptr<LoxFunction> LoxClass::GetInitFn() {
   if (dict.contains("init")) {
     initializer = dict["init"];
   }
-  if (IsValid(initializer)) {
-    if (auto init_fn = initializer->DownCast<LoxFunction>()) {
-      return std::static_pointer_cast<LoxFunction>(init_fn->shared_from_this());
-    }
+  if (auto init_fn = initializer->DownCast<LoxFunction>()) {
+    return std::static_pointer_cast<LoxFunction>(init_fn->shared_from_this());
   }
   return nullptr;
 }

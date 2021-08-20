@@ -55,12 +55,12 @@ class LoxObjectBase : public std::enable_shared_from_this<LoxObjectBase> {
   virtual void SetAttr(std::string name, LoxObject obj) { dict[name] = obj; }
 
   template <class T>
-  T& AsNative() {
+  T& RawValue() {
     return *static_cast<T*>(raw_value.get());
   }
 
   template <class T>
-  const T& AsNative() const {
+  const T& RawValue() const {
     return *static_cast<T*>(raw_value.get());
   }
 
@@ -93,15 +93,15 @@ class Bool : public LoxObjectBase {
  public:
   using RawValueT = bool;
   LoxObject operator-() const override;
-  bool IsTrue() const override { return AsNative<RawValueT>(); }
-  std::string ToString() const override { return (AsNative<RawValueT>() ? "true" : "false"); }
+  bool IsTrue() const override { return RawValue<RawValueT>(); }
+  std::string ToString() const override { return (RawValue<RawValueT>() ? "true" : "false"); }
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(Bool);
 };
 class Number : public LoxObjectBase {
  public:
   using RawValueT = double;
-  bool IsTrue() const override { return static_cast<bool>(AsNative<RawValueT>()); }
-  std::string ToString() const override { return std::to_string(AsNative<RawValueT>()); }
+  bool IsTrue() const override { return static_cast<bool>(RawValue<RawValueT>()); }
+  std::string ToString() const override { return std::to_string(RawValue<RawValueT>()); }
   LoxObject operator-() const override;
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(Number);
 };
@@ -109,7 +109,7 @@ class Number : public LoxObjectBase {
 class String : public LoxObjectBase {
  public:
   using RawValueT = std::string;
-  std::string ToString() const override { return std::string("\"") + AsNative<RawValueT>() + "\""; }
+  std::string ToString() const override { return std::string("\"") + RawValue<RawValueT>() + "\""; }
   LoxObject operator-() const override { throw "`!` is not supported on String"; }
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(String);
 };

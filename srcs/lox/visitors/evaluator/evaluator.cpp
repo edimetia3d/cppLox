@@ -231,7 +231,28 @@ object::LoxObject Evaluator::Visit(ClassStmt* state) {
 }
 object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
   auto object = Eval(state->src_object);
-  auto ret = object->GetAttr(state->attr_name.lexeme_);
+  const auto& attr_name = state->attr_name.lexeme_;
+  auto ret = object::VoidObject();
+  // Let's handle binding of this
+  if (auto instance = object->DownCast<LoxClassInstance>()) {
+    if (auto attr = instance->GetAttr(attr_name)) {
+      return attr;
+    }
+    ret = instance->RawValue<LoxClassInstanceData>().klass->GetAttr(attr_name);
+    if (auto function = ret->DownCast<LoxFunction>()) {
+      ret = function->BindThis(instance->shared_from_this());
+    }
+  } else if (auto klass = object->DownCast<LoxClass>()) {
+    ret = klass->GetAttr(attr_name);
+    if (auto objcet_this = WorkEnv()->Get("this")) {
+      if (auto fn = ret->DownCast<LoxFunction>()) {
+        ret = fn->BindThis(objcet_this);
+      }
+    }
+  } else {
+    ret = object->GetAttr(attr_name);
+  }
+
   if (!IsValid(ret)) {
     throw RuntimeError(Error(state->attr_name, "No attr found"));
   }
