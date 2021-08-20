@@ -19,7 +19,6 @@ static std::map<std::string,TokenType> g_reserved_map{
     {"or",     TokenType::OR},
     {"print",  TokenType::PRINT},
     {"return", TokenType::RETURN},
-    {"super",  TokenType::SUPER},
     {"this",   TokenType::THIS},
     {"true",   TokenType::TRUE},
     {"var",    TokenType::VAR},
