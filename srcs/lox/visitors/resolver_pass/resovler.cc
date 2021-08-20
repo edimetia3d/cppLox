@@ -150,6 +150,9 @@ object::LoxObject Resovler::Visit(IfStmt *state) {
 object::LoxObject Resovler::Visit(ClassStmt *state) {
   BeginScope();
   if (IsValid(state->superclass)) {
+    if (state->superclass->DownCast<VariableExpr>()->name.lexeme_ == state->name.lexeme_) {
+      throw ResolveError(Error(state->name, "class Can not inherit itself"));
+    }
     Resolve(state->superclass);
   }
   auto token_this = Token(TokenType::THIS, "this", state->name.line_);
