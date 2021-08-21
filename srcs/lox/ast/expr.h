@@ -14,21 +14,24 @@
 #include "lox/token.h"
 
 namespace lox {
-
+class AstNode {
+ public:
+  virtual ~AstNode(){};
+};
 class ExprBase;
 using Expr = std::shared_ptr<ExprBase>;
 template <class T>
 concept SubclassOfExpr = std::is_base_of<ExprBase, T>::value;
 
 class ExprVisitor;
-class ExprBase {
+class ExprBase : public std::enable_shared_from_this<ExprBase>, public AstNode {
  public:
   template <SubclassOfExpr SubT, class... Args>
   static std::shared_ptr<SubT> Make(Args... args) {
     return std::shared_ptr<SubT>(new SubT(args...));
   }
 
-  virtual ~ExprBase() {}
+  ~ExprBase() {}
 
   virtual object::LoxObject Accept(ExprVisitor* visitor) = 0;
 

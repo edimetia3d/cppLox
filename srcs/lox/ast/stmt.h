@@ -17,13 +17,13 @@ template <class T>
 concept SubclassOfStmt = std::is_base_of<StmtBase, T>::value;
 
 class StmtVisitor;
-class StmtBase : public std::enable_shared_from_this<StmtBase> {
+class StmtBase : public std::enable_shared_from_this<StmtBase>, public AstNode {
  public:
   template <SubclassOfStmt SubT, class... Args>
   static std::shared_ptr<SubT> Make(Args... args) {
     return std::shared_ptr<SubT>(new SubT(args...));
   }
-  virtual ~StmtBase() {}
+  ~StmtBase() {}
 
   virtual object::LoxObject Accept(StmtVisitor* visitor) = 0;
 
