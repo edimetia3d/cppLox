@@ -9,13 +9,15 @@
 #include "lox/ast/expr.h"
 #include "lox/ast/stmt.h"
 #include "lox/lox_object/lox_object.h"
-#include "lox/visitors/passes/pass.h"
+#include "lox/passes/pass.h"
 namespace lox {
 class PassRunner : public StmtVisitor, public ExprVisitor {
  public:
-  PassRunner(std::shared_ptr<Pass> pass) : pass_(pass) {}
+  PassRunner() = default;
+  void SetPass(std::shared_ptr<Pass> pass) { pass_ = pass; }
   void RunPass(Stmt stmt) {
     assert(IsValid(stmt));
+    assert(pass_);
     pass_->PreNode(stmt.get());
     stmt->Accept(this);
     pass_->PostNode(stmt.get());
@@ -23,6 +25,7 @@ class PassRunner : public StmtVisitor, public ExprVisitor {
 
   void RunPass(Expr expr) {
     assert(IsValid(expr));
+    assert(pass_);
     pass_->PreNode(expr.get());
     expr->Accept(this);
     pass_->PostNode(expr.get());

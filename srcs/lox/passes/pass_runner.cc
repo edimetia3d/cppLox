@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/visitors/passes/pass_runner.h"
+#include "lox/passes/pass_runner.h"
 
 namespace lox {
 static auto RETNULL = object::VoidObject();
