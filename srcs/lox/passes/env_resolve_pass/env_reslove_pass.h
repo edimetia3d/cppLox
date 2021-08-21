@@ -5,15 +5,8 @@
 #ifndef CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_
 #define CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_
 
-#include <cassert>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "lox/ast/expr.h"
 #include "lox/ast/stmt.h"
-#include "lox/lox_object/lox_object.h"
 #include "lox/passes/env_resolve_pass/resolve_map.h"
 #include "lox/passes/pass.h"
 namespace lox {
@@ -70,7 +63,6 @@ class EnvResovlePass : public Pass {
   FunctionType current_function_type = FunctionType::NONE;
   std::vector<ScopeType> previous_scope_type = {};
   ScopeType current_scope_type = ScopeType::NONE;
-  int while_loop_level = 0;
 };
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_

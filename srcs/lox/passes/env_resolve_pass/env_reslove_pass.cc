@@ -76,26 +76,12 @@ void EnvResovlePass::PreNode(AstNode *ast_node) {
     }
     return;
   }
-  if (auto p = CastTo<WhileStmt>(ast_node)) {
-    ++while_loop_level;
-    return;
-  }
-  if (auto p = CastTo<BreakStmt>(ast_node)) {
-    if (while_loop_level == 0) {
-      throw ResolveError(Error(p->src_token, "Nothing to break here."));
-    }
-    return;
-  }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
     BeginScope(ScopeType::CLASS);
-    if (IsValid(p->superclass)) {
-      if (p->superclass->DownCast<VariableExpr>()->name.lexeme_ == p->name.lexeme_) {
-        throw ResolveError(Error(p->name, "class Can not inherit itself"));
-      }
-    }
     auto token_this = Token(TokenType::THIS, "this", p->name.line_);
     Define(token_this);
     Declare(p->name);
+    return;
   }
 }
 void EnvResovlePass::PostNode(AstNode *ast_node) {
@@ -109,6 +95,7 @@ void EnvResovlePass::PostNode(AstNode *ast_node) {
   }
   if (auto p = CastTo<AssignExpr>(ast_node)) {
     ResolveName(p, p->name);
+    return;
   }
   if (auto p = CastTo<FunctionStmt>(ast_node)) {
     EndScope();
@@ -116,13 +103,10 @@ void EnvResovlePass::PostNode(AstNode *ast_node) {
     previous_function_type.pop_back();
     return;
   }
-  if (auto p = CastTo<WhileStmt>(ast_node)) {
-    --while_loop_level;
-    return;
-  }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
     Define(p->name);
     EndScope();
+    return;
   }
 }
 }  // namespace lox

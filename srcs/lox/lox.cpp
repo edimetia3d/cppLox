@@ -12,6 +12,7 @@
 #include "lox/passes/env_resolve_pass/env_reslove_pass.h"
 #include "lox/passes/env_resolve_pass/resolve_map.h"
 #include "lox/passes/pass_manager.h"
+#include "lox/passes/semantic_check/semantic_check.h"
 #include "lox/scanner.h"
 #include "lox/visitors/ast_printer/ast_printer.h"
 #include "lox/visitors/evaluator/callable_object.h"
@@ -70,10 +71,11 @@ void Lox::Eval(const std::string &code) {
   auto statements = parser.Parse();
 
   PassManager pass_mgr;
+  pass_mgr.Append(std::make_shared<SemanticCheck>());
   pass_mgr.Append(std::make_shared<EnvResovlePass>(resolve_map_));
   try {
     pass_mgr.Run(statements);
-  } catch (ResolveError &err) {
+  } catch (std::exception &err) {
     std::cout << err.what() << std::endl;
     return;
   }

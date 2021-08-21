@@ -22,7 +22,7 @@ class Error {
   Error();
   explicit Error(const std::string &message);
   explicit Error(const Token &token, const std::string &message);
-  std::string Message();
+  std::string Message() const;
 
   int ToErrCode();
   void Append(const Error &new_err);
@@ -31,42 +31,33 @@ class Error {
  private:
   Token token_{TokenType::_TOKEN_COUNT_NUMBER, "None", -1};
   std::string message_;
-  std::string RecursiveMessage(int level);
+  std::string RecursiveMessage(int level) const;
   std::vector<ErrorNode> sub_errors;
 };
 
-struct RuntimeError : public std::exception {
-  explicit RuntimeError(Error err) : err(std::move(err)) {}
-  const char *what() noexcept {
+template <size_t N>
+struct StringLiteral {
+  constexpr StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
+
+  char value[N];
+};
+
+template <StringLiteral name>
+struct TemplateError : public std::exception {
+  explicit TemplateError(Error err) : err(std::move(err)) {}
+  const char *what() const noexcept override {
     static std::string last_err;
-    last_err = std::string("RuntimeError: ") + err.Message().c_str();
+    last_err = std::string(name.value) + ": " + err.Message().c_str();
     return last_err.c_str();
   }
 
   Error err;
 };
 
-struct ParserError : public std::exception {
-  explicit ParserError(const Error &err) : err(err) {}
-  const char *what() noexcept {
-    static std::string last_err;
-    last_err = std::string("PaserError: ") + err.Message().c_str();
-    return last_err.c_str();
-  }
-
-  lox::Error err;
-};
-
-struct ResolveError : public std::exception {
-  explicit ResolveError(const Error &err) : err(err) {}
-  const char *what() noexcept {
-    static std::string last_err;
-    last_err = std::string("ResolveError: ") + err.Message().c_str();
-    return last_err.c_str();
-  }
-
-  lox::Error err;
-};
+using RuntimeError = TemplateError<"RuntimeError">;
+using ParserError = TemplateError<"ParserError">;
+using ResolveError = TemplateError<"ResolveError">;
+using SemanticError = TemplateError<"SemanticError">;
 
 #define ERR_STR(STR) Error(std::string("[") + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "] " + STR)
 }  // namespace lox

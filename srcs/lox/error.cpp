@@ -11,12 +11,12 @@ void Error::Append(const Error &new_err) {
   ErrorNode node = std::make_shared<Error>(new_err);
   sub_errors.push_back(node);
 }
-std::string Error::Message() { return RecursiveMessage(0); }
+std::string Error::Message() const { return RecursiveMessage(0); }
 Error::Error() {}
 
 Error::Error(const std::string &message) : message_(message) {}
 
-std::string Error::RecursiveMessage(int level) {
+std::string Error::RecursiveMessage(int level) const {
   std::string tab_base = "  ";
   std::string tab = "";
   for (int i = 0; i < level; ++i) {
