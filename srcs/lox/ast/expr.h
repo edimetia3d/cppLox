@@ -10,14 +10,11 @@
 #include <type_traits>
 #include <vector>
 
+#include "lox/ast/ast_node.h"
 #include "lox/lox_object/lox_object.h"
 #include "lox/token.h"
-
 namespace lox {
-class AstNode {
- public:
-  virtual ~AstNode(){};
-};
+
 class ExprBase;
 using Expr = std::shared_ptr<ExprBase>;
 template <class T>

@@ -9,8 +9,9 @@
 
 #include "lox/global_setting/global_setting.h"
 #include "lox/parser.h"
+#include "lox/passes/env_resolve_pass/env_reslove_pass.h"
 #include "lox/passes/env_resolve_pass/resolve_map.h"
-#include "lox/passes/env_resolve_pass/resovler.h"
+#include "lox/passes/pass_manager.h"
 #include "lox/scanner.h"
 #include "lox/visitors/ast_printer/ast_printer.h"
 #include "lox/visitors/evaluator/callable_object.h"
@@ -68,11 +69,10 @@ void Lox::Eval(const std::string &code) {
   Parser parser(scanner.Tokens());
   auto statements = parser.Parse();
 
-  Resovler resovler(resolve_map_);
+  PassManager pass_mgr;
+  pass_mgr.Append(std::make_shared<EnvResovlePass>(resolve_map_));
   try {
-    for (auto &stmt : statements) {
-      resovler.Resolve(stmt);
-    }
+    pass_mgr.Run(statements);
   } catch (ResolveError &err) {
     std::cout << err.what() << std::endl;
     return;

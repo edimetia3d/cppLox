@@ -85,7 +85,9 @@ object::LoxObject PassRunner::Visit(IfStmt *state) {
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(ClassStmt *state) {
-  RunPass(state->superclass);
+  if (IsValid(state->superclass)) {
+    RunPass(state->superclass);
+  }
   for (auto &method : state->methods) {
     RunPass(method);
   }

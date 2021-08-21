@@ -1,5 +1,5 @@
 //
-// Created by edi on 8/21/21.
+// License: MIT
 //
 
 #include "lox/passes/pass_manager.h"

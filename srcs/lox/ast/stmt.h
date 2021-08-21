@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "lox/ast/ast_node.h"
 #include "lox/ast/expr.h"
 
 namespace lox {

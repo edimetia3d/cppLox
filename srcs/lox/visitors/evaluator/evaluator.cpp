@@ -263,7 +263,5 @@ object::LoxObject Evaluator::Visit(SetAttrExpr* state) {
   auto ret = Eval(state->value);
   object->SetAttr(state->attr_name.lexeme_, Eval(state->value));
   return ret;
-
-  throw RuntimeError(Error(state->attr_name, "Only class instances have properties."));
 }
 }  // namespace lox

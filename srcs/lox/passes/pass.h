@@ -1,5 +1,5 @@
 //
-// Created by edi on 8/21/21.
+// License: MIT
 //
 
 #ifndef CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_H_

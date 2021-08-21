@@ -4,6 +4,12 @@ class GG{
     }
     printme(){
         print this.ggi;
+        fun closure(){
+            print "closure with this";
+            print this.ggi;
+            print "closure with this";
+        }
+        return closure;
     }
 }
 
@@ -14,7 +20,7 @@ class Bar < GG{
     }
     printme(){
         print this.gi;
-        GG.printme();
+        return GG.printme();
     }
 }
 
@@ -30,10 +36,11 @@ class Foo < Bar {
     this.ggi=this.ggi+1;
     Bar.printme();
     this.ggi=this.ggi+1;
-    GG.printme();
+    return GG.printme();
   }
 }
 
 var foo = Foo(4);
 foo.new_attr = "abc";
-foo.printme();
+var ss = foo.printme();
+ss();
