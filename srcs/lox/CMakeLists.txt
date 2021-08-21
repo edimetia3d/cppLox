@@ -11,4 +11,4 @@ add_subdirectory(passes)
 
 target_link_libraries(lox PUBLIC lox_public_header)
 target_link_libraries(lox PRIVATE version_info)
-target_link_libraries(lox PRIVATE lox_object ast visitors global_setting)
+target_link_libraries(lox PRIVATE lox_object ast visitors global_setting passes)

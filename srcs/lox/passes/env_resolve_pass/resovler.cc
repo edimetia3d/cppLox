@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/visitors/resolver_pass/resovler.h"
+#include "lox/passes/env_resolve_pass/resovler.h"
 
 #include "lox/error.h"
 

@@ -9,13 +9,13 @@
 
 #include "lox/global_setting/global_setting.h"
 #include "lox/parser.h"
+#include "lox/passes/env_resolve_pass/resolve_map.h"
+#include "lox/passes/env_resolve_pass/resovler.h"
 #include "lox/scanner.h"
 #include "lox/visitors/ast_printer/ast_printer.h"
 #include "lox/visitors/evaluator/callable_object.h"
 #include "lox/visitors/evaluator/environment.h"
 #include "lox/visitors/evaluator/evaluator.h"
-#include "lox/visitors/resolver_pass/resolve_map.h"
-#include "lox/visitors/resolver_pass/resovler.h"
 namespace lox {
 static bool g_debug = true;
 Lox::Lox() {

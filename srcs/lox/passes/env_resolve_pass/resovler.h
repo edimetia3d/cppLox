@@ -14,8 +14,8 @@
 #include "lox/ast/expr.h"
 #include "lox/ast/stmt.h"
 #include "lox/lox_object/lox_object.h"
+#include "lox/passes/env_resolve_pass/resolve_map.h"
 #include "lox/visitors/evaluator/evaluator.h"
-#include "lox/visitors/resolver_pass/resolve_map.h"
 namespace lox {
 
 enum class FunctionType {
