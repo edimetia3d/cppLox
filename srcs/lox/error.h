@@ -29,7 +29,7 @@ class Error {
   const Token &SourceToken() const { return token_; }
 
  private:
-  Token token_{TokenType::_TOKEN_COUNT_NUMBER, "None", -1};
+  Token token_ = MakeToken(TokenType::_TOKEN_COUNT_NUMBER, "None", -1);
   std::string message_;
   std::string RecursiveMessage(int level) const;
   std::vector<ErrorNode> sub_errors;

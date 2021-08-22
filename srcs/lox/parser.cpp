@@ -69,9 +69,9 @@ void lox::Parser::Synchronize() {
   Advance();
 
   while (!IsAtEnd()) {
-    if (Previous().type_ == TokenType::SEMICOLON) return;
+    if (Previous()->type_ == TokenType::SEMICOLON) return;
 
-    switch (Peek().type_) {
+    switch (Peek()->type_) {
       case TokenType::CLASS:
       case TokenType::FUN:
       case TokenType::VAR:
@@ -228,7 +228,7 @@ Stmt Parser::ForStmtSugar() {
     body = MakeStmt<BlockStmt>(body_with_increasement);
   }
   if (!IsValid(condition)) {
-    auto tmp_true_token = Token(TokenType::TRUE, "for_sugar_true", Peek().line_);
+    auto tmp_true_token = MakeToken(TokenType::TRUE, "for_sugar_true", Peek()->line_);
     condition = MakeExpr<LiteralExpr>(tmp_true_token);
   }
   body = MakeStmt<WhileStmt>(condition, body);
@@ -242,10 +242,10 @@ Stmt Parser::ForStmtSugar() {
 }
 Stmt Parser::Break() {
   auto src_token = Previous();
-  if (src_token.type_ == TokenType::CONTINUE) {
+  if (src_token->type_ == TokenType::CONTINUE) {
     Error(Previous(), " 'continue' not supported yet.");
   }
-  Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token.lexeme_);
+  Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token->lexeme_);
   return MakeStmt<BreakStmt>(src_token);
 }
 Expr Parser::Call() {

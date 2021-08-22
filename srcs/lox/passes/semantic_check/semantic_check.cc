@@ -20,7 +20,7 @@ void SemanticCheck::PreNode(AstNode *ast_node) {
   }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
     if (IsValid(p->superclass)) {
-      if (p->superclass->DownCast<VariableExpr>()->name.lexeme_ == p->name.lexeme_) {
+      if (p->superclass->DownCast<VariableExpr>()->name->lexeme_ == p->name->lexeme_) {
         throw SemanticError(Error(p->name, "Class can not inherit itself"));
       }
     }

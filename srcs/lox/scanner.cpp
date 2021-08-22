@@ -9,7 +9,7 @@ Error Scanner::Scan() {
   while (!IsAtEnd()) {
     ScanOneToken();
   }
-  tokens_.emplace_back(TokenType::EOF_TOKEN, "EOF", line_);
+  tokens_.push_back(MakeToken(TokenType::EOF_TOKEN, "EOF", line_));
   return err_;
 }
 void Scanner::ScanOneToken() {
@@ -64,7 +64,8 @@ void Scanner::ScanOneToken() {
   // clang-format on
 }
 void Scanner::AddToken(TokenType type) {
-  tokens_.emplace_back(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);
+  tokens_.push_back(
+      MakeToken(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_));
   ResetTokenBeg();
 }
 void Scanner::ResetTokenBeg() { start_lex_pos_ = current_lex_pos_; }
@@ -119,7 +120,7 @@ void Scanner::AddNumToken() {
 void Scanner::AddIdentifierToken() {
   while (IsAlphaNumeric(Peek())) Advance();
 
-  AddToken(Token::GetIdentifierType(std::string(
-      srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_)));
+  AddToken(
+      TokenBase::GetIdentifierType(std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_)));
 }
 }  // namespace lox

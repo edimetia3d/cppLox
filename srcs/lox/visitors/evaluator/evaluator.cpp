@@ -14,11 +14,11 @@
 namespace lox {
 
 object::LoxObject Evaluator::Visit(LiteralExpr* state) {
-  switch (state->value.type_) {
+  switch (state->value->type_) {
     case TokenType::NUMBER:
-      return object::MakeLoxObject(std::stod(state->value.lexeme_));
+      return object::MakeLoxObject(std::stod(state->value->lexeme_));
     case TokenType::STRING:
-      return object::MakeLoxObject(std::string(state->value.lexeme_.begin() + 1, state->value.lexeme_.end() - 1));
+      return object::MakeLoxObject(std::string(state->value->lexeme_.begin() + 1, state->value->lexeme_.end() - 1));
     case TokenType::TRUE:
       return object::MakeLoxObject(true);
     case TokenType::FALSE:
@@ -33,7 +33,7 @@ object::LoxObject Evaluator::Visit(GroupingExpr* state) { return Eval(state->exp
 object::LoxObject Evaluator::Visit(UnaryExpr* state) {
   auto right = Eval(state->right);
 
-  switch (state->op.type_) {
+  switch (state->op->type_) {
     case TokenType::MINUS:
       return -right;
     case TokenType::BANG:
@@ -50,7 +50,7 @@ object::LoxObject Evaluator::Visit(UnaryExpr* state) {
 
 object::LoxObject Evaluator::Visit(LogicalExpr* state) {
   auto left = Eval(state->left);
-  if (state->op.type_ == TokenType::AND) {
+  if (state->op->type_ == TokenType::AND) {
     if (IsValueTrue(left)) {
       return Eval(state->right);
     }
@@ -65,7 +65,7 @@ object::LoxObject Evaluator::Visit(BinaryExpr* state) {
   auto left = Eval(state->left);
   auto right = Eval(state->right);
   try {
-    switch (state->op.type_) {
+    switch (state->op->type_) {
       case TokenType::PLUS:
         return left + right;
       case TokenType::MINUS:
@@ -94,7 +94,7 @@ object::LoxObject Evaluator::Visit(BinaryExpr* state) {
   }
 }
 object::LoxObject Evaluator::Visit(VariableExpr* state) {
-  auto ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name.lexeme_);
+  auto ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name->lexeme_);
   if (!IsValid(ret)) {
     throw RuntimeError(Error(state->name, "Doesnt reference to a valid value."));
   }
@@ -103,7 +103,7 @@ object::LoxObject Evaluator::Visit(VariableExpr* state) {
 object::LoxObject Evaluator::Visit(AssignExpr* state) {
   auto value = Eval(state->value);
   try {
-    WorkEnv()->GetByDistance(active_map_->Get(state))->Set(state->name.lexeme_, value);
+    WorkEnv()->GetByDistance(active_map_->Get(state))->Set(state->name->lexeme_, value);
   } catch (const char* msg) {
     throw RuntimeError(Error(state->name, msg));
   }
@@ -145,7 +145,7 @@ object::LoxObject Evaluator::Visit(VarDeclStmt* state) {
   if (IsValid(state->initializer)) {
     value = Eval(state->initializer);
   }
-  WorkEnv()->Define(state->name.lexeme_, value);
+  WorkEnv()->Define(state->name->lexeme_, value);
   return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(BlockStmt* state) {
@@ -168,7 +168,7 @@ object::LoxObject Evaluator::Visit(WhileStmt* state) {
     try {
       Eval(state->body);
     } catch (RuntimeError& err) {
-      if (err.err.SourceToken().type_ == TokenType::BREAK) {
+      if (err.err.SourceToken()->type_ == TokenType::BREAK) {
         break;
       }
       throw;
@@ -185,7 +185,7 @@ object::LoxObject Evaluator::Visit(FunctionStmt* state) {
 
   };
   auto fn = object::MakeLoxObject<LoxFunction>(fn_data);
-  WorkEnv()->Define(state->name.lexeme_, fn);
+  WorkEnv()->Define(state->name->lexeme_, fn);
   // FreezeEnv(); use freeze env to "copy" capture
   return fn;
 }
@@ -197,7 +197,7 @@ object::LoxObject Evaluator::Visit(ReturnStmt* state) {
   throw ReturnValue(ret);
 }
 object::LoxObject Evaluator::Visit(ClassStmt* state) {
-  WorkEnv()->Define(state->name.lexeme_, object::VoidObject());
+  WorkEnv()->Define(state->name->lexeme_, object::VoidObject());
   auto klass = object::VoidObject();
   {
     EnterNewScopeGuard(this, WorkEnv());
@@ -208,25 +208,25 @@ object::LoxObject Evaluator::Visit(ClassStmt* state) {
         throw RuntimeError(Error(state->name, "Base must be a class"));
       }
     }
-    LoxClassData class_data{.name = state->name.lexeme_, .superclass = std::static_pointer_cast<LoxClass>(superclass)};
+    LoxClassData class_data{.name = state->name->lexeme_, .superclass = std::static_pointer_cast<LoxClass>(superclass)};
     klass = object::MakeLoxObject<LoxClass>(class_data);
     for (auto& method_stmt : state->methods) {
       auto method_state = method_stmt->DownCast<FunctionStmt>();
       LoxFunctionData fn_data{
-          .is_init_method = method_state->name.lexeme_ == "init",
+          .is_init_method = method_state->name->lexeme_ == "init",
           .closure = WorkEnv(),
           .function = std::static_pointer_cast<FunctionStmt>(method_state->shared_from_this()),
       };
       auto method = object::MakeLoxObject<LoxFunction>(fn_data);
-      klass->SetAttr(method_state->name.lexeme_, method);
+      klass->SetAttr(method_state->name->lexeme_, method);
     }
   }
-  WorkEnv()->Set(state->name.lexeme_, klass);
+  WorkEnv()->Set(state->name->lexeme_, klass);
   return object::VoidObject();
 }
 object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
   auto object = Eval(state->src_object);
-  const auto& attr_name = state->attr_name.lexeme_;
+  const auto& attr_name = state->attr_name->lexeme_;
   auto ret = object::VoidObject();
   // Let's handle binding of this
   if (auto instance = object->DownCast<LoxClassInstance>()) {
@@ -261,7 +261,7 @@ object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
 object::LoxObject Evaluator::Visit(SetAttrExpr* state) {
   auto object = Eval(state->src_object);
   auto ret = Eval(state->value);
-  object->SetAttr(state->attr_name.lexeme_, Eval(state->value));
+  object->SetAttr(state->attr_name->lexeme_, Eval(state->value));
   return ret;
 }
 }  // namespace lox
