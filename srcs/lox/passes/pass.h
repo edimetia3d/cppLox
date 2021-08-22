@@ -7,8 +7,8 @@
 
 namespace lox {
 struct Pass {
-  virtual void PreNode(AstNode* ast_node) = 0;
-  virtual void PostNode(AstNode* ast_node) = 0;
+  virtual void PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) = 0;
+  virtual void PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) = 0;
 };
 }  // namespace lox
 

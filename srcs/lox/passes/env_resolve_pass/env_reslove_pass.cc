@@ -21,7 +21,7 @@ void EnvResovlePass::ResolveName(ExprBase *state, Token name) {
   }
 }
 
-void EnvResovlePass::PreNode(AstNode *ast_node) {
+void EnvResovlePass::PreNode(AstNode *ast_node, std::shared_ptr<AstNode> *updated_node) {
   if (MatchAnyType<BlockStmt>(ast_node)) {
     BeginScope(ScopeType::BLOCK);
     return;
@@ -84,7 +84,7 @@ void EnvResovlePass::PreNode(AstNode *ast_node) {
     return;
   }
 }
-void EnvResovlePass::PostNode(AstNode *ast_node) {
+void EnvResovlePass::PostNode(AstNode *ast_node, std::shared_ptr<AstNode> *updated_node) {
   if (MatchAnyType<BlockStmt>(ast_node)) {
     EndScope();
     return;

@@ -14,12 +14,21 @@ class PassRunner : public AstNodeVisitor {
  public:
   PassRunner() = default;
   void SetPass(std::shared_ptr<Pass> pass) { pass_ = pass; }
-  void RunPass(std::shared_ptr<AstNode> node) {
+  std::shared_ptr<AstNode> RunPass(std::shared_ptr<AstNode> node) {
     assert(IsValid(node));
     assert(pass_);
-    pass_->PreNode(node.get());
-    node->Accept(this);
-    pass_->PostNode(node.get());
+    std::shared_ptr<AstNode> new_node = node;
+    pass_->PreNode(node.get(), &new_node);
+    if (new_node != node) {
+      node = RunPass(new_node);
+    } else {
+      node->Accept(this);
+    }
+    pass_->PostNode(node.get(), &new_node);
+    if (new_node != node) {
+      node = RunPass(new_node);
+    }
+    return node;
   }
 
  protected:
