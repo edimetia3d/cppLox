@@ -25,7 +25,7 @@ class ExprBase : public std::enable_shared_from_this<ExprBase>, public AstNode {
  public:
   template <SubclassOfExpr SubT, class... Args>
   static std::shared_ptr<SubT> Make(Args... args) {
-    return std::shared_ptr<SubT>(new SubT(args...));
+    return std::shared_ptr<SubT>(new SubT(nullptr, args...));
   }
 
   ~ExprBase() {}
@@ -36,6 +36,9 @@ class ExprBase : public std::enable_shared_from_this<ExprBase>, public AstNode {
   T* DownCast() {
     return dynamic_cast<T*>(this);
   }
+
+ protected:
+  ExprBase(ExprBase* parent = nullptr) : AstNode(parent){};
 };
 
 static inline bool IsValid(const Expr& expr) { return expr.get(); }

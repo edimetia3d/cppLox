@@ -4,10 +4,23 @@
 
 #ifndef CPPLOX_SRCS_LOX_AST_AST_NODE_H_
 #define CPPLOX_SRCS_LOX_AST_AST_NODE_H_
+#include <cassert>
+
 namespace lox {
 class AstNode {
  public:
+  explicit AstNode(AstNode* parent = nullptr) : parent_(parent){};
   virtual ~AstNode(){};
+  AstNode* Parent() { return parent_; }
+  void SetParent(AstNode* parent) {
+    assert(parent_ == nullptr);  // every node could only has one parent
+    parent_ = parent;
+  }
+  void ResetParent() { parent_ = nullptr; }
+
+ private:
+  // Every node will hold a shared_ptr to it's sub node, so parent_ is just a weak reference
+  AstNode* parent_ = nullptr;
 };
 template <class T>
 concept SubclassOfAstNode = std::is_base_of<AstNode, T>::value;

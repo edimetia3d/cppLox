@@ -22,7 +22,7 @@ class StmtBase : public std::enable_shared_from_this<StmtBase>, public AstNode {
  public:
   template <SubclassOfStmt SubT, class... Args>
   static std::shared_ptr<SubT> Make(Args... args) {
-    return std::shared_ptr<SubT>(new SubT(args...));
+    return std::shared_ptr<SubT>(new SubT(nullptr, args...));
   }
   ~StmtBase() {}
 
@@ -32,6 +32,9 @@ class StmtBase : public std::enable_shared_from_this<StmtBase>, public AstNode {
   T* DownCast() {
     return dynamic_cast<T*>(this);
   }
+
+ protected:
+  StmtBase(StmtBase* parent = nullptr) : AstNode(parent){};
 };
 
 static inline bool IsValid(const Stmt& stmt) { return stmt.get(); }

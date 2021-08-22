@@ -29,7 +29,9 @@ class {class_name}{target_key}:public {target_key}Base
 {{
 private:
 explicit {class_name}{target_key}({init_params})
-:{init}{{}}
+:{init}{{
+{set_parent}
+}}
 friend {target_key}Base;
 public:
 {member_def}
@@ -68,22 +70,27 @@ virtual object::LoxObject Visit({class_name}{target_key} *) = 0;
             class_forward_decl += f"""class {class_name}{target_key};\n"""
             member_list = all_def[class_name].split(",")
             member_def = ""
-            member_init_params = []
-            member_init = []
+            member_init_params = [f"{target_key}Base *parent"]
+            member_init = [f"{target_key}Base(parent)"]
+            set_parent = []
             for member in member_list:
                 cut_by_space = list(filter(lambda x: x != "", member.split(" ")))
                 member_type = cut_by_space[0]
                 member_name = cut_by_space[1]
                 member_def = member_def + f"{member_type} {member_name};\n"
-                member_init_params.append(f"{member_type} {member_name}")
-                member_init.append(f"{member_name}(std::move({member_name}))")
+                member_init_params.append(f"{member_type} {member_name}_in")
+                member_init.append(f"{member_name}(std::move({member_name}_in))")
+                if target_key == member_type:
+                    set_parent.append(f"{member_name}->SetParent(this);")
             member_init = ",\n".join(member_init)
             member_init_params = ",".join(member_init_params)
+            set_parent = "\n".join(set_parent)
             class_decls = class_decls + class_template.format(target_key = target_key,
                                                               class_name = class_name,
                                                               init_params = member_init_params,
                                                               init = member_init,
                                                               member_def = member_def,
+                                                              set_parent = set_parent,
                                                               type_id = type_id)
         output_file.write(file_template.format(target_key = target_key,
                                                this_file_name = os.path.basename(__file__),

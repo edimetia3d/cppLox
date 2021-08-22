@@ -158,6 +158,7 @@ Expr Parser::Assignment() {
       Token name = state->name;
       return MakeExpr<AssignExpr>(name, value);
     } else if (auto state = expr->DownCast<GetAttrExpr>()) {
+      state->src_object->ResetParent();
       return MakeExpr<SetAttrExpr>(state->src_object, state->attr_name, value);
     }
 
