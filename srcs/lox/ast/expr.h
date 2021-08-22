@@ -12,7 +12,6 @@
 
 #include "lox/ast/ast_node.h"
 #include "lox/lox_object/lox_object.h"
-#include "lox/token.h"
 namespace lox {
 
 class ExprBase;

@@ -8,6 +8,7 @@ file_template = """
 // The file in source tree will only be used when python3 is not found by cmake, and might be out of sync.
 
 #include "lox/lox_object/lox_object.h"
+#include "lox/token.h"
 namespace lox{{
 {class_forward_decl}
 class {target_key}Visitor {{
@@ -80,8 +81,7 @@ virtual object::LoxObject Visit({class_name}{target_key} *) = 0;
                 member_def = member_def + f"{member_type} {member_name};\n"
                 member_init_params.append(f"{member_type} {member_name}_in")
                 member_init.append(f"{member_name}(std::move({member_name}_in))")
-                if target_key == member_type:
-                    set_parent.append(f"{member_name}->SetParent(this);")
+                set_parent.append(f"BindParent({member_name},this);")
             member_init = ",\n".join(member_init)
             member_init_params = ",".join(member_init_params)
             set_parent = "\n".join(set_parent)

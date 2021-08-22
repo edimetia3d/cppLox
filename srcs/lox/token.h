@@ -7,12 +7,13 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "lox/token_type.h"
-
 namespace lox {
 
 class TokenBase;
+class AstNode;
 using Token = std::shared_ptr<TokenBase>;
 
 class TokenBase {
@@ -35,6 +36,13 @@ class TokenBase {
 
 static inline Token MakeToken(const TokenType& type, const std::string& lexeme, int line) {
   return TokenBase::Make(type, lexeme, line);
+}
+
+static inline void BindParent(Token token, AstNode* parent) {
+  // token do not need parent;
+}
+static inline void BindParent(const std::vector<Token>& tokens, AstNode* parent) {
+  // token do not need parent;
 }
 }  // namespace lox
 

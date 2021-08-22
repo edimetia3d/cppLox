@@ -7,6 +7,8 @@
 #include <cassert>
 #include <memory>
 #include <type_traits>
+#include <vector>
+
 
 namespace lox {
 class AstNode;
@@ -25,21 +27,35 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
     return dynamic_cast<T*>(this);
   }
 
+  virtual ~AstNode() = default;
+
   AstNode* Parent() { return parent_; }
   void SetParent(AstNode* parent) {
-    assert(parent_ == nullptr || parent_ == parent);  // every node could only has one parent
+    assert(parent_ == nullptr || parent_ == parent);  // every element could only has one parent
     parent_ = parent;
   }
   void ResetParent() { parent_ = nullptr; }
-  virtual ~AstNode() = default;
 
  protected:
-  explicit AstNode(AstNode* parent = nullptr) : parent_(parent){};
-
- private:
-  // Every node will hold a shared_ptr to it's sub node, so parent_ is just a weak reference
+  // current element is always "owned" by parent through shared_ptr, to avoid cycle reference, just use a weak pointer
+  // here
   AstNode* parent_ = nullptr;
+
+  explicit AstNode(AstNode* parent = nullptr) { SetParent(parent); };
 };
+
+template <SubclassOfAstNode T>
+static inline void BindParent(std::shared_ptr<T> element, AstNode* parent) {
+  if (element) {
+    element->SetParent(parent);
+  }
+}
+template <SubclassOfAstNode T>
+static inline void BindParent(const std::vector<std::shared_ptr<T>>& elements, AstNode* parent) {
+  for (auto& element : elements) {
+    BindParent(element, parent);
+  }
+}
 
 template <SubclassOfAstNode Type, SubclassOfAstNode... Rest>
 bool MatchAnyType(AstNode* p) {
