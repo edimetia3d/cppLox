@@ -1,7 +1,6 @@
 
 add_library(ast
-        expr.h
-        stmt.h
+        ast.h
         )
 
 target_link_libraries(ast PUBLIC lox_object)

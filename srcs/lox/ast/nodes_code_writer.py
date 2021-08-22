@@ -32,7 +32,7 @@ explicit {class_name}{target_key}({init_params})
 :{init}{{
 {set_parent}
 }}
-friend {target_key}Base;
+friend AstNode;
 public:
 {member_def}
 object::LoxObject Accept({target_key}Visitor * visitor) override {{
