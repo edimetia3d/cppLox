@@ -27,29 +27,29 @@ void EnvResovlePass::PreNode(AstNode *ast_node, std::shared_ptr<AstNode> *update
     return;
   }
   if (auto p = CastTo<VarDeclStmt>(ast_node)) {
-    Declare(p->name);
+    Declare(p->name());
     return;
   }
   if (auto p = CastTo<VariableExpr>(ast_node)) {
-    if (p->name->type_ == TokenType::THIS) {
+    if (p->name()->type_ == TokenType::THIS) {
       if (!IsInClassScope() || current_function_type == FunctionType::NONE) {
-        throw ResolveError(Error(p->name, "Cannot read 'this' out of method"));
+        throw ResolveError(Error(p->name(), "Cannot read 'this' out of method"));
       }
     }
-    if (scopes.back().contains(p->name->lexeme_) and scopes.back()[p->name->lexeme_] == false) {
-      throw ResolveError(Error(p->name, "Can't read local variable in its own initializer."));
+    if (scopes.back().contains(p->name()->lexeme_) and scopes.back()[p->name()->lexeme_] == false) {
+      throw ResolveError(Error(p->name(), "Can't read local variable in its own initializer."));
     }
 
-    ResolveName(p, p->name);
+    ResolveName(p, p->name());
     return;
   }
   if (auto p = CastTo<FunctionStmt>(ast_node)) {
-    Define(p->name);
+    Define(p->name());
     auto fn_type = FunctionType::FUNCTION;
     if (current_scope_type == ScopeType::CLASS) {
       // methods are attributes too, they are not name during resolve, and created at runtime.
       fn_type = FunctionType::METHOD;
-      if (p->name->lexeme_ == "init") {
+      if (p->name()->lexeme_ == "init") {
         fn_type = FunctionType::INITIALIZER;
       }
     }
@@ -57,20 +57,20 @@ void EnvResovlePass::PreNode(AstNode *ast_node, std::shared_ptr<AstNode> *update
     previous_function_type.push_back(current_function_type);
     current_function_type = fn_type;
     BeginScope(ScopeType::FUNCTION);
-    for (Token param : p->params) {
+    for (Token param : p->params()) {
       Define(param);
     }
     return;
   }
   if (auto p = CastTo<ReturnStmt>(ast_node)) {
     if (current_function_type == FunctionType::NONE) {
-      throw ResolveError(Error(p->keyword, "Cannot return at here"));
+      throw ResolveError(Error(p->keyword(), "Cannot return at here"));
     }
     if (current_function_type == FunctionType::INITIALIZER) {
-      if (IsValid(p->value)) {
-        auto p2 = p->value->DownCast<VariableExpr>();
-        if (p2 == nullptr || p2->name->lexeme_ != "this") {
-          throw ResolveError(Error(p->keyword, "INITIALIZER must return 'this'"));
+      if (IsValid(p->value())) {
+        auto p2 = p->value()->DownCast<VariableExpr>();
+        if (p2 == nullptr || p2->name()->lexeme_ != "this") {
+          throw ResolveError(Error(p->keyword(), "INITIALIZER must return 'this'"));
         }
       }
     }
@@ -78,9 +78,9 @@ void EnvResovlePass::PreNode(AstNode *ast_node, std::shared_ptr<AstNode> *update
   }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
     BeginScope(ScopeType::CLASS);
-    auto token_this = MakeToken(TokenType::THIS, "this", p->name->line_);
+    auto token_this = MakeToken(TokenType::THIS, "this", p->name()->line_);
     Define(token_this);
-    Declare(p->name);
+    Declare(p->name());
     return;
   }
 }
@@ -90,11 +90,11 @@ void EnvResovlePass::PostNode(AstNode *ast_node, std::shared_ptr<AstNode> *updat
     return;
   }
   if (auto p = CastTo<VarDeclStmt>(ast_node)) {
-    Define(p->name);
+    Define(p->name());
     return;
   }
   if (auto p = CastTo<AssignExpr>(ast_node)) {
-    ResolveName(p, p->name);
+    ResolveName(p, p->name());
     return;
   }
   if (auto p = CastTo<FunctionStmt>(ast_node)) {
@@ -104,7 +104,7 @@ void EnvResovlePass::PostNode(AstNode *ast_node, std::shared_ptr<AstNode> *updat
     return;
   }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
-    Define(p->name);
+    Define(p->name());
     EndScope();
     return;
   }

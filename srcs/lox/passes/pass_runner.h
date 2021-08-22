@@ -18,14 +18,15 @@ class PassRunner : public AstNodeVisitor {
     assert(IsValid(node));
     assert(pass_);
     std::shared_ptr<AstNode> new_node = node;
+    ResetModify(node);
     pass_->PreNode(node.get(), &new_node);
-    if (new_node != node) {
+    if (new_node != node || node->IsModified()) {
       node = RunPass(new_node);
     } else {
       node->Accept(this);
     }
     pass_->PostNode(node.get(), &new_node);
-    if (new_node != node) {
+    if (new_node != node || node->IsModified()) {
       node = RunPass(new_node);
     }
     return node;

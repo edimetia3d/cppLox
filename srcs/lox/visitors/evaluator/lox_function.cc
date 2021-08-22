@@ -6,15 +6,15 @@
 
 namespace lox {
 
-int LoxFunction::Arity() { return Data().function->params.size(); }
+int LoxFunction::Arity() { return Data().function->params().size(); }
 object::LoxObject LoxFunction::Call(Evaluator *evaluator, std::vector<object::LoxObject> arguments) {
   Evaluator::EnterNewScopeGuard guard(evaluator, Data().closure);
-  int N = Data().function->params.size();
+  int N = Data().function->params().size();
   for (int i = 0; i < N; ++i) {
-    evaluator->WorkEnv()->Define(Data().function->params[i]->lexeme_, arguments[i]);
+    evaluator->WorkEnv()->Define(Data().function->params()[i]->lexeme_, arguments[i]);
   }
   try {
-    for (auto &stmt : Data().function->body) {
+    for (auto &stmt : Data().function->body()) {
       evaluator->Eval(stmt);
     }
   } catch (ReturnValue &ret) {
@@ -28,7 +28,7 @@ object::LoxObject LoxFunction::Call(Evaluator *evaluator, std::vector<object::Lo
   }
   return object::VoidObject();
 }
-std::string LoxFunction::ToString() const { return std::string("Function ") + Data().function->name->lexeme_; }
+std::string LoxFunction::ToString() const { return std::string("Function ") + Data().function->name()->lexeme_; }
 object::LoxObject LoxFunction::BindThis(object::LoxObject obj_this) {
   auto new_env = Environment::Make(Data().closure);
   new_env->Define("this", obj_this);

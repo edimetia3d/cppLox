@@ -3,22 +3,38 @@
 //
 
 #include "lox/passes/pass_runner.h"
-#define RUNPASS_AND_UPDATE(KEY_NAME)            \
-  {                                             \
-    auto new_value = RunPass((KEY_NAME));       \
-    new_value->SetParent((KEY_NAME)->Parent()); \
-    (KEY_NAME) = new_value;                     \
+#define RUNPASS_AND_UPDATE(KEY_NAME)              \
+  {                                               \
+    auto old_value = (KEY_NAME)();                \
+    auto new_value = RunPass(old_value);          \
+    new_value->SetParent((KEY_NAME)()->Parent()); \
+    if (new_value != old_value) {                 \
+      (KEY_NAME)(new_value);                      \
+    }                                             \
+  }
+
+#define RUNPASS_ON_VEC_AND_UPDATE(KEY_NAME)   \
+  {                                           \
+    auto cpy = (KEY_NAME)();                  \
+    for (auto &node : cpy) {                  \
+      {                                       \
+        auto new_value = RunPass(node);       \
+        new_value->SetParent(node->Parent()); \
+        node = new_value;                     \
+      };                                      \
+    }                                         \
+    if ((KEY_NAME)() != cpy) {                \
+      (KEY_NAME)(cpy);                        \
+    }                                         \
   }
 namespace lox {
 static auto RETNULL = object::VoidObject();
 object::LoxObject PassRunner::Visit(BlockStmt *state) {
-  for (auto &stmt : state->statements) {
-    RUNPASS_AND_UPDATE(stmt);
-  }
+  RUNPASS_ON_VEC_AND_UPDATE(state->statements)
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(VarDeclStmt *state) {
-  if (IsValid(state->initializer)) {
+  if (IsValid(state->initializer())) {
     RUNPASS_AND_UPDATE(state->initializer);
   }
   return RETNULL;
@@ -30,9 +46,7 @@ object::LoxObject PassRunner::Visit(AssignExpr *state) {
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(FunctionStmt *state) {
-  for (auto &body_stmt : state->body) {
-    RUNPASS_AND_UPDATE(body_stmt);
-  }
+  RUNPASS_ON_VEC_AND_UPDATE(state->body);
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(LogicalExpr *state) {
@@ -56,9 +70,8 @@ object::LoxObject PassRunner::Visit(UnaryExpr *state) {
 }
 object::LoxObject PassRunner::Visit(CallExpr *state) {
   RUNPASS_AND_UPDATE(state->callee);
-  for (auto &expr : state->arguments) {
-    RUNPASS_AND_UPDATE(expr);
-  }
+  RUNPASS_ON_VEC_AND_UPDATE(state->arguments)
+
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(PrintStmt *state) {
@@ -66,7 +79,7 @@ object::LoxObject PassRunner::Visit(PrintStmt *state) {
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(ReturnStmt *state) {
-  if (IsValid(state->value)) {
+  if (IsValid(state->value())) {
     RUNPASS_AND_UPDATE(state->value);
   }
   return RETNULL;
@@ -84,18 +97,16 @@ object::LoxObject PassRunner::Visit(ExprStmt *state) {
 object::LoxObject PassRunner::Visit(IfStmt *state) {
   RUNPASS_AND_UPDATE(state->condition);
   RUNPASS_AND_UPDATE(state->thenBranch);
-  if (IsValid(state->elseBranch)) {
+  if (IsValid(state->elseBranch())) {
     RUNPASS_AND_UPDATE(state->elseBranch);
   }
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(ClassStmt *state) {
-  if (IsValid(state->superclass)) {
+  if (IsValid(state->superclass())) {
     RUNPASS_AND_UPDATE(state->superclass);
   }
-  for (auto &method : state->methods) {
-    RUNPASS_AND_UPDATE(method);
-  }
+  RUNPASS_ON_VEC_AND_UPDATE(state->methods)
   return RETNULL;
 }
 object::LoxObject PassRunner::Visit(GetAttrExpr *state) {

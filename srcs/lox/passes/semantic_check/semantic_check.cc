@@ -14,14 +14,14 @@ void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated
   }
   if (auto p = CastTo<BreakStmt>(ast_node)) {
     if (while_loop_level == 0) {
-      throw SemanticError(Error(p->src_token, "Nothing to break here."));
+      throw SemanticError(Error(p->src_token(), "Nothing to break here."));
     }
     return;
   }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
-    if (IsValid(p->superclass)) {
-      if (p->superclass->DownCast<VariableExpr>()->name->lexeme_ == p->name->lexeme_) {
-        throw SemanticError(Error(p->name, "Class can not inherit itself"));
+    if (IsValid(p->superclass())) {
+      if (p->superclass()->DownCast<VariableExpr>()->name()->lexeme_ == p->name()->lexeme_) {
+        throw SemanticError(Error(p->name(), "Class can not inherit itself"));
       }
     }
     return;

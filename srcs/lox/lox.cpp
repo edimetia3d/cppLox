@@ -74,7 +74,7 @@ void Lox::Eval(const std::string &code) {
   pass_mgr.Append(std::make_shared<SemanticCheck>());
   pass_mgr.Append(std::make_shared<EnvResovlePass>(resolve_map_));
   try {
-    pass_mgr.Run(statements);
+    statements = pass_mgr.Run(statements);
   } catch (std::exception &err) {
     std::cout << err.what() << std::endl;
     return;

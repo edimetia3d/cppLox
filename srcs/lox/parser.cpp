@@ -155,11 +155,11 @@ Expr Parser::Assignment() {
     Expr value = Assignment();  // use recurse to impl the right-associative
 
     if (auto state = expr->DownCast<VariableExpr>()) {
-      Token name = state->name;
+      Token name = state->name();
       return MakeExpr<AssignExpr>(name, value);
     } else if (auto state = expr->DownCast<GetAttrExpr>()) {
-      state->src_object->ResetParent();
-      return MakeExpr<SetAttrExpr>(state->src_object, state->attr_name, value);
+      state->src_object()->ResetParent();
+      return MakeExpr<SetAttrExpr>(state->src_object(), state->attr_name(), value);
     }
 
     Error(equals, "Invalid assignment target.");

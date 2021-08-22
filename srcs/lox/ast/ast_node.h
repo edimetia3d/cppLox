@@ -26,6 +26,10 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
 
   virtual object::LoxObject Accept(AstNodeVisitor* visitor) = 0;
 
+  virtual bool IsModified() = 0;
+
+  virtual void ResetModify() = 0;
+
   template <SubclassOfAstNode T>
   T* DownCast() {
     return dynamic_cast<T*>(this);
@@ -45,6 +49,8 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
   // here
   AstNode* parent_ = nullptr;
 
+  bool is_modified_ = false;
+
   explicit AstNode(AstNode* parent = nullptr) { SetParent(parent); };
 };
 
@@ -60,6 +66,35 @@ template <SubclassOfAstNode T>
 static inline void BindParent(const std::vector<std::shared_ptr<T>>& elements, AstNode* parent) {
   for (auto& element : elements) {
     BindParent(element, parent);
+  }
+}
+
+template <SubclassOfAstNode T>
+static inline bool IsModified(std::shared_ptr<T> element) {
+  if (IsValid(element)) {
+    return element->IsModified();
+  }
+  return false;
+}
+template <SubclassOfAstNode T>
+static inline bool IsModified(const std::vector<std::shared_ptr<T>>& elements) {
+  bool ret = false;
+  for (auto& element : elements) {
+    ret = ret || IsModified(element);
+  }
+  return ret;
+}
+
+template <SubclassOfAstNode T>
+static inline void ResetModify(std::shared_ptr<T> element) {
+  if (IsValid(element)) {
+    element->ResetModify();
+  }
+}
+template <SubclassOfAstNode T>
+static inline void ResetModify(const std::vector<std::shared_ptr<T>>& elements) {
+  for (auto& element : elements) {
+    ResetModify(element);
   }
 }
 

@@ -44,6 +44,15 @@ static inline void BindParent(Token token, AstNode* parent) {
 static inline void BindParent(const std::vector<Token>& tokens, AstNode* parent) {
   // token do not need parent;
 }
-}  // namespace lox
+static inline bool IsModified(Token token) { return false; }
 
+static inline bool IsModified(const std::vector<Token>& tokens) { return false; }
+
+static inline void ResetModify(Token token) {
+  // token do not need parent;
+}
+static inline void ResetModify(const std::vector<Token>& tokens) {
+  // token do not need parent;
+}
+}  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_TOKEN_H_

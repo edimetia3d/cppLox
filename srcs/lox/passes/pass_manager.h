@@ -11,7 +11,7 @@ namespace lox {
 class PassManager {
  public:
   void Append(std::shared_ptr<Pass> pass) { passes_.push_back(pass); }
-  void Run(std::vector<Stmt> stmts);
+  std::vector<Stmt> Run(std::vector<Stmt> stmts);
 
  private:
   std::vector<std::shared_ptr<Pass>> passes_;
