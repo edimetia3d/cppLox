@@ -8,8 +8,7 @@
 #include <cassert>
 
 #include "environment.h"
-#include "lox/ast/expr.h"
-#include "lox/ast/stmt.h"
+#include "lox/ast/ast.h"
 #include "lox/lox_object/lox_object.h"
 #include "lox/passes/env_resolve_pass/resolve_map.h"
 namespace lox {

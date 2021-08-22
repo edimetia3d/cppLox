@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "lox/ast/stmt.h"
+#include "lox/ast/ast.h"
 #include "lox/visitors/evaluator/lox_function.h"
 namespace lox {
 class LoxClass;

@@ -5,8 +5,7 @@
 #ifndef CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_
 #define CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_
 
-#include "lox/ast/expr.h"
-#include "lox/ast/stmt.h"
+#include "lox/ast/ast.h"
 #include "lox/passes/env_resolve_pass/resolve_map.h"
 #include "lox/passes/pass.h"
 namespace lox {

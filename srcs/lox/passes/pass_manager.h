@@ -4,7 +4,7 @@
 
 #ifndef CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_MANAGER_H_
 #define CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_MANAGER_H_
-#include "lox/ast/stmt.h"
+#include "lox/ast/ast.h"
 #include "lox/passes/pass.h"
 #include "lox/passes/pass_runner.h"
 namespace lox {

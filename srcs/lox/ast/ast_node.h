@@ -5,6 +5,7 @@
 #ifndef CPPLOX_SRCS_LOX_AST_AST_NODE_H_
 #define CPPLOX_SRCS_LOX_AST_AST_NODE_H_
 #include <cassert>
+#include <type_traits>
 
 namespace lox {
 class AstNode {

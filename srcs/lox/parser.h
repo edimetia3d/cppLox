@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "lox/ast/stmt.h"
+#include "lox/ast/ast.h"
 #include "lox/error.h"
 #include "lox/token.h"
 

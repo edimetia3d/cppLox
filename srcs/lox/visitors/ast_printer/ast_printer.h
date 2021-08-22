@@ -8,8 +8,7 @@
 #include <cassert>
 #include <string>
 
-#include "lox/ast/expr.h"
-#include "lox/ast/stmt.h"
+#include "lox/ast/ast.h"
 #include "lox/lox_object/lox_object.h"
 
 namespace lox {
