@@ -11,7 +11,7 @@ file_template = """
 #include "lox/token.h"
 namespace lox{{
 {class_forward_decl}
-class {target_key}Visitor {{
+class AstNodeVisitor {{
 
 protected:
 {virtual_visit_decls}
@@ -36,14 +36,23 @@ explicit {class_name}{target_key}({init_params})
 friend AstNode;
 public:
 {member_def}
-object::LoxObject Accept({target_key}Visitor * visitor) override {{
+object::LoxObject Accept(AstNodeVisitor * visitor) override {{
   return visitor->Visit(this);
 }}
 }};
 """
 
 
-def gen_code(input_file_path, output_file_path, target_key = "Expr"):
+def get_targetkey(classname, all_dict):
+    if classname in all_dict["Stmt"]:
+        return "Stmt"
+    if classname in all_dict["Expr"]:
+        return "Expr"
+
+    raise RuntimeError("No target found")
+
+
+def gen_code(input_file_path, output_file):
     import re
     with open(input_file_path, "r") as f:
         split_str = re.split("({|})", f.read())
@@ -54,64 +63,61 @@ def gen_code(input_file_path, output_file_path, target_key = "Expr"):
                 all_dict[split_str[i - 1].strip()].update(eval("{" + split_str[i + 1] + "}"))
                 i = i + 3
             i = i + 1
+    all_def = all_dict["Stmt"].copy()
+    all_def.update(all_dict["Expr"])
 
-        all_def = all_dict[target_key]
-
-    with open(output_file_path, "w") as output_file:
-        class_decls = ""
-        virtual_visit_decls = ""
-        class_forward_decl = ""
-        type_id = 10000
-        for class_name in all_def:
-            type_id += 1
-            virtual_visit_decls += f"""
+    class_decls = ""
+    virtual_visit_decls = ""
+    class_forward_decl = ""
+    type_id = 10000
+    for class_name in all_def:
+        target_key = get_targetkey(class_name, all_dict)
+        type_id += 1
+        virtual_visit_decls += f"""
 friend class {class_name}{target_key};
 virtual object::LoxObject Visit({class_name}{target_key} *) = 0;
 """
-            class_forward_decl += f"""class {class_name}{target_key};\n"""
-            member_list = all_def[class_name].split(",")
-            member_def = ""
-            member_init_params = [f"{target_key}Base *parent"]
-            member_init = [f"{target_key}Base(parent)"]
-            set_parent = []
-            for member in member_list:
-                cut_by_space = list(filter(lambda x: x != "", member.split(" ")))
-                member_type = cut_by_space[0]
-                member_name = cut_by_space[1]
-                member_def = member_def + f"{member_type} {member_name};\n"
-                member_init_params.append(f"{member_type} {member_name}_in")
-                member_init.append(f"{member_name}(std::move({member_name}_in))")
-                set_parent.append(f"BindParent({member_name},this);")
-            member_init = ",\n".join(member_init)
-            member_init_params = ",".join(member_init_params)
-            set_parent = "\n".join(set_parent)
-            class_decls = class_decls + class_template.format(target_key = target_key,
-                                                              class_name = class_name,
-                                                              init_params = member_init_params,
-                                                              init = member_init,
-                                                              member_def = member_def,
-                                                              set_parent = set_parent,
-                                                              type_id = type_id)
-        output_file.write(file_template.format(target_key = target_key,
-                                               this_file_name = os.path.basename(__file__),
-                                               current_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                                               class_forward_decl = class_forward_decl,
-                                               class_decls = class_decls,
-                                               virtual_visit_decls = virtual_visit_decls)
-                          )
+        class_forward_decl += f"""class {class_name}{target_key};\n"""
+        member_list = all_def[class_name].split(",")
+        member_def = ""
+        member_init_params = [f"{target_key}Base *parent"]
+        member_init = [f"{target_key}Base(parent)"]
+        set_parent = []
+        for member in member_list:
+            cut_by_space = list(filter(lambda x: x != "", member.split(" ")))
+            member_type = cut_by_space[0]
+            member_name = cut_by_space[1]
+            member_def = member_def + f"{member_type} {member_name};\n"
+            member_init_params.append(f"{member_type} {member_name}_in")
+            member_init.append(f"{member_name}(std::move({member_name}_in))")
+            set_parent.append(f"BindParent({member_name},this);")
+        member_init = ",\n".join(member_init)
+        member_init_params = ",".join(member_init_params)
+        set_parent = "\n".join(set_parent)
+        class_decls = class_decls + class_template.format(target_key = target_key,
+                                                          class_name = class_name,
+                                                          init_params = member_init_params,
+                                                          init = member_init,
+                                                          member_def = member_def,
+                                                          set_parent = set_parent,
+                                                          type_id = type_id)
+    output_file.write(file_template.format(
+        this_file_name = os.path.basename(__file__),
+        current_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+        class_forward_decl = class_forward_decl,
+        class_decls = class_decls,
+        virtual_visit_decls = virtual_visit_decls)
+    )
 
 
 if __name__ == "__main__":
-    input_file_path = "expr_stmt_def.tpl"
-    output_file_path = "tmp_gen_output.h.inc"
-    target_key = "Expr"
+    input_file_path = "ast_node_def.tpl"
+    output_file_path = "ast_decl.tmp.h"
     if len(sys.argv) >= 2:
         input_file_path = sys.argv[1]
 
     if len(sys.argv) >= 3:
         output_file_path = sys.argv[2]
 
-    if len(sys.argv) >= 4:
-        target_key = sys.argv[3]
-
-    gen_code(input_file_path, output_file_path, target_key = target_key)
+    with open(output_file_path, "w") as output_file:
+        gen_code(input_file_path, output_file)

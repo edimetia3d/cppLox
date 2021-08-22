@@ -9,11 +9,13 @@
 #include <type_traits>
 #include <vector>
 
-
+#include "lox/lox_object/lox_object.h"
 namespace lox {
 class AstNode;
 template <class T>
 concept SubclassOfAstNode = std::is_base_of<AstNode, T>::value;
+
+class AstNodeVisitor;
 
 class AstNode : public std::enable_shared_from_this<AstNode> {
  public:
@@ -21,6 +23,8 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
   static std::shared_ptr<SubT> Make(Args... args) {
     return std::shared_ptr<SubT>(new SubT(nullptr, args...));
   }
+
+  virtual object::LoxObject Accept(AstNodeVisitor* visitor) = 0;
 
   template <SubclassOfAstNode T>
   T* DownCast() {
@@ -43,6 +47,8 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
 
   explicit AstNode(AstNode* parent = nullptr) { SetParent(parent); };
 };
+
+static inline bool IsValid(const std::shared_ptr<AstNode>& node) { return node.get(); }
 
 template <SubclassOfAstNode T>
 static inline void BindParent(std::shared_ptr<T> element, AstNode* parent) {
@@ -72,5 +78,8 @@ template <SubclassOfAstNode Type>
 Type* CastTo(AstNode* p) {
   return dynamic_cast<Type*>(p);
 }
+
+using Expr = std::shared_ptr<AstNode>;
+using Stmt = std::shared_ptr<AstNode>;
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_AST_AST_NODE_H_

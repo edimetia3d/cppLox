@@ -19,19 +19,14 @@ struct ReturnValue : public std::exception {
   object::LoxObject ret;
 };
 
-class Evaluator : public ExprVisitor, public StmtVisitor {
+class Evaluator : public AstNodeVisitor {
  public:
   explicit Evaluator(std::shared_ptr<Environment> env) : work_env_(std::move(env)) {}
 
-  object::LoxObject Eval(Expr expr) {
-    assert(IsValid(expr));
+  object::LoxObject Eval(std::shared_ptr<AstNode> node) {
+    assert(IsValid(node));
     assert(active_map_);
-    return expr->Accept(this);
-  }
-  object::LoxObject Eval(Stmt stmt) {
-    assert(IsValid(stmt));
-    assert(active_map_);
-    return stmt->Accept(this);
+    return node->Accept(this);
   }
 
   void SetActiveResolveMap(std::shared_ptr<EnvResolveMap> map) { active_map_ = map; }

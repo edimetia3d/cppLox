@@ -12,15 +12,11 @@
 #include "lox/lox_object/lox_object.h"
 
 namespace lox {
-class AstPrinter : public ExprVisitor, public StmtVisitor {
+class AstPrinter : public AstNodeVisitor {
  public:
-  std::string Print(Expr expr) {
-    assert(IsValid(expr));
-    return expr->Accept(this)->RawValue<std::string>();
-  }
-  std::string Print(Stmt stmt) {
-    assert(IsValid(stmt));
-    return stmt->Accept(this)->RawValue<std::string>();
+  std::string Print(std::shared_ptr<AstNode> node) {
+    assert(IsValid(node));
+    return node->Accept(this)->RawValue<std::string>();
   }
 
  protected:
