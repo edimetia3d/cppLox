@@ -30,8 +30,8 @@ class EnvResovlePass : public Pass {
  public:
   explicit EnvResovlePass(std::shared_ptr<EnvResolveMap> map) : map_(std::move(map)){};
   using Scope = std::map<std::string, bool>;
-  void PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) override;
-  void PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) override;
+  void PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) override;
+  void PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) override;
 
  protected:
   void BeginScope(ScopeType type) {

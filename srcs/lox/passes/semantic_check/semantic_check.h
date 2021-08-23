@@ -12,8 +12,8 @@ namespace lox {
 class SemanticCheck : public Pass {
  public:
   explicit SemanticCheck() = default;
-  void PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) override;
-  void PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) override;
+  void PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) override;
+  void PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) override;
 
  protected:
   int while_loop_level = 0;

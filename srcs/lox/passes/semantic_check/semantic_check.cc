@@ -7,7 +7,7 @@
 #include "lox/error.h"
 namespace lox {
 
-void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) {
+void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) {
   if (auto p = CastTo<WhileStmt>(ast_node)) {
     ++while_loop_level;
     return;
@@ -27,7 +27,7 @@ void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated
     return;
   }
 }
-void SemanticCheck::PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* updated_node) {
+void SemanticCheck::PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) {
   if (auto p = CastTo<WhileStmt>(ast_node)) {
     --while_loop_level;
     return;
