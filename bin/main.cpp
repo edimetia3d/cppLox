@@ -18,14 +18,14 @@ struct BuildInfoPrinter {
 static BuildInfoPrinter g_lox_build_info_inited;
 
 int main(int argn, char* argv[]) {
-  Error ret;
-  Lox interpreter;
+  InterpreterError ret;
+  LoxInterpreter interpreter;
   if (argn > 2) {
-    std::cout << Lox::CLIHelpString() << std::endl;
+    std::cout << LoxInterpreter::CLIHelpString() << std::endl;
   } else if (argn == 2) {
     ret = interpreter.RunFile(argv[1]);
   } else {
     ret = interpreter.RunPrompt();
   }
-  return ret.ToErrCode();
+  return static_cast<int>(ret);
 }

@@ -5,22 +5,20 @@
 #ifndef CPPLOX_INCLUDES_LOX_LOX_H_
 #define CPPLOX_INCLUDES_LOX_LOX_H_
 
+#include <memory>
 #include <string>
 
-#include "lox/error.h"
-
 namespace lox {
-class Evaluator;
-class Environment;
-class EnvResolveMap;
-class Lox {
+enum class InterpreterError { NO_ERROR };
+class BackEnd;
+class LoxInterpreter {
  public:
-  Lox();
+  explicit LoxInterpreter(const std::string &backend_name = "TreeWalker");
   static std::string CLIHelpString();
 
-  Error RunFile(const std::string &file_path);
+  InterpreterError RunFile(const std::string &file_path);
 
-  Error RunPrompt();
+  InterpreterError RunPrompt();
 
   /**
    * Multi line exec
@@ -30,10 +28,8 @@ class Lox {
   void Eval(const std::string &code);
 
  private:
-  Error RunStream(std::istream *istream);
-  std::shared_ptr<Evaluator> evaluator_;
-  std::shared_ptr<EnvResolveMap> resolve_map_;
-  std::shared_ptr<Environment> global_env_;
+  InterpreterError RunStream(std::istream *istream);
+  std::shared_ptr<BackEnd> back_end_;
 };
 
 }  // namespace lox

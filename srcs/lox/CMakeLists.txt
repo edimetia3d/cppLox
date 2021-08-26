@@ -1,14 +1,11 @@
 
-file(GLOB LOX_SRCS ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
-add_library(lox ${LOX_SRCS})
+
+add_library(lox global_setting.cc lox.cc)
 
 add_subdirectory(version)
-add_subdirectory(global_setting)
-add_subdirectory(lox_object)
-add_subdirectory(ast)
-add_subdirectory(visitors)
-add_subdirectory(passes)
+add_subdirectory(frontend)
+add_subdirectory(backend)
 
-target_link_libraries(lox PUBLIC lox_public_header)
 target_link_libraries(lox PRIVATE version_info)
-target_link_libraries(lox PRIVATE lox_object ast visitors global_setting passes)
+target_link_libraries(lox PRIVATE backend)
+target_link_libraries(lox PRIVATE frontend)
