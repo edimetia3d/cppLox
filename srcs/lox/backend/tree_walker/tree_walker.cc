@@ -26,8 +26,9 @@ TreeWalker::TreeWalker() {
   evaluator_->SetActiveResolveMap(resolve_map_);
 }
 BackEndErrCode TreeWalker::Run(Scanner &scanner) {
-  auto err = scanner.Scan();
-  Parser parser(scanner.Tokens());
+  std::vector<Token> tokens;
+  auto err = scanner.ScanAll(&tokens);
+  Parser parser(tokens);
   auto statements = parser.Parse();
 
   PassManager pass_mgr;

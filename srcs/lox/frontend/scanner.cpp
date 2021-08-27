@@ -5,14 +5,33 @@
 #include "scanner.h"
 
 namespace lox {
-Error Scanner::Scan() {
+Error Scanner::ScanAll(std::vector<Token>* output) {
   while (!IsAtEnd()) {
-    ScanOneToken();
+    while (!last_scan_) {
+      TryScanOne();
+    }
+    output->push_back(*last_scan_);
+    last_scan_.release();
   }
-  tokens_.push_back(MakeToken(TokenType::EOF_TOKEN, "EOF", line_));
+  output->push_back(MakeToken(TokenType::EOF_TOKEN, "EOF", line_));
   return err_;
 }
-void Scanner::ScanOneToken() {
+
+Error Scanner::ScanOne(Token* output) {
+  if (!IsAtEnd()) {
+    while (!last_scan_) {
+      TryScanOne();
+    }
+    *output = *last_scan_;
+    last_scan_.release();
+  } else {
+    *output = MakeToken(TokenType::EOF_TOKEN, "EOF", line_);
+  }
+
+  return Error();
+}
+
+void Scanner::TryScanOne() {
   char c = Advance();
   // clang-format off
     switch (c) {
@@ -64,7 +83,7 @@ void Scanner::ScanOneToken() {
   // clang-format on
 }
 void Scanner::AddToken(TokenType type) {
-  tokens_.push_back(
+  last_scan_ = std::make_unique<Token>(
       MakeToken(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_));
   ResetTokenBeg();
 }
@@ -123,4 +142,5 @@ void Scanner::AddIdentifierToken() {
   AddToken(
       TokenBase::GetIdentifierType(std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_)));
 }
+
 }  // namespace lox

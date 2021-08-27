@@ -16,9 +16,9 @@ class Scanner {
  public:
   explicit Scanner(const std::string& srcs) : srcs_(&srcs) {}
 
-  Error Scan();
+  Error ScanAll(std::vector<Token>* output);
 
-  const std::vector<Token>& Tokens() { return tokens_; }
+  Error ScanOne(Token* output);
 
   void Reset() {
     Scanner tmp(*srcs_);
@@ -31,7 +31,7 @@ class Scanner {
   }
 
  private:
-  void ScanOneToken();
+  void TryScanOne();
 
   bool Match(char expected);
 
@@ -60,7 +60,7 @@ class Scanner {
   const std::string* srcs_;
   int start_lex_pos_ = 0;
   int current_lex_pos_ = 0;
-  std::vector<Token> tokens_;
+  std::unique_ptr<Token> last_scan_;
   int line_ = 0;
   Error err_;
   void ResetTokenBeg();
