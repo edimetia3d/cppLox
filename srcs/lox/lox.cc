@@ -7,9 +7,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "global_setting.h"
 #include "lox/backend/backend.h"
 #include "lox/frontend/scanner.h"
+#include "lox/global_setting.h"
 
 namespace lox {
 
@@ -27,7 +27,7 @@ InterpreterError LoxInterpreter::RunPrompt() {
 }
 
 InterpreterError LoxInterpreter::RunStream(std::istream *istream) {
-  Error err;
+  InterpreterError err = InterpreterError::NO_ERROR;
   if (GlobalSetting().interactive_mode) {
     std::string one_line;
     std::cout << ">> ";
@@ -35,20 +35,23 @@ InterpreterError LoxInterpreter::RunStream(std::istream *istream) {
       if (one_line == "exit()") {
         break;
       }
-      Eval(one_line);
+      err = Eval(one_line);
       std::cout << ">> ";
     }
   } else {
     std::string all_line((std::istreambuf_iterator<char>(*istream)), std::istreambuf_iterator<char>());
-    Eval(all_line);
+    err = Eval(all_line);
   }
 
-  return InterpreterError::NO_ERROR;
+  return err;
 }
 
-void LoxInterpreter::Eval(const std::string &code) {
+InterpreterError LoxInterpreter::Eval(const std::string &code) {
   Scanner scanner(code);
-  back_end_->Run(scanner);
+  if (back_end_->Run(scanner) != BackEndErrCode::NO_ERROR) {
+    return InterpreterError::BACKEND_ERROR;
+  }
+  return InterpreterError::NO_ERROR;
 }
 LoxInterpreter::LoxInterpreter(const std::string &backend_name) { back_end_ = BackEnd::CreateBackEnd(backend_name); }
 }  // namespace lox

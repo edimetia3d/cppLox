@@ -6,19 +6,15 @@
 
 using namespace lox;
 
-struct BuildInfoPrinter {
-  BuildInfoPrinter() {
-    auto str = std::string("Build info:\nSHA1: ") +
-               std::string(version::GitSha1()) +
-               "\nDate: " + std::string(version::GitDate());
-    std::cout << str << std::endl;
-  }
-};
-
-static BuildInfoPrinter g_lox_build_info_inited;
+void PrintBuildInfo() {
+  auto str = std::string("Build info:\nSHA1: ") + std::string(version::GitSha1()) +
+             "\nDate: " + std::string(version::GitDate());
+  std::cout << str << std::endl;
+}
 
 int main(int argn, char* argv[]) {
-  InterpreterError ret;
+  PrintBuildInfo();
+  InterpreterError ret = lox::InterpreterError::NO_ERROR;
   LoxInterpreter interpreter;
   if (argn > 2) {
     std::cout << LoxInterpreter::CLIHelpString() << std::endl;

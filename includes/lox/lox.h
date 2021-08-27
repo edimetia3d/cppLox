@@ -9,7 +9,7 @@
 #include <string>
 
 namespace lox {
-enum class InterpreterError { NO_ERROR };
+enum class InterpreterError { NO_ERROR, BACKEND_ERROR };
 class BackEnd;
 class LoxInterpreter {
  public:
@@ -25,7 +25,7 @@ class LoxInterpreter {
    * @param code
    * @return
    */
-  void Eval(const std::string &code);
+  InterpreterError Eval(const std::string &code);
 
  private:
   InterpreterError RunStream(std::istream *istream);
