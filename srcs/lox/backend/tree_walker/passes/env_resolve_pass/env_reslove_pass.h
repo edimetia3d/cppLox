@@ -5,9 +5,9 @@
 #ifndef CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_
 #define CPPLOX_SRCS_LOX_VISITORS_RESOLVER_PASS_RESOVLER_H_
 
-#include "lox/backend/tree_walker/ast/ast.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/resolve_map.h"
 #include "lox/backend/tree_walker/passes/pass.h"
+#include "lox/frontend/ast/ast.h"
 namespace lox {
 
 enum class FunctionType {

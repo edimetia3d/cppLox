@@ -4,7 +4,7 @@
 
 #ifndef CPPLOX_SRCS_LOX_VISITORS_EVALUATOR_LOX_FUNCTION_H_
 #define CPPLOX_SRCS_LOX_VISITORS_EVALUATOR_LOX_FUNCTION_H_
-#include "lox/backend/tree_walker/ast/ast.h"
+
 #include "lox/backend/tree_walker/visitors/evaluator/callable_object.h"
 #include "lox/backend/tree_walker/visitors/evaluator/environment.h"
 namespace lox {

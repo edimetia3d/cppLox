@@ -6,9 +6,9 @@
 #define CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_RUNNER_H_
 #include <cassert>
 
-#include "lox/backend/tree_walker/ast/ast.h"
 #include "lox/backend/tree_walker/lox_object/lox_object.h"
 #include "lox/backend/tree_walker/passes/pass.h"
+#include "lox/frontend/ast/ast.h"
 namespace lox {
 class PassRunner : public AstNodeVisitor {
  public:

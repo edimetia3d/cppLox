@@ -4,9 +4,9 @@
 
 #ifndef CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_MANAGER_H_
 #define CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_MANAGER_H_
-#include "lox/backend/tree_walker/ast/ast.h"
 #include "lox/backend/tree_walker/passes/pass.h"
 #include "lox/backend/tree_walker/passes/pass_runner.h"
+#include "lox/frontend/ast/ast.h"
 namespace lox {
 class PassManager {
  public:

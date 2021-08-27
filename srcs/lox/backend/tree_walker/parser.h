@@ -11,8 +11,8 @@
 #include <memory>
 #include <vector>
 
-#include "lox/backend/tree_walker/ast/ast.h"
 #include "lox/backend/tree_walker/error.h"
+#include "lox/frontend/ast/ast.h"
 #include "lox/frontend/token.h"
 
 namespace lox {

@@ -26,7 +26,7 @@ void DumpToken(Scanner &scanner) {
 ErrCode Compiler::Compile(Chunk *target) {
   current_trunk_ = target;
   Advance();
-  Expression();
+  // Expression();
   Consume(TokenType::EOF_TOKEN, "Expect end of expression.");
   endCompiler();
   if (parser_.hadError) {

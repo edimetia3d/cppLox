@@ -8,8 +8,8 @@
 #include <cassert>
 #include <string>
 
-#include "lox/backend/tree_walker/ast/ast.h"
 #include "lox/backend/tree_walker/lox_object/lox_object.h"
+#include "lox/frontend/ast/ast.h"
 
 namespace lox {
 class AstPrinter : public AstNodeVisitor {

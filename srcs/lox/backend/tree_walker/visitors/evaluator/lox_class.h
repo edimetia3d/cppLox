@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "lox/backend/tree_walker/ast/ast.h"
 #include "lox/backend/tree_walker/visitors/evaluator/lox_function.h"
 namespace lox {
 class LoxClass;

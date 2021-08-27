@@ -4,7 +4,6 @@
 #ifndef CPPLOX_SRCS_LOX_PASSES_SEMANTIC_CHECK_SEMANTIC_CHECK_H_
 #define CPPLOX_SRCS_LOX_PASSES_SEMANTIC_CHECK_SEMANTIC_CHECK_H_
 
-#include "lox/backend/tree_walker/ast/ast.h"
 #include "lox/backend/tree_walker/passes/pass.h"
 namespace lox {
 
