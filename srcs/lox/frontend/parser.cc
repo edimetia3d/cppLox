@@ -10,6 +10,39 @@
 namespace lox {
 using ParserError = PrefixTokenError<"ParserError">;
 
+template <TokenType type, TokenType... remained_types>
+bool Parser::AdvanceIfMatchAny() {
+  if (!Check(type)) {
+    if constexpr (sizeof...(remained_types) > 0) {
+      return AdvanceIfMatchAny<remained_types...>();
+    } else {
+      return false;
+    }
+  }
+  Advance();
+  return true;
+}
+
+template <lox::Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
+Expr Parser::BinaryExpression() {
+  // This function is the state_ of  " left_expr (<binary_op> right_expr)* "
+
+  // All token before this->current has been parsed to the expr
+  auto expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
+
+  // if this->current is matched , we should parse all tokens after
+  // this->current into a r_expr, because repeating is allowed, we do it
+  // multiple times
+  // if this->current is not matched, we could just return the expr
+  while (AdvanceIfMatchAny<MATCH_TYPES...>()) {
+    Token op = Previous();
+    auto r_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
+    expr = MakeExpr<BinaryExpr>(expr, op, r_expr);
+  }
+  // ok now it's done
+  return expr;
+}
+
 Expr Parser::Or() {
   auto expr = And();
 

@@ -5,33 +5,15 @@
 #ifndef CPPLOX_INCLUDES_LOX_PARSER_H_
 #define CPPLOX_INCLUDES_LOX_PARSER_H_
 
-#include <lox/lox_error.h>
-
 #include <iostream>
 #include <memory>
 #include <vector>
 
 #include "lox/frontend/ast/ast.h"
 #include "lox/frontend/token.h"
+#include "lox/lox_error.h"
 
 namespace lox {
-
-class Parser;
-template <TokenType type, TokenType... remained_types>
-struct TokenRecursiveMatch {
-  static bool Run(Parser* p) {
-    if (!TokenRecursiveMatch<type>::Run(p)) {
-      return TokenRecursiveMatch<remained_types...>::Run(p);
-    } else {
-      return true;
-    }
-  }
-};
-
-template <TokenType type>
-struct TokenRecursiveMatch<type> {
-  static bool Run(Parser* p);
-};
 
 class Parser {
  public:
@@ -68,17 +50,12 @@ class Parser {
 
   void Synchronize();
 
-  template <TokenType type, TokenType... remained_types>
-  friend struct TokenRecursiveMatch;
-
   /**
    * If current token match any of types, return True **and** move cursor to
    * next token
    */
-  template <TokenType... types>
-  inline bool AdvanceIfMatchAny() {
-    return TokenRecursiveMatch<types...>::Run(this);
-  }
+  template <TokenType type, TokenType... remained_types>
+  bool AdvanceIfMatchAny();
   Stmt Declaration();
   Stmt FunctionDef(const std::string& kind);
   Stmt Statement();
@@ -95,24 +72,7 @@ class Parser {
   Expr Assignment();
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
-  Expr BinaryExpression() {
-    // This function is the state_ of  " left_expr (<binary_op> right_expr)* "
-
-    // All token before this->current has been parsed to the expr
-    auto expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-
-    // if this->current is matched , we should parse all tokens after
-    // this->current into a r_expr, because repeating is allowed, we do it
-    // multiple times
-    // if this->current is not matched, we could just return the expr
-    while (AdvanceIfMatchAny<MATCH_TYPES...>()) {
-      Token op = Previous();
-      auto r_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-      expr = MakeExpr<BinaryExpr>(expr, op, r_expr);
-    }
-    // ok now it's done
-    return expr;
-  }
+  Expr BinaryExpression();
   Expr Or();
 
   Expr And();
@@ -134,14 +94,5 @@ class Parser {
   Expr Primary();
   Stmt ClassDef();
 };
-
-template <TokenType type>
-bool TokenRecursiveMatch<type>::Run(Parser* p) {
-  if (p->Check(type)) {
-    p->Advance();
-    return true;
-  };
-  return false;
-}
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_PARSER_H_
