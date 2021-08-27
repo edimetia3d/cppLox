@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/backend/tree_walker/visitors/evaluator/callable_object.h"
+#include "lox/backend/tree_walker/evaluator/callable_object.h"
 
 #include <time.h>
 

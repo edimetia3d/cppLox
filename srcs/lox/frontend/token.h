@@ -9,6 +9,7 @@
 #include <string>
 
 #include "lox/frontend/token_type.h"
+#include "lox/lox_error.h"
 
 namespace lox {
 
@@ -36,5 +37,30 @@ class TokenBase {
 static inline Token MakeToken(const TokenType& type, const std::string& lexeme, int line) {
   return TokenBase::Make(type, lexeme, line);
 }
+
+template <size_t N>
+struct StringLiteral {
+  constexpr StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
+
+  char value[N];
+};
+
+/**
+ * Note: only class LoxInterpreter will handle Errors, all other class only generate
+ * errors, and return `PrefixTokenError` to the caller.
+ */
+template <StringLiteral name>
+class PrefixTokenError : public LoxError {
+ public:
+  explicit PrefixTokenError(const Token& token, const std::string& message);
+  [[nodiscard]] const Token& SourceToken() const { return token_; }
+
+ private:
+  Token token_ = MakeToken(TokenType::_TOKEN_COUNT_NUMBER, "None", -1);
+};
+template <StringLiteral name>
+PrefixTokenError<name>::PrefixTokenError(const Token& token, const std::string& message)
+    : LoxError(name.value + token->Str() + " what(): " + message) {}
+
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_TOKEN_H_

@@ -7,8 +7,8 @@
 #include <cassert>
 
 #include "lox/backend/tree_walker/lox_object/lox_object.h"
-#include "lox/backend/tree_walker/passes/pass.h"
 #include "lox/frontend/ast/ast.h"
+#include "pass.h"
 namespace lox {
 class PassRunner : public IAstNodeVisitor {
  public:

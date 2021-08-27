@@ -19,3 +19,7 @@ if (Python3_Interpreter_FOUND)
 else ()
     message(WARNING "Using cached ast_decl, it might be out of sync!")
 endif ()
+
+add_subdirectory(ast_printer)
+
+target_link_libraries(ast PUBLIC ast_printer)

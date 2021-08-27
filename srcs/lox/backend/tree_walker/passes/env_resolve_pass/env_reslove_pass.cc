@@ -33,11 +33,11 @@ void EnvResovlePass::PreNode(AstNode *ast_node, std::shared_ptr<AstNode> *replac
   if (auto p = CastTo<VariableExpr>(ast_node)) {
     if (p->name()->type == TokenType::THIS) {
       if (!IsInClassScope() || current_function_type == FunctionType::NONE) {
-        throw ResolveError(TreeWalkerError(p->name(), "Cannot read 'this' out of method"));
+        throw(ResolveError(p->name(), "Cannot read 'this' out of method"));
       }
     }
     if (scopes.back().contains(p->name()->lexeme) and scopes.back()[p->name()->lexeme] == false) {
-      throw ResolveError(TreeWalkerError(p->name(), "Can't read local variable in its own initializer."));
+      throw(ResolveError(p->name(), "Can't read local variable in its own initializer."));
     }
 
     ResolveName(p, p->name());
@@ -64,13 +64,13 @@ void EnvResovlePass::PreNode(AstNode *ast_node, std::shared_ptr<AstNode> *replac
   }
   if (auto p = CastTo<ReturnStmt>(ast_node)) {
     if (current_function_type == FunctionType::NONE) {
-      throw ResolveError(TreeWalkerError(p->keyword(), "Cannot return at here"));
+      throw(ResolveError(p->keyword(), "Cannot return at here"));
     }
     if (current_function_type == FunctionType::INITIALIZER) {
       if (IsValid(p->value())) {
         auto p2 = p->value()->DownCast<VariableExpr>();
         if (p2 == nullptr || p2->name()->lexeme != "this") {
-          throw ResolveError(TreeWalkerError(p->keyword(), "INITIALIZER must return 'this'"));
+          throw(ResolveError(p->keyword(), "INITIALIZER must return 'this'"));
         }
       }
     }

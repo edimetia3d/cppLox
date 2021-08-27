@@ -5,8 +5,8 @@
 #ifndef CPPLOX_SRCS_LOX_VISITORS_EVALUATOR_LOX_FUNCTION_H_
 #define CPPLOX_SRCS_LOX_VISITORS_EVALUATOR_LOX_FUNCTION_H_
 
-#include "lox/backend/tree_walker/visitors/evaluator/callable_object.h"
-#include "lox/backend/tree_walker/visitors/evaluator/environment.h"
+#include "lox/backend/tree_walker/evaluator/callable_object.h"
+#include "lox/backend/tree_walker/evaluator/environment.h"
 namespace lox {
 struct LoxFunctionData {
   bool is_init_method = false;

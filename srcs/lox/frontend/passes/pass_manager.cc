@@ -2,7 +2,7 @@
 // License: MIT
 //
 
-#include "lox/backend/tree_walker/passes/pass_manager.h"
+#include "pass_manager.h"
 std::vector<lox::Stmt> lox::PassManager::Run(std::vector<Stmt> stmts) {
   for (auto &pass : passes_) {
     runner_->SetPass(pass);

@@ -2,9 +2,9 @@
 // LICENSE: MIT
 //
 
-#include "lox/backend/tree_walker/passes/semantic_check/semantic_check.h"
+#include "lox/frontend/passes/semantic_check/semantic_check.h"
 
-#include "lox/backend/tree_walker/error.h"
+#include "lox/lox_error.h"
 namespace lox {
 
 void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) {
@@ -14,14 +14,14 @@ void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace
   }
   if (auto p = CastTo<BreakStmt>(ast_node)) {
     if (while_loop_level == 0) {
-      throw SemanticError(TreeWalkerError(p->src_token(), "Nothing to break here."));
+      throw LoxError("Semantic Error: " + p->src_token()->Str() + " Nothing to break here.");
     }
     return;
   }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
     if (IsValid(p->superclass())) {
       if (p->superclass()->DownCast<VariableExpr>()->name()->lexeme == p->name()->lexeme) {
-        throw SemanticError(TreeWalkerError(p->name(), "Class can not inherit itself"));
+        throw LoxError("Semantic Error: " + p->name()->Str() + " Class can not inherit itself");
       }
     }
     return;

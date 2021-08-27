@@ -7,8 +7,8 @@
 
 #include <map>
 
+#include "lox/backend/tree_walker/evaluator/lox_class.h"
 #include "lox/backend/tree_walker/lox_object/lox_object.h"
-#include "lox/backend/tree_walker/visitors/evaluator/lox_class.h"
 namespace lox {
 struct LoxClassInstanceData {
   std::shared_ptr<LoxClass> klass;

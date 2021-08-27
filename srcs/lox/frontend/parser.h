@@ -5,13 +5,12 @@
 #ifndef CPPLOX_INCLUDES_LOX_PARSER_H_
 #define CPPLOX_INCLUDES_LOX_PARSER_H_
 
-#include <error.h>
+#include <lox/lox_error.h>
 
 #include <iostream>
 #include <memory>
 #include <vector>
 
-#include "lox/backend/tree_walker/error.h"
 #include "lox/frontend/ast/ast.h"
 #include "lox/frontend/token.h"
 
@@ -49,12 +48,7 @@ class Parser {
 
   Token Consume(TokenType type, const std::string& message);
 
-  ParserError Error(Token token, const std::string& msg) {
-    err_found = true;
-    auto err = ParserError(lox::TreeWalkerError(token, msg));
-    std::cout << err.what() << std::endl;
-    return err;
-  }
+  LoxError Error(Token token, const std::string& msg);
 
   bool IsAtEnd() { return Peek()->type == TokenType::EOF_TOKEN; }
 

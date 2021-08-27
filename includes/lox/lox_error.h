@@ -7,17 +7,26 @@
 #include <memory>
 #include <string>
 #include <vector>
+
 namespace lox {
-class LoxError {
+class LoxError : public std::exception {
  public:
   using ErrorNode = std::shared_ptr<LoxError>;
   LoxError();
   explicit LoxError(const std::string &message);
   std::string Message() const;
 
+  const char *what() const noexcept override {
+    what_ = Message();
+    return what_.c_str();
+  }
+
   int ToErrCode() const;
   void Merge(const LoxError &new_err);
   bool NoError();
+
+ protected:
+  mutable std::string what_;
 
  private:
   std::string message_{};

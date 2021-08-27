@@ -4,15 +4,16 @@
 
 #include "lox/backend/tree_walker/tree_walker.h"
 
-#include "lox/backend/tree_walker/parser.h"
+#include "lox/backend/tree_walker/error.h"
+#include "lox/backend/tree_walker/evaluator/callable_object.h"
+#include "lox/backend/tree_walker/evaluator/environment.h"
+#include "lox/backend/tree_walker/evaluator/evaluator.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/env_reslove_pass.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/resolve_map.h"
-#include "lox/backend/tree_walker/passes/pass_manager.h"
-#include "lox/backend/tree_walker/passes/semantic_check/semantic_check.h"
-#include "lox/backend/tree_walker/visitors/ast_printer/ast_printer.h"
-#include "lox/backend/tree_walker/visitors/evaluator/callable_object.h"
-#include "lox/backend/tree_walker/visitors/evaluator/environment.h"
-#include "lox/backend/tree_walker/visitors/evaluator/evaluator.h"
+#include "lox/frontend/ast/ast_printer/ast_printer.h"
+#include "lox/frontend/parser.h"
+#include "lox/frontend/passes/pass_manager.h"
+#include "lox/frontend/passes/semantic_check/semantic_check.h"
 #include "lox/global_setting.h"
 
 namespace lox {
@@ -51,7 +52,7 @@ LoxError TreeWalker::Run(Scanner &scanner) {
     }
   } catch (RuntimeError &rt_err) {
     std::cout << rt_err.what() << std::endl;
-    err.Merge(rt_err.err);
+    err.Merge(rt_err);
   }
   return LoxError();
 }

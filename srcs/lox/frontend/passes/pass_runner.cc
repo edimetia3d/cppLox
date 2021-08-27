@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/backend/tree_walker/passes/pass_runner.h"
+#include "pass_runner.h"
 #define RUNPASS_AND_UPDATE(KEY_NAME)              \
   {                                               \
     auto old_value = (KEY_NAME)();                \

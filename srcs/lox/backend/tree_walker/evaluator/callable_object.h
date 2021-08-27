@@ -8,8 +8,8 @@
 #include <map>
 #include <vector>
 
+#include "lox/backend/tree_walker/evaluator/evaluator.h"
 #include "lox/backend/tree_walker/lox_object/lox_object.h"
-#include "lox/backend/tree_walker/visitors/evaluator/evaluator.h"
 namespace lox {
 class LoxCallable : public object::LoxObjectBase {
  public:

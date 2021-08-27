@@ -2,12 +2,14 @@
 // License: MIT
 //
 
-#include "lox/backend/tree_walker/parser.h"
+#include "lox/frontend/parser.h"
 
 #include <iostream>
 
 #include "lox/global_setting.h"
 namespace lox {
+using ParserError = PrefixTokenError<"ParserError">;
+
 Expr Parser::Or() {
   auto expr = And();
 
@@ -92,7 +94,7 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
     try {
       auto stmt = Declaration();
       statements.push_back(stmt);
-    } catch (ParserError& error) {
+    } catch (LoxError& error) {
       Synchronize();
       Parse();
     }
@@ -327,6 +329,12 @@ Stmt Parser::ClassDef() {
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
 
   return MakeStmt<ClassStmt>(name, superclass, methods);
+}
+LoxError Parser::Error(Token token, const std::string& msg) {
+  err_found = true;
+  ParserError err(token, msg);
+  std::cout << err.what() << std::endl;
+  return err;
 }
 
 }  // namespace lox

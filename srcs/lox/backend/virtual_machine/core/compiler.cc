@@ -18,7 +18,7 @@ void DumpToken(Scanner &scanner) {
     } else {
       printf("   | ");
     }
-    printf("%2d '%.*s'\n", token->type, (int)token->lexeme.size(), token->lexeme.c_str());
+    printf("%2d '%.*s'\n", (int)token->type, (int)token->lexeme.size(), token->lexeme.c_str());
 
     if (token->type == TokenType::EOF_TOKEN) break;
   }
@@ -32,6 +32,7 @@ ErrCode Compiler::Compile(Chunk *target) {
   if (parser_.hadError) {
     return ErrCode::PARSE_FAIL;
   }
+  return ErrCode::NO_ERROR;
 }
 void Compiler::Advance() {
   parser_.previous = parser_.current;

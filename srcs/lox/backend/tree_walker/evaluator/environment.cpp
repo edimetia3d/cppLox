@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "environment.h"
+#include "lox/backend/tree_walker/evaluator/environment.h"
 
 #include "lox/backend/tree_walker/error.h"
 namespace lox {

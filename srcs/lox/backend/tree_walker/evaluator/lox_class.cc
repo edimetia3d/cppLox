@@ -2,9 +2,9 @@
 // LICENSE: MIT
 //
 
-#include "lox/backend/tree_walker/visitors/evaluator/lox_class.h"
+#include "lox/backend/tree_walker/evaluator/lox_class.h"
 
-#include "lox/backend/tree_walker/visitors/evaluator/class_instance.h"
+#include "lox/backend/tree_walker/evaluator/class_instance.h"
 
 namespace lox {
 

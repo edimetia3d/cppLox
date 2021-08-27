@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/backend/tree_walker/visitors/evaluator/lox_function.h"
+#include "lox/backend/tree_walker/evaluator/lox_function.h"
 
 namespace lox {
 

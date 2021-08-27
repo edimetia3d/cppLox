@@ -1,7 +1,7 @@
 //
 // License: MIT
 //
-#include "lox/backend/tree_walker/visitors/ast_printer/ast_printer.h"
+#include "lox/frontend/ast/ast_printer/ast_printer.h"
 
 #include <map>
 
