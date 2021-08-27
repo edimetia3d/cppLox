@@ -2,7 +2,7 @@
 // License: MIT
 //
 
-#include "lox/frontend/token.h"
+#include "token.h"
 
 #include <map>
 namespace lox {

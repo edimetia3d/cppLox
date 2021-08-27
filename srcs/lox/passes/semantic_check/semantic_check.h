@@ -4,7 +4,7 @@
 #ifndef CPPLOX_SRCS_LOX_PASSES_SEMANTIC_CHECK_SEMANTIC_CHECK_H_
 #define CPPLOX_SRCS_LOX_PASSES_SEMANTIC_CHECK_SEMANTIC_CHECK_H_
 
-#include "lox/frontend/passes/pass.h"
+#include "lox/passes/pass.h"
 namespace lox {
 
 class SemanticCheck : public Pass {

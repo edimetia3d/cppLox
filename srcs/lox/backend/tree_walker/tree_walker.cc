@@ -4,17 +4,17 @@
 
 #include "lox/backend/tree_walker/tree_walker.h"
 
+#include "lox/ast/ast_printer/ast_printer.h"
 #include "lox/backend/tree_walker/error.h"
 #include "lox/backend/tree_walker/evaluator/callable_object.h"
 #include "lox/backend/tree_walker/evaluator/environment.h"
 #include "lox/backend/tree_walker/evaluator/evaluator.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/env_reslove_pass.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/resolve_map.h"
-#include "lox/frontend/ast/ast_printer/ast_printer.h"
 #include "lox/frontend/parser.h"
-#include "lox/frontend/passes/pass_manager.h"
-#include "lox/frontend/passes/semantic_check/semantic_check.h"
 #include "lox/global_setting.h"
+#include "lox/passes/pass_manager.h"
+#include "lox/passes/semantic_check/semantic_check.h"
 
 namespace lox {
 TreeWalker::TreeWalker() {

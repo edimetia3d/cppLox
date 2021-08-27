@@ -9,9 +9,9 @@
 #include <memory>
 #include <vector>
 
-#include "lox/frontend/ast/ast.h"
-#include "lox/frontend/token.h"
+#include "lox/ast/ast.h"
 #include "lox/lox_error.h"
+#include "lox/token/token.h"
 
 namespace lox {
 

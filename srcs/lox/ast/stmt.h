@@ -5,7 +5,7 @@
 #ifndef CPPLOX_SRCS_LOX_AST_STMT_H_
 #define CPPLOX_SRCS_LOX_AST_STMT_H_
 
-#include "lox/frontend/ast/ast_node.h"
+#include "ast_node.h"
 
 namespace lox {
 

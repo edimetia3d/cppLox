@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/frontend/ast/ast_node.h"
+#include "ast_node.h"
 namespace lox {
 void AstNode::Walk(std::function<void(AstNode *)> fn) {
   std::vector<AstNode *> stk;

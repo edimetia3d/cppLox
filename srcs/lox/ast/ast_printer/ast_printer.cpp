@@ -1,7 +1,7 @@
 //
 // License: MIT
 //
-#include "lox/frontend/ast/ast_printer/ast_printer.h"
+#include "ast_printer.h"
 
 #include <map>
 

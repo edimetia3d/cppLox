@@ -8,8 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "lox/frontend/token_type.h"
 #include "lox/lox_error.h"
+#include "token_type.h"
 
 namespace lox {
 

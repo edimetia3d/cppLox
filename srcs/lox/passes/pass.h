@@ -4,7 +4,7 @@
 
 #ifndef CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_H_
 #define CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_H_
-#include "lox/frontend/ast/ast.h"
+#include "lox/ast/ast.h"
 namespace lox {
 /**
  * A pass could modify ast inplace , or return a new node to replace current node.

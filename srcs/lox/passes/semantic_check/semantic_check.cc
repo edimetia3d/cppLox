@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/frontend/passes/semantic_check/semantic_check.h"
+#include "semantic_check.h"
 
 #include "lox/lox_error.h"
 namespace lox {

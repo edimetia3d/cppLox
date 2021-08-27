@@ -8,7 +8,7 @@
 #include <cassert>
 #include <string>
 
-#include "lox/frontend/ast/ast.h"
+#include "lox/ast/ast.h"
 
 namespace lox {
 class AstPrinter : public AstNodeVisitor<std::string> {

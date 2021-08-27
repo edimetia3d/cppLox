@@ -9,7 +9,7 @@
 #include <string>
 #include <type_traits>
 
-#include "lox/frontend/token.h"
+#include "lox/token/token.h"
 namespace lox {
 
 namespace object {
