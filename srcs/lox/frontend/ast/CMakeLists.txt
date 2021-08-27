@@ -1,6 +1,6 @@
 
 add_library(ast
-        ast.cc
+        ast_node.cc
         ast.h
         )
 

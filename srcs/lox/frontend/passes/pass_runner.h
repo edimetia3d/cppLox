@@ -6,7 +6,6 @@
 #define CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_RUNNER_H_
 #include <cassert>
 
-#include "lox/backend/tree_walker/lox_object/lox_object.h"
 #include "lox/frontend/ast/ast.h"
 #include "pass.h"
 namespace lox {

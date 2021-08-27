@@ -125,19 +125,24 @@ public:
 const {member_type} & {member_name}(){{
     return {member_name}_;
 }}
+""")
+
+            member_init_params.append(f"{member_type} {member_name}_in")
+            member_init.append(f"{member_name}_(std::move({member_name}_in))")
+            if "Token" not in member_type:
+                member_call_is_modify.append(f"::lox::IsModified({member_name}())")
+                member_reset_modify.append(f"::lox::ResetModify({member_name}())")
+                set_parent.append(f"BindParent({member_name}_,this);")
+                set_parent.append(f"UpdateChild(decltype({member_name}_)(),{member_name}_);")
+                member_def.append(f"""
 void {member_name}({member_type} new_value){{
      if(new_value != {member_name}_){{
         is_modified_ = true;
+        UpdateChild({member_name}_,new_value);
+        {member_name}_=new_value;
+        BindParent({member_name}_,this);
      }}
-     {member_name}_=new_value;
-     BindParent({member_name}_,this);
-}}
-""")
-            member_call_is_modify.append(f"::lox::IsModified({member_name}())")
-            member_reset_modify.append(f"::lox::ResetModify({member_name}())")
-            member_init_params.append(f"{member_type} {member_name}_in")
-            member_init.append(f"{member_name}_(std::move({member_name}_in))")
-            set_parent.append(f"BindParent({member_name}_,this);")
+}}""")
         member_init = ",\n".join(member_init)
         member_call_is_modify = " || ".join(member_call_is_modify)
         member_reset_modify = ";\n".join(member_reset_modify)

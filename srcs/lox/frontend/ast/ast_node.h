@@ -4,8 +4,11 @@
 
 #ifndef CPPLOX_SRCS_LOX_AST_AST_NODE_H_
 #define CPPLOX_SRCS_LOX_AST_AST_NODE_H_
+
 #include <cassert>
+#include <functional>
 #include <memory>
+#include <set>
 #include <type_traits>
 #include <vector>
 
@@ -37,16 +40,19 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
   virtual ~AstNode() = default;
 
   AstNode* Parent() { return parent_; }
-  void SetParent(AstNode* parent) {
-    assert(parent_ == nullptr || parent_ == parent);  // every element could only has one parent
-    parent_ = parent;
-  }
+  void SetParent(AstNode* parent);
   void ResetParent() { parent_ = nullptr; }
+
+  void Walk(std::function<void(AstNode*)> fn);
 
  protected:
   // current element is always "owned" by parent through shared_ptr, to avoid cycle reference, just use a weak pointer
   // here
   AstNode* parent_ = nullptr;
+  std::set<AstNode*> children_;
+
+  void UpdateChild(std::shared_ptr<AstNode> old_child, std::shared_ptr<AstNode> new_child);
+  void UpdateChild(std::vector<std::shared_ptr<AstNode>> old_child, std::vector<std::shared_ptr<AstNode>> new_child);
 
   bool is_modified_ = false;
 

@@ -8,7 +8,6 @@
 #include <cassert>
 #include <string>
 
-#include "lox/backend/tree_walker/lox_object/lox_object.h"
 #include "lox/frontend/ast/ast.h"
 
 namespace lox {
