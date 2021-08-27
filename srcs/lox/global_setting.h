@@ -9,6 +9,7 @@ namespace lox {
 struct _GlobalSetting {
   bool interactive_mode = true;
   bool debug = true;
+  const char* default_backend = "VirtualMachine";
 };
 
 _GlobalSetting& GlobalSetting();
