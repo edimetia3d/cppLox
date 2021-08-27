@@ -11,10 +11,8 @@
 #include <string>
 
 #include "lox/frontend/scanner.h"
+#include "lox/lox_error.h"
 namespace lox {
-enum class BackEndErrCode {
-  NO_ERROR,
-};
 class BackEnd {
  public:
   using BackEndCreateFn = std::function<std::shared_ptr<BackEnd>()>;
@@ -25,7 +23,7 @@ class BackEnd {
 
   static void Register(const std::string name, BackEndCreateFn fn) { GetRegistry()[name] = fn; }
 
-  virtual BackEndErrCode Run(Scanner &scanner) = 0;
+  virtual LoxError Run(Scanner &scanner) = 0;
 
   static void LoadBuiltinBackEnd();
 

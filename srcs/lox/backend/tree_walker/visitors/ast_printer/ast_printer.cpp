@@ -9,27 +9,27 @@ namespace lox {
 
 object::LoxObject AstPrinter::Visit(LogicalExpr* state) {
   std::string left_expr = Print(state->left());
-  std::string op = state->op()->lexeme_;
+  std::string op = state->op()->lexeme;
   std::string right_expr = Print(state->right());
   return object::MakeLoxObject(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
 }
 
 object::LoxObject lox::AstPrinter::Visit(BinaryExpr* state) {
   std::string left_expr = Print(state->left());
-  std::string op = state->op()->lexeme_;
+  std::string op = state->op()->lexeme;
   std::string right_expr = Print(state->right());
   return object::MakeLoxObject(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
 }
-object::LoxObject AstPrinter::Visit(LiteralExpr* state) { return object::MakeLoxObject(state->value()->lexeme_); }
+object::LoxObject AstPrinter::Visit(LiteralExpr* state) { return object::MakeLoxObject(state->value()->lexeme); }
 object::LoxObject lox::AstPrinter::Visit(GroupingExpr* state) {
   return object::MakeLoxObject(std::string("(") + Print(state->expression()) + std::string(")"));
 }
 object::LoxObject AstPrinter::Visit(UnaryExpr* state) {
-  return object::MakeLoxObject(std::string("(") + state->op()->lexeme_ + Print(state->right()) + std::string(")"));
+  return object::MakeLoxObject(std::string("(") + state->op()->lexeme + Print(state->right()) + std::string(")"));
 }
-object::LoxObject AstPrinter::Visit(VariableExpr* state) { return object::MakeLoxObject(state->name()->lexeme_); }
+object::LoxObject AstPrinter::Visit(VariableExpr* state) { return object::MakeLoxObject(state->name()->lexeme); }
 object::LoxObject AstPrinter::Visit(AssignExpr* state) {
-  return object::MakeLoxObject(std::string("(") + state->name()->lexeme_ + " = " + Print(state->value()) +
+  return object::MakeLoxObject(std::string("(") + state->name()->lexeme + " = " + Print(state->value()) +
                                std::string(")"));
 }
 object::LoxObject AstPrinter::Visit(CallExpr* state) {
@@ -55,7 +55,7 @@ object::LoxObject AstPrinter::Visit(VarDeclStmt* state) {
   if (IsValid(state->initializer())) {
     init = " = " + Print(state->initializer());
   }
-  return object::MakeLoxObject(std::string("var ") + state->name()->lexeme_ + init + ";");
+  return object::MakeLoxObject(std::string("var ") + state->name()->lexeme + init + ";");
 }
 namespace {
 struct Level {
@@ -99,16 +99,16 @@ object::LoxObject AstPrinter::Visit(WhileStmt* state) {
   ret += "{\n" + Print(state->body()) + "}\n";
   return object::MakeLoxObject(ret);
 }
-object::LoxObject AstPrinter::Visit(BreakStmt* state) { return object::MakeLoxObject(state->src_token()->lexeme_); }
+object::LoxObject AstPrinter::Visit(BreakStmt* state) { return object::MakeLoxObject(state->src_token()->lexeme); }
 object::LoxObject AstPrinter::Visit(FunctionStmt* state) {
   std::string ret = "fun ";
-  ret += state->name()->lexeme_ + " (";
+  ret += state->name()->lexeme + " (";
   int i = 0;
   for (auto& param : state->params()) {
     if (i > 0) {
       ret += ",";
     }
-    ret += param->lexeme_;
+    ret += param->lexeme;
     ++i;
   }
   ret += "){\n";
@@ -128,7 +128,7 @@ object::LoxObject AstPrinter::Visit(ReturnStmt* state) {
 }
 object::LoxObject AstPrinter::Visit(ClassStmt* state) {
   std::string ret = "class ";
-  ret += state->name()->lexeme_;
+  ret += state->name()->lexeme;
   if (IsValid(state->superclass())) {
     ret += " < ";
     ret += Print(state->superclass());
@@ -141,11 +141,11 @@ object::LoxObject AstPrinter::Visit(ClassStmt* state) {
   return object::MakeLoxObject(ret);
 }
 object::LoxObject AstPrinter::Visit(GetAttrExpr* state) {
-  std::string ret = Print(state->src_object()) + "." + state->attr_name()->lexeme_;
+  std::string ret = Print(state->src_object()) + "." + state->attr_name()->lexeme;
   return object::MakeLoxObject(ret);
 }
 object::LoxObject AstPrinter::Visit(SetAttrExpr* state) {
-  std::string ret = Print(state->src_object()) + "." + state->attr_name()->lexeme_;
+  std::string ret = Print(state->src_object()) + "." + state->attr_name()->lexeme;
   ret += " @= ";
   ret += Print(state->value());
   return object::MakeLoxObject(ret);

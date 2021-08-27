@@ -25,7 +25,7 @@ TreeWalker::TreeWalker() {
   evaluator_ = std::make_shared<Evaluator>(global_env_);
   evaluator_->SetActiveResolveMap(resolve_map_);
 }
-BackEndErrCode TreeWalker::Run(Scanner &scanner) {
+LoxError TreeWalker::Run(Scanner &scanner) {
   std::vector<Token> tokens;
   auto err = scanner.ScanAll(&tokens);
   Parser parser(tokens);
@@ -36,9 +36,9 @@ BackEndErrCode TreeWalker::Run(Scanner &scanner) {
   pass_mgr.Append(std::make_shared<EnvResovlePass>(resolve_map_));
   try {
     statements = pass_mgr.Run(statements);
-  } catch (std::exception &err) {
-    std::cout << err.what() << std::endl;
-    return BackEndErrCode::NO_ERROR;
+  } catch (std::exception &pass_err) {
+    std::cout << pass_err.what() << std::endl;
+    return LoxError();
   }
 
   try {
@@ -51,8 +51,9 @@ BackEndErrCode TreeWalker::Run(Scanner &scanner) {
     }
   } catch (RuntimeError &rt_err) {
     std::cout << rt_err.what() << std::endl;
-    return BackEndErrCode::NO_ERROR;
+    err.Merge(rt_err.err);
   }
+  return LoxError();
 }
 
 }  // namespace lox

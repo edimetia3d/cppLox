@@ -16,7 +16,7 @@ class EnvResolveMap;
 class TreeWalker : public BackEnd {
  public:
   TreeWalker();
-  BackEndErrCode Run(Scanner& scanner) override;
+  LoxError Run(Scanner& scanner) override;
 
  private:
   std::shared_ptr<Evaluator> evaluator_;

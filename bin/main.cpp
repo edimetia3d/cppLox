@@ -14,7 +14,7 @@ void PrintBuildInfo() {
 
 int main(int argn, char* argv[]) {
   PrintBuildInfo();
-  InterpreterError ret = lox::InterpreterError::NO_ERROR;
+  LoxError ret;
   LoxInterpreter interpreter;
   if (argn > 2) {
     std::cout << LoxInterpreter::CLIHelpString() << std::endl;
@@ -23,5 +23,5 @@ int main(int argn, char* argv[]) {
   } else {
     ret = interpreter.RunPrompt();
   }
-  return static_cast<int>(ret);
+  return ret.ToErrCode();
 }

@@ -1,6 +1,6 @@
 
 
-add_library(lox global_setting.cc lox.cc)
+add_library(lox global_setting.cc lox.cc lox_error.cc)
 
 add_subdirectory(version)
 add_subdirectory(frontend)

@@ -51,12 +51,12 @@ class Parser {
 
   ParserError Error(Token token, const std::string& msg) {
     err_found = true;
-    auto err = ParserError(lox::Error(token, msg));
+    auto err = ParserError(lox::TreeWalkerError(token, msg));
     std::cout << err.what() << std::endl;
     return err;
   }
 
-  bool IsAtEnd() { return Peek()->type_ == TokenType::EOF_TOKEN; }
+  bool IsAtEnd() { return Peek()->type == TokenType::EOF_TOKEN; }
 
   const Token& Previous() { return tokens[current_idx - 1]; }
 
@@ -69,7 +69,7 @@ class Parser {
 
   bool Check(TokenType type) {
     if (IsAtEnd()) return false;
-    return Peek()->type_ == type;
+    return Peek()->type == type;
   }
 
   void Synchronize();

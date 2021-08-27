@@ -1,2 +1,2 @@
 
-add_library(frontend scanner.cpp token.cpp)
+add_library(frontend scanner.cc token.cc)

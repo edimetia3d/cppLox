@@ -2,7 +2,7 @@
 // License: MIT
 //
 
-#include "token.h"
+#include "lox/frontend/token.h"
 
 #include <map>
 namespace lox {
@@ -29,8 +29,8 @@ static std::map<std::string,TokenType> g_reserved_map{
 // clang-format on
 
 std::string TokenBase::Str() const {
-  return std::string("[Type:{") + std::to_string((int)type_) + "},Lexme:{" + lexeme_ +
-         "},@Line:" + std::to_string(line_) + "]";
+  return std::string("[Type:{") + std::to_string((int)type) + "},Lexme:{" + lexeme + "},@Line:" + std::to_string(line) +
+         "]";
 }
 
 TokenType TokenBase::GetIdentifierType(const std::string& identifier) {
