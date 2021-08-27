@@ -12,7 +12,7 @@ VM *VM::Instance() {
   static VM object;
   return &object;
 }
-InterpretResult VM::Run() {
+ErrCode VM::Run() {
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk_->constants[READ_BYTE()])
 #define BINARY_OP(op) \
@@ -66,7 +66,7 @@ InterpretResult VM::Run() {
   }
 EXIT:
   ip_ = ip;
-  return InterpretResult::INTERPRET_OK;
+  return ErrCode::NO_ERROR;
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef BINARY_OP
@@ -74,7 +74,7 @@ EXIT:
 void VM::ResetStack() { sp_ = stack_; }
 void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
-InterpretResult VM::Interpret(Chunk *chunk) {
+ErrCode VM::Interpret(Chunk *chunk) {
   chunk_ = chunk;
   ip_ = chunk_->code.data();
   return Run();
