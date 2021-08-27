@@ -28,94 +28,59 @@
     }                                         \
   }
 namespace lox {
-static auto RETNULL = object::VoidObject();
-object::LoxObject PassRunner::Visit(BlockStmt *state) {
-  RUNPASS_ON_VEC_AND_UPDATE(state->statements)
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(VarDeclStmt *state) {
+void PassRunner::Visit(BlockStmt *state) { RUNPASS_ON_VEC_AND_UPDATE(state->statements) }
+void PassRunner::Visit(VarDeclStmt *state) {
   if (IsValid(state->initializer())) {
     RUNPASS_AND_UPDATE(state->initializer);
   }
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(VariableExpr *state) { return RETNULL; }
+void PassRunner::Visit(VariableExpr *state) {}
 
-object::LoxObject PassRunner::Visit(AssignExpr *state) {
-  RUNPASS_AND_UPDATE(state->value);
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(FunctionStmt *state) {
-  RUNPASS_ON_VEC_AND_UPDATE(state->body);
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(LogicalExpr *state) {
+void PassRunner::Visit(AssignExpr *state) { RUNPASS_AND_UPDATE(state->value); }
+void PassRunner::Visit(FunctionStmt *state) { RUNPASS_ON_VEC_AND_UPDATE(state->body); }
+void PassRunner::Visit(LogicalExpr *state) {
   RUNPASS_AND_UPDATE(state->left);
   RUNPASS_AND_UPDATE(state->right);
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(BinaryExpr *state) {
+void PassRunner::Visit(BinaryExpr *state) {
   RUNPASS_AND_UPDATE(state->left);
   RUNPASS_AND_UPDATE(state->right);
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(GroupingExpr *state) {
-  RUNPASS_AND_UPDATE(state->expression);
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(LiteralExpr *state) { return RETNULL; }
-object::LoxObject PassRunner::Visit(UnaryExpr *state) {
-  RUNPASS_AND_UPDATE(state->right);
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(CallExpr *state) {
+void PassRunner::Visit(GroupingExpr *state) { RUNPASS_AND_UPDATE(state->expression); }
+void PassRunner::Visit(LiteralExpr *state) {}
+void PassRunner::Visit(UnaryExpr *state) { RUNPASS_AND_UPDATE(state->right); }
+void PassRunner::Visit(CallExpr *state) {
   RUNPASS_AND_UPDATE(state->callee);
   RUNPASS_ON_VEC_AND_UPDATE(state->arguments)
-
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(PrintStmt *state) {
-  RUNPASS_AND_UPDATE(state->expression);
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(ReturnStmt *state) {
+void PassRunner::Visit(PrintStmt *state) { RUNPASS_AND_UPDATE(state->expression); }
+void PassRunner::Visit(ReturnStmt *state) {
   if (IsValid(state->value())) {
     RUNPASS_AND_UPDATE(state->value);
   }
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(WhileStmt *state) {
+void PassRunner::Visit(WhileStmt *state) {
   RUNPASS_AND_UPDATE(state->condition);
   RUNPASS_AND_UPDATE(state->body);
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(BreakStmt *state) { return RETNULL; }
-object::LoxObject PassRunner::Visit(ExprStmt *state) {
-  RUNPASS_AND_UPDATE(state->expression);
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(IfStmt *state) {
+void PassRunner::Visit(BreakStmt *state) {}
+void PassRunner::Visit(ExprStmt *state) { RUNPASS_AND_UPDATE(state->expression); }
+void PassRunner::Visit(IfStmt *state) {
   RUNPASS_AND_UPDATE(state->condition);
   RUNPASS_AND_UPDATE(state->thenBranch);
   if (IsValid(state->elseBranch())) {
     RUNPASS_AND_UPDATE(state->elseBranch);
   }
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(ClassStmt *state) {
+void PassRunner::Visit(ClassStmt *state) {
   if (IsValid(state->superclass())) {
     RUNPASS_AND_UPDATE(state->superclass);
   }
   RUNPASS_ON_VEC_AND_UPDATE(state->methods)
-  return RETNULL;
 }
-object::LoxObject PassRunner::Visit(GetAttrExpr *state) {
-  RUNPASS_AND_UPDATE(state->src_object);
-  return RETNULL;
-}
-object::LoxObject PassRunner::Visit(SetAttrExpr *state) {
+void PassRunner::Visit(GetAttrExpr *state) { RUNPASS_AND_UPDATE(state->src_object); }
+void PassRunner::Visit(SetAttrExpr *state) {
   RUNPASS_AND_UPDATE(state->src_object);
   RUNPASS_AND_UPDATE(state->value);
-  return RETNULL;
 }
 }  // namespace lox

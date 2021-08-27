@@ -7,6 +7,7 @@
 #include "lox/frontend/ast/ast_node.h"
 #include "lox/frontend/ast/expr.h"
 #include "lox/frontend/ast/stmt.h"
+#include "lox/frontend/token.h"
 
 namespace lox {
 static inline void BindParent(Token token, AstNode* parent) {

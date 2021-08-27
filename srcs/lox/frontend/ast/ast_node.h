@@ -9,13 +9,12 @@
 #include <type_traits>
 #include <vector>
 
-#include "lox/backend/tree_walker/lox_object/lox_object.h"
 namespace lox {
 class AstNode;
 template <class T>
 concept SubclassOfAstNode = std::is_base_of<AstNode, T>::value;
 
-class AstNodeVisitor;
+class IAstNodeVisitor;
 
 class AstNode : public std::enable_shared_from_this<AstNode> {
  public:
@@ -24,7 +23,7 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
     return std::shared_ptr<SubT>(new SubT(nullptr, args...));
   }
 
-  virtual object::LoxObject Accept(AstNodeVisitor* visitor) = 0;
+  virtual void Accept(IAstNodeVisitor* visitor) = 0;
 
   virtual bool IsModified() = 0;
 

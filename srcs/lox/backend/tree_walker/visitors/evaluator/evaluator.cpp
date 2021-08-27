@@ -13,32 +13,33 @@
 #include "lox/backend/tree_walker/visitors/evaluator/lox_function.h"
 namespace lox {
 
-object::LoxObject Evaluator::Visit(LiteralExpr* state) {
+void Evaluator::Visit(LiteralExpr* state) {
   switch (state->value()->type) {
     case TokenType::NUMBER:
-      return object::MakeLoxObject(std::stod(state->value()->lexeme));
+      VisitorReturn(object::MakeLoxObject(std::stod(state->value()->lexeme)));
     case TokenType::STRING:
-      return object::MakeLoxObject(std::string(state->value()->lexeme.begin() + 1, state->value()->lexeme.end() - 1));
+      VisitorReturn(
+          object::MakeLoxObject(std::string(state->value()->lexeme.begin() + 1, state->value()->lexeme.end() - 1)));
     case TokenType::TRUE:
-      return object::MakeLoxObject(true);
+      VisitorReturn(object::MakeLoxObject(true));
     case TokenType::FALSE:
-      return object::MakeLoxObject(false);
+      VisitorReturn(object::MakeLoxObject(false));
     case TokenType::NIL:
-      return object::VoidObject();
+      VisitorReturn(object::VoidObject());
     default:
       throw RuntimeError(TreeWalkerError(state->value(), "Not a valid Literal."));
   }
 }
-object::LoxObject Evaluator::Visit(GroupingExpr* state) { return Eval(state->expression()); }
-object::LoxObject Evaluator::Visit(UnaryExpr* state) {
+void Evaluator::Visit(GroupingExpr* state) { VisitorReturn(Eval(state->expression())); }
+void Evaluator::Visit(UnaryExpr* state) {
   auto right = Eval(state->right());
 
   switch (state->op()->type) {
     case TokenType::MINUS:
-      return -right;
+      VisitorReturn(-right);
     case TokenType::BANG:
       try {
-        return object::MakeLoxObject(IsValueTrue(right));
+        VisitorReturn(object::MakeLoxObject(IsValueTrue(right)));
       } catch (const char* msg) {
         throw RuntimeError(TreeWalkerError(state->op(), msg));
       }
@@ -48,44 +49,44 @@ object::LoxObject Evaluator::Visit(UnaryExpr* state) {
   }
 }
 
-object::LoxObject Evaluator::Visit(LogicalExpr* state) {
+void Evaluator::Visit(LogicalExpr* state) {
   auto left = Eval(state->left());
   if (state->op()->type == TokenType::AND) {
     if (IsValueTrue(left)) {
-      return Eval(state->right());
+      VisitorReturn(Eval(state->right()));
     }
 
   } else if (!IsValueTrue(left)) {
-    return Eval(state->right());
+    VisitorReturn(Eval(state->right()));
   }
-  return left;
+  VisitorReturn(left);
 }
 
-object::LoxObject Evaluator::Visit(BinaryExpr* state) {
+void Evaluator::Visit(BinaryExpr* state) {
   auto left = Eval(state->left());
   auto right = Eval(state->right());
   try {
     switch (state->op()->type) {
       case TokenType::PLUS:
-        return left + right;
+        VisitorReturn(left + right);
       case TokenType::MINUS:
-        return left - right;
+        VisitorReturn(left - right);
       case TokenType::STAR:
-        return left * right;
+        VisitorReturn(left * right);
       case TokenType::SLASH:
-        return left / right;
+        VisitorReturn(left / right);
       case TokenType::EQUAL_EQUAL:
-        return left == right;
+        VisitorReturn(left == right);
       case TokenType::BANG_EQUAL:
-        return left != right;
+        VisitorReturn(left != right);
       case TokenType::LESS:
-        return left < right;
+        VisitorReturn(left < right);
       case TokenType::GREATER:
-        return left > right;
+        VisitorReturn(left > right);
       case TokenType::LESS_EQUAL:
-        return left <= right;
+        VisitorReturn(left <= right);
       case TokenType::GREATER_EQUAL:
-        return left >= right;
+        VisitorReturn(left >= right);
       default:
         throw RuntimeError(TreeWalkerError(state->op(), "Not a valid Binary Op."));
     }
@@ -93,23 +94,23 @@ object::LoxObject Evaluator::Visit(BinaryExpr* state) {
     throw RuntimeError(TreeWalkerError(state->op(), msg));
   }
 }
-object::LoxObject Evaluator::Visit(VariableExpr* state) {
+void Evaluator::Visit(VariableExpr* state) {
   auto ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name()->lexeme);
   if (!IsValid(ret)) {
     throw RuntimeError(TreeWalkerError(state->name(), "Doesnt reference to a valid value."));
   }
-  return ret;
+  VisitorReturn(ret);
 }
-object::LoxObject Evaluator::Visit(AssignExpr* state) {
+void Evaluator::Visit(AssignExpr* state) {
   auto value = Eval(state->value());
   try {
     WorkEnv()->GetByDistance(active_map_->Get(state))->Set(state->name()->lexeme, value);
   } catch (const char* msg) {
     throw RuntimeError(TreeWalkerError(state->name(), msg));
   }
-  return value;
+  VisitorReturn(value);
 }
-object::LoxObject Evaluator::Visit(CallExpr* state) {
+void Evaluator::Visit(CallExpr* state) {
   auto callee = Eval(state->callee());
 
   std::vector<object::LoxObject> arguments;
@@ -125,45 +126,45 @@ object::LoxObject Evaluator::Visit(CallExpr* state) {
     throw RuntimeError(TreeWalkerError(state->paren(), "Wrong arg number"));
   }
   try {
-    return callable->Call(this, arguments);
+    VisitorReturn(callable->Call(this, arguments));
   } catch (const char* msg) {
     throw RuntimeError(TreeWalkerError(state->paren(), msg));
   }
 }
 
-object::LoxObject Evaluator::Visit(PrintStmt* state) {
+void Evaluator::Visit(PrintStmt* state) {
   auto ret_v = Eval(state->expression());
   std::cout << ret_v->ToString() << std::endl;
-  return object::VoidObject();
+  VisitorReturn(object::VoidObject());
 }
-object::LoxObject Evaluator::Visit(ExprStmt* state) {
+void Evaluator::Visit(ExprStmt* state) {
   Eval(state->expression());
-  return object::VoidObject();
+  VisitorReturn(object::VoidObject());
 }
-object::LoxObject Evaluator::Visit(VarDeclStmt* state) {
+void Evaluator::Visit(VarDeclStmt* state) {
   auto value = object::VoidObject();
   if (IsValid(state->initializer())) {
     value = Eval(state->initializer());
   }
   WorkEnv()->Define(state->name()->lexeme, value);
-  return object::VoidObject();
+  VisitorReturn(object::VoidObject());
 }
-object::LoxObject Evaluator::Visit(BlockStmt* state) {
+void Evaluator::Visit(BlockStmt* state) {
   EnterNewScopeGuard guard(this);
   for (auto& stmt : state->statements()) {
     Eval(stmt);
   }
-  return object::VoidObject();
+  VisitorReturn(object::VoidObject());
 }
-object::LoxObject Evaluator::Visit(IfStmt* state) {
+void Evaluator::Visit(IfStmt* state) {
   if (IsValueTrue((Eval(state->condition())))) {
     Eval(state->thenBranch());
   } else if (IsValid(state->elseBranch())) {
     Eval(state->elseBranch());
   }
-  return object::VoidObject();
+  VisitorReturn(object::VoidObject());
 }
-object::LoxObject Evaluator::Visit(WhileStmt* state) {
+void Evaluator::Visit(WhileStmt* state) {
   while (IsValueTrue((Eval(state->condition())))) {
     try {
       Eval(state->body());
@@ -174,12 +175,10 @@ object::LoxObject Evaluator::Visit(WhileStmt* state) {
       throw;
     }
   }
-  return object::VoidObject();
+  VisitorReturn(object::VoidObject());
 }
-object::LoxObject Evaluator::Visit(BreakStmt* state) {
-  throw RuntimeError(TreeWalkerError(state->src_token(), "Hit break"));
-}
-object::LoxObject Evaluator::Visit(FunctionStmt* state) {
+void Evaluator::Visit(BreakStmt* state) { throw RuntimeError(TreeWalkerError(state->src_token(), "Hit break")); }
+void Evaluator::Visit(FunctionStmt* state) {
   LoxFunctionData fn_data{
       .is_init_method = false,
       .closure = WorkEnv(),
@@ -189,16 +188,16 @@ object::LoxObject Evaluator::Visit(FunctionStmt* state) {
   auto fn = object::MakeLoxObject<LoxFunction>(fn_data);
   WorkEnv()->Define(state->name()->lexeme, fn);
   // FreezeEnv(); use freeze env to "copy" capture
-  return fn;
+  VisitorReturn(fn);
 }
-object::LoxObject Evaluator::Visit(ReturnStmt* state) {
+void Evaluator::Visit(ReturnStmt* state) {
   auto ret = object::VoidObject();
   if (IsValid(state->value())) {
     ret = Eval(state->value());
   }
   throw ReturnValue(ret);
 }
-object::LoxObject Evaluator::Visit(ClassStmt* state) {
+void Evaluator::Visit(ClassStmt* state) {
   WorkEnv()->Define(state->name()->lexeme, object::VoidObject());
   auto klass = object::VoidObject();
   {
@@ -225,16 +224,16 @@ object::LoxObject Evaluator::Visit(ClassStmt* state) {
     }
   }
   WorkEnv()->Set(state->name()->lexeme, klass);
-  return object::VoidObject();
+  VisitorReturn(object::VoidObject());
 }
-object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
+void Evaluator::Visit(GetAttrExpr* state) {
   auto object = Eval(state->src_object());
   const auto& attr_name = state->attr_name()->lexeme;
   auto ret = object::VoidObject();
   // Let's handle binding of this
   if (auto instance = object->DownCast<LoxClassInstance>()) {
     if (auto attr = instance->GetAttr(attr_name)) {
-      return attr;
+      VisitorReturn(attr);
     }
     ret = instance->RawValue<LoxClassInstanceData>().klass->GetAttr(attr_name);
     if (auto function = ret->DownCast<LoxFunction>()) {
@@ -259,12 +258,12 @@ object::LoxObject Evaluator::Visit(GetAttrExpr* state) {
   if (!IsValid(ret)) {
     throw RuntimeError(TreeWalkerError(state->attr_name(), "No attr found"));
   }
-  return ret;
+  VisitorReturn(ret);
 }
-object::LoxObject Evaluator::Visit(SetAttrExpr* state) {
+void Evaluator::Visit(SetAttrExpr* state) {
   auto object = Eval(state->src_object());
   auto ret = Eval(state->value());
   object->SetAttr(state->attr_name()->lexeme, Eval(state->value()));
-  return ret;
+  VisitorReturn(ret);
 }
 }  // namespace lox
