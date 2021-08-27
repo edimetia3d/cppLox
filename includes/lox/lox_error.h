@@ -17,6 +17,7 @@ class LoxError {
 
   int ToErrCode() const;
   void Merge(const LoxError &new_err);
+  bool NoError();
 
  private:
   std::string message_{};

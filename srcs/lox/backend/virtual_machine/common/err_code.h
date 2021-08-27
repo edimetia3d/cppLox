@@ -7,7 +7,7 @@
 namespace lox {
 namespace vm {
 
-enum class ErrCode { NO_ERROR, INTERPRET_COMPILE_ERROR, INTERPRET_RUNTIME_ERROR };
+enum class ErrCode { NO_ERROR, PARSE_FAIL, INTERPRET_COMPILE_ERROR, INTERPRET_RUNTIME_ERROR };
 }
 }  // namespace lox
 #endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_ERR_CODE_H_

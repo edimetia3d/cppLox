@@ -26,13 +26,12 @@ void FillDbgChunk(Chunk& chunk) {
 }
 
 LoxError VirtualMachine::Run(Scanner& scanner) {
-  Compiler compiler;
+  Compiler compiler(scanner);
   Chunk chunk;
   ErrCode err_code = ErrCode::NO_ERROR;
-  if ((err_code = compiler.Compile(scanner, &chunk)) != ErrCode::NO_ERROR) {
+  if ((err_code = compiler.Compile(&chunk)) != ErrCode::NO_ERROR) {
     return LoxError("Compiler Error:: " + std::to_string(static_cast<int>(err_code)));
   }
-  chunk.WriteOpCode(OpCode::OP_RETURN, 0);  // avoid endless run
   auto vm = VM::Instance();
   vm->Interpret(&chunk);
   return LoxError();

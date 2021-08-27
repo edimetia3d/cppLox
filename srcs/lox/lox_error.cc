@@ -37,4 +37,5 @@ std::string LoxError::RecursiveMessage(int level) const {
   }
   return ret;
 }
+bool LoxError::NoError() { return ToErrCode() == 0; }
 }  // namespace lox
