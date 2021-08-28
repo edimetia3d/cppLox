@@ -8,8 +8,9 @@ namespace lox {
 LoxError Scanner::ScanAll(std::vector<Token>* output) {
   ResetErr();
   while (!IsAtEnd()) {
-    ScanOne();
-    output->push_back(last_scan_);
+    if (ScanOne()) {
+      output->push_back(last_scan_);
+    }
   }
   output->push_back(MakeToken(TokenType::EOF_TOKEN, "EOF", line_));
   return err_;
@@ -17,17 +18,20 @@ LoxError Scanner::ScanAll(std::vector<Token>* output) {
 
 LoxError Scanner::ScanOne(Token* output) {
   ResetErr();
-  if (!IsAtEnd()) {
-    ScanOne();
+  if (!IsAtEnd() && ScanOne()) {
     *output = last_scan_;
   } else {
-    *output = MakeToken(TokenType::EOF_TOKEN, "EOF", line_);
+    if (IsAtEnd()) {
+      *output = MakeToken(TokenType::EOF_TOKEN, "EOF", line_);
+    } else {
+      err_.Merge(LoxError("Scan failed for unknown reason"));
+    }
   }
 
   return err_;
 }
 
-void Scanner::ScanOne() {
+bool Scanner::ScanOne() {
   new_token_scaned_ = false;
 TRY_SCAN:
   char c = Advance();
@@ -75,13 +79,14 @@ TRY_SCAN:
         AddIdentifierToken();
       }
       else{
-        err_.Merge(LoxError("Unknwon char at line "+std::to_string(line_)));return;
+        err_.Merge(LoxError("Unknwon char at line "+std::to_string(line_)));return false;
       }
   }
   // clang-format on
-  if (!new_token_scaned_) {
+  if (!new_token_scaned_ && !IsAtEnd()) {
     goto TRY_SCAN;
   }
+  return new_token_scaned_;
 }
 void Scanner::AddToken(TokenType type) {
   last_scan_ =

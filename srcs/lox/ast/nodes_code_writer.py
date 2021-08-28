@@ -9,7 +9,7 @@ file_template = """
 
 #include <memory>
 #include <stack>
-#include "lox/frontend/token.h"
+#include "lox/token/token.h"
 namespace lox{{
 {class_forward_decl}
 class IAstNodeVisitor {{
@@ -61,6 +61,12 @@ public:
 bool IsModified() override{{
     return {member_call_is_modify};
 }}
+
+std::set<AstNode *>  Children() override{{
+    std::set<AstNode *> return_set;
+    {update_return_set}
+    return return_set;
+}}
 void ResetModify() override{{
     is_modified_=false;
     {member_reset_modify};
@@ -111,9 +117,10 @@ virtual void Visit({class_name}{target_key} *) = 0;
         member_def = []
         member_call_is_modify = ["is_modified_"]
         member_reset_modify = []
-        member_init_params = [f"{target_key}Base *parent"]
-        member_init = [f"{target_key}Base(parent)"]
+        member_init_params = []
+        member_init = []
         set_parent = []
+        update_return_set = []
         for member in member_list:
             cut_by_space = list(filter(lambda x: x != "", member.split(" ")))
             member_type = cut_by_space[0]
@@ -130,9 +137,9 @@ const {member_type} & {member_name}(){{
             member_init_params.append(f"{member_type} {member_name}_in")
             member_init.append(f"{member_name}_(std::move({member_name}_in))")
             if "Token" not in member_type:
+                update_return_set.append(f"::lox::UpdateSet(return_set,{member_name}());")
                 member_call_is_modify.append(f"::lox::IsModified({member_name}())")
                 member_reset_modify.append(f"::lox::ResetModify({member_name}())")
-                set_parent.append(f"BindParent({member_name}_,this);")
                 set_parent.append(f"UpdateChild(decltype({member_name}_)(),{member_name}_);")
                 member_def.append(f"""
 void {member_name}({member_type} new_value){{
@@ -140,7 +147,6 @@ void {member_name}({member_type} new_value){{
         is_modified_ = true;
         UpdateChild({member_name}_,new_value);
         {member_name}_=new_value;
-        BindParent({member_name}_,this);
      }}
 }}""")
         member_init = ",\n".join(member_init)
@@ -149,7 +155,9 @@ void {member_name}({member_type} new_value){{
         member_def = "\n".join(member_def)
         member_init_params = ",".join(member_init_params)
         set_parent = "\n".join(set_parent)
+        update_return_set = "\n".join(update_return_set)
         class_decls = class_decls + class_template.format(target_key = target_key,
+                                                          update_return_set = update_return_set,
                                                           member_call_is_modify = member_call_is_modify,
                                                           member_reset_modify = member_reset_modify,
                                                           class_name = class_name,

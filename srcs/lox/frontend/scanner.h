@@ -28,7 +28,7 @@ class Scanner {
   }
 
  private:
-  void ScanOne();
+  bool ScanOne();
 
   bool Match(char expected);
 

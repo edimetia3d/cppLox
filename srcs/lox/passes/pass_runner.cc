@@ -7,7 +7,6 @@
   {                                               \
     auto old_value = (KEY_NAME)();                \
     auto new_value = RunPass(old_value);          \
-    new_value->SetParent((KEY_NAME)()->Parent()); \
     if (new_value != old_value) {                 \
       (KEY_NAME)(new_value);                      \
     }                                             \
@@ -19,7 +18,6 @@
     for (auto &node : cpy) {                  \
       {                                       \
         auto new_value = RunPass(node);       \
-        new_value->SetParent(node->Parent()); \
         node = new_value;                     \
       };                                      \
     }                                         \

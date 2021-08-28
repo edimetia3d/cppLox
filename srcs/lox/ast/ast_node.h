@@ -23,7 +23,7 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
  public:
   template <SubclassOfAstNode SubT, class... Args>
   static std::shared_ptr<SubT> Make(Args... args) {
-    return std::shared_ptr<SubT>(new SubT(nullptr, args...));
+    return std::shared_ptr<SubT>(new SubT(args...));
   }
 
   virtual void Accept(IAstNodeVisitor* visitor) = 0;
@@ -31,6 +31,8 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
   virtual bool IsModified() = 0;
 
   virtual void ResetModify() = 0;
+
+  virtual std::set<AstNode*> Children() = 0;
 
   template <SubclassOfAstNode T>
   T* DownCast() {
@@ -40,8 +42,6 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
   virtual ~AstNode() = default;
 
   AstNode* Parent() { return parent_; }
-  void SetParent(AstNode* parent);
-  void ResetParent() { parent_ = nullptr; }
 
   void Walk(std::function<void(AstNode*)> fn);
 
@@ -49,30 +49,17 @@ class AstNode : public std::enable_shared_from_this<AstNode> {
   // current element is always "owned" by parent through shared_ptr, to avoid cycle reference, just use a weak pointer
   // here
   AstNode* parent_ = nullptr;
-  std::set<AstNode*> children_;
 
   void UpdateChild(std::shared_ptr<AstNode> old_child, std::shared_ptr<AstNode> new_child);
   void UpdateChild(std::vector<std::shared_ptr<AstNode>> old_child, std::vector<std::shared_ptr<AstNode>> new_child);
 
   bool is_modified_ = false;
 
-  explicit AstNode(AstNode* parent = nullptr) { SetParent(parent); };
+  void remove_child(std::shared_ptr<AstNode>& old_child);
+  void add_child(std::shared_ptr<AstNode>& new_child);
 };
 
 static inline bool IsValid(const std::shared_ptr<AstNode>& node) { return node.get(); }
-
-template <SubclassOfAstNode T>
-static inline void BindParent(std::shared_ptr<T> element, AstNode* parent) {
-  if (element) {
-    element->SetParent(parent);
-  }
-}
-template <SubclassOfAstNode T>
-static inline void BindParent(const std::vector<std::shared_ptr<T>>& elements, AstNode* parent) {
-  for (auto& element : elements) {
-    BindParent(element, parent);
-  }
-}
 
 template <SubclassOfAstNode T>
 static inline bool IsModified(std::shared_ptr<T> element) {
@@ -100,6 +87,19 @@ template <SubclassOfAstNode T>
 static inline void ResetModify(const std::vector<std::shared_ptr<T>>& elements) {
   for (auto& element : elements) {
     ResetModify(element);
+  }
+}
+
+template <SubclassOfAstNode T>
+static inline void UpdateSet(std::set<AstNode*>& set, std::shared_ptr<T> element) {
+  if (IsValid(element)) {
+    set.insert(element.get());
+  }
+}
+template <SubclassOfAstNode T>
+static inline void UpdateSet(std::set<AstNode*>& set, const std::vector<std::shared_ptr<T>>& elements) {
+  for (auto& element : elements) {
+    UpdateSet(set, element);
   }
 }
 
