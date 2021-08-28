@@ -20,25 +20,26 @@ struct Parser {
   bool panicMode = false;
 };
 
-enum class Precedence {
-  PREC_NONE,
-  PREC_ASSIGNMENT,  // =
-  PREC_OR,          // or
-  PREC_AND,         // and
-  PREC_EQUALITY,    // == !=
-  PREC_COMPARISON,  // < > <= >=
-  PREC_TERM,        // + -
-  PREC_FACTOR,      // * /
-  PREC_UNARY,       // ! -
-  PREC_CALL,        // . ()
-  PREC_PRIMARY
+enum class OperatorType {
+  NONE,
+  ASSIGNMENT,  // =
+  OR,          // or
+  AND,         // and
+  EQUALITY,    // == !=
+  COMPARISON,  // < > <= >=
+  TERM,        // + -
+  FACTOR,      // * /
+  UNARY,       // ! -
+  CALL,        // . ()
+  PRIMARY
 };
+using Precedence=OperatorType; // OperatorType is intended to sorted by precedence
 
 class Compiler;
 struct ParseRule {
-  std::function<void(Compiler*)> prefix;
-  std::function<void(Compiler*)> infix;
-  Precedence precedence;
+  std::function<void(Compiler*)> EmitPrefixFn;
+  std::function<void(Compiler*)> EmitInfixFn;
+  OperatorType operator_type;
 };
 
 /**
@@ -46,11 +47,11 @@ struct ParseRule {
  *
  * There are some thing to note for myself.
  * 1. In summary. Pratt Parser makes no essentially difference from RD parse, it is, just another parser,
- * and all `emitXXX()` here could be replaced with a `return CreateXXXAstNode()` to build an AST.
+ * and all `emitOpCodeXXX()` here could be replaced with a `return CreateXXXAstNode()` to build an AST.
  * >> Read the http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/ will give you a smooth(maybe) transition from RD parser to
  * Pratt Parser.
- * 2. It's easy to see that, when we replace `CreateXXXAstNode()` to `emitXXX()` in parser,
- * Obviously, the order of call to `emitXXX()` is same as `CreateXXXAstNode()`.
+ * 2. It's easy to see that, when we replace `CreateXXXAstNode()` to `emitOpCodeXXX()` in parser,
+ * Obviously, the order of call to `emitOpCodeXXX()` is same as `CreateXXXAstNode()`.
  * 3. We can prove that, The order of call `EvaluateXXXAstNode()` could be implemented to be basically same as call `CreateXXXAstNode()` when evaluator walking in same AST.
  * It's just that some control flow makes evaluation history changed a little. (If without control flow, the order would be exactly same.) So tree-walker evaluator
  * is basically evaluate **all the node in their creation order**.
@@ -86,12 +87,20 @@ class Compiler {
     double value = std::stod(parser_.current->lexeme);
     emitConstant(value);
   }
-  void Expression(Precedence precedence);
+  /**
+   * The input operator_type is a mark to say that: we are parsing a expression that will be part of operand of `operator_type`
+   * e.g. if `operator_type` is `+`, it means the expression we are parsing will be used in a binary plus operation.
+   *
+   * Because we know what the expression will be used for, we known when to stop the parsing, that is , when we meet some
+   * operator that has lower (or equal) precedence
+   */
+  void Expression(OperatorType operator_type);
   void grouping() {
-    Expression(Precedence::PREC_ASSIGNMENT);
+    Expression(OperatorType::ASSIGNMENT);
     Consume(TokenType::LEFT_PAREN, "Expect ')' after expression.");
   }
   void unary();
+  friend std::vector<ParseRule> BuildRuleMap();
   ParseRule* getRule(TokenType type);
   ParseRule* getRule(Token token);
   void binary();
