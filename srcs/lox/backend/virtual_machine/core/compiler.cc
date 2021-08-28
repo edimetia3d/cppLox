@@ -22,17 +22,17 @@ ErrCode Compiler::Compile(Scanner *scanner, Chunk *target) {
   return ErrCode::NO_ERROR;
 }
 void Compiler::Advance() {
-  parser_.previous = parser_.current;
+  parser_.current = parser_.next;
 
   for (;;) {
-    auto err = scanner_->ScanOne(&parser_.current);
+    auto err = scanner_->ScanOne(&parser_.next);
     if (err.NoError()) break;
 
-    errorAtCurrent(parser_.current->lexeme.c_str());
+    errorAtCurrent(parser_.next->lexeme.c_str());
   }
 }
 void Compiler::errorAtCurrent(const char *message) {
-  errorAt(parser_.current, message);
+  errorAt(parser_.next, message);
 }
 void Compiler::errorAt(Token token, const char *message) {
   if (parser_.panicMode) return;
@@ -43,7 +43,7 @@ void Compiler::errorAt(Token token, const char *message) {
   parser_.hadError = true;
 }
 void Compiler::Consume(TokenType type, const char *message) {
-  if (parser_.current->type == type) {
+  if (parser_.next->type == type) {
     Advance();
     return;
   }
@@ -53,10 +53,10 @@ void Compiler::Consume(TokenType type, const char *message) {
 Chunk *Compiler::CurrentChunk() { return current_trunk_; }
 void Compiler::endCompiler() { emitReturn(); }
 void Compiler::emitReturn() { emitOpCode(OpCode::OP_RETURN); }
-void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
+void Compiler::error(const char *message) { errorAt(parser_.current, message); }
 void Compiler::Expression(Precedence precedence) {
   Advance();
-  auto prefixRule = getRule(parser_.previous)->prefix;
+  auto prefixRule = getRule(parser_.current)->prefix;
   if (prefixRule == nullptr) {
     error("Expect expression.");
     return;
@@ -64,9 +64,9 @@ void Compiler::Expression(Precedence precedence) {
 
   prefixRule(this);
 
-  while (precedence <= getRule(parser_.current)->precedence) {
+  while (precedence <= getRule(parser_.next)->precedence) {
     Advance();
-    auto infixRule = getRule(parser_.previous)->infix;
+    auto infixRule = getRule(parser_.current)->infix;
     infixRule(this);
   }
 }
@@ -136,7 +136,7 @@ uint8_t Compiler::makeConstant(Value value) {
   return (uint8_t)constant;
 }
 void Compiler::unary() {
-  TokenType operatorType = parser_.previous->type;
+  TokenType operatorType = parser_.current->type;
 
   // Compile the operand.
   Expression(Precedence::PREC_UNARY);
@@ -151,7 +151,7 @@ void Compiler::unary() {
   }
 }
 void Compiler::binary() {
-  TokenType operatorType = parser_.previous->type;
+  TokenType operatorType = parser_.current->type;
   ParseRule *rule = getRule(operatorType);
   Expression((Precedence)((int)(rule->precedence) + 1));
 

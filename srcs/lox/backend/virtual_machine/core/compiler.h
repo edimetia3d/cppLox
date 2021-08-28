@@ -14,8 +14,8 @@ namespace lox {
 
 namespace vm {
 struct Parser {
-  Token previous;
   Token current;
+  Token next;
   bool hadError = false;
   bool panicMode = false;
 };
@@ -71,7 +71,7 @@ class Compiler {
   void error(const char* message);
   void errorAt(Token token, const char* message);
   void Consume(TokenType type, const char* message);
-  void emitByte(uint8_t byte) { CurrentChunk()->WriteUInt8(byte, parser_.previous->line); }
+  void emitByte(uint8_t byte) { CurrentChunk()->WriteUInt8(byte, parser_.current->line); }
   void emitBytes(OpCode byte1, uint8_t byte2);
   void emitOpCode(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
   Chunk* CurrentChunk();
@@ -83,7 +83,7 @@ class Compiler {
   uint8_t makeConstant(Value value);
   void emitConstant(Value value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
   void number() {
-    double value = std::stod(parser_.previous->lexeme);
+    double value = std::stod(parser_.current->lexeme);
     emitConstant(value);
   }
   void Expression(Precedence precedence);
