@@ -41,10 +41,13 @@ struct ParseRule {
   Precedence precedence;
 };
 
+/**
+ * Compiler is basically a Pratt Parser, which could generate an IR that can work directly with stack machine.
+ */
 class Compiler {
  public:
-  Compiler(Scanner& scanner) : scanner_(scanner) {}
-  ErrCode Compile(Chunk* target);
+  Compiler() = default;
+  ErrCode Compile(Scanner* scanner, Chunk* target);
 
  private:
   void Advance();
@@ -57,7 +60,7 @@ class Compiler {
   void emitOpCode(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
   Chunk* CurrentChunk();
   Parser parser_;
-  Scanner scanner_;
+  Scanner* scanner_;
   Chunk* current_trunk_;
   void endCompiler();
   void emitReturn();
@@ -75,6 +78,7 @@ class Compiler {
   void unary();
   void parsePrecedence(Precedence precedence);
   ParseRule* getRule(TokenType type);
+  ParseRule* getRule(Token token);
   void binary();
 };
 

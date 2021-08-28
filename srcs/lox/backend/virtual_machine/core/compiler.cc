@@ -9,23 +9,8 @@
 namespace lox {
 
 namespace vm {
-void DumpToken(Scanner &scanner) {
-  int line = -1;
-  Token token;
-  for (;;) {
-    scanner.ScanOne(&token);
-    if (token->line != line) {
-      printf("%4d ", token->line);
-      line = token->line;
-    } else {
-      printf("   | ");
-    }
-    printf("%2d '%.*s'\n", (int)token->type, (int)token->lexeme.size(), token->lexeme.c_str());
-
-    if (token->type == TokenType::EOF_TOKEN) break;
-  }
-}
-ErrCode Compiler::Compile(Chunk *target) {
+ErrCode Compiler::Compile(Scanner *scanner, Chunk *target) {
+  scanner_ = scanner;
   current_trunk_ = target;
   Advance();
   Expression();
@@ -40,7 +25,7 @@ void Compiler::Advance() {
   parser_.previous = parser_.current;
 
   for (;;) {
-    auto err = scanner_.ScanOne(&parser_.current);
+    auto err = scanner_->ScanOne(&parser_.current);
     if (err.NoError()) break;
 
     errorAtCurrent(parser_.current->lexeme.c_str());
@@ -78,7 +63,7 @@ void Compiler::error(const char *message) { errorAt(parser_.previous, message); 
 void Compiler::Expression() { parsePrecedence(Precedence::PREC_ASSIGNMENT); }
 void Compiler::parsePrecedence(Precedence precedence) {
   Advance();
-  auto prefixRule = getRule(parser_.previous->type)->prefix;
+  auto prefixRule = getRule(parser_.previous)->prefix;
   if (prefixRule == nullptr) {
     error("Expect expression.");
     return;
@@ -86,9 +71,9 @@ void Compiler::parsePrecedence(Precedence precedence) {
 
   prefixRule(this);
 
-  while (precedence <= getRule(parser_.current->type)->precedence) {
+  while (precedence <= getRule(parser_.current)->precedence) {
     Advance();
-    auto infixRule = getRule(parser_.previous->type)->infix;
+    auto infixRule = getRule(parser_.previous)->infix;
     infixRule(this);
   }
 }
@@ -194,5 +179,6 @@ void Compiler::binary() {
       return;  // Unreachable.
   }
 }
+ParseRule *Compiler::getRule(Token token) { return getRule(token->type); }
 }  // namespace vm
 }  // namespace lox

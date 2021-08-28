@@ -10,6 +10,9 @@
 namespace lox {
 namespace vm {
 
+/**
+ * A stack machine
+ */
 class VM {
  public:
   static VM *Instance();
