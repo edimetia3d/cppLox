@@ -25,6 +25,7 @@ class VM {
   uint8_t *ip_;
   Value stack_[VM_STACK_MAX];
   Value *sp_ = nullptr;
+  void DumpStack() const;
 };
 }  // namespace vm
 }  // namespace lox

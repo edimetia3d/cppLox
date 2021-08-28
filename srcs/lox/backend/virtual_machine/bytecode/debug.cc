@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/backend/virtual_machine/core/debug.h"
+#include "lox/backend/virtual_machine/bytecode/debug.h"
 
 #include "lox/backend/virtual_machine/common/clox_value.h"
 namespace lox {

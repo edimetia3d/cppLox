@@ -4,7 +4,6 @@
 
 #include "lox/backend/virtual_machine/core/vm.h"
 
-#include "lox/backend/virtual_machine/core/debug.h"
 
 namespace lox {
 namespace vm {
@@ -23,16 +22,15 @@ ErrCode VM::Run() {
   } while (false)
 
   auto ip = ip_;
+#ifdef DEBUG_TRACE_EXECUTION
+  int dbg_op_id = 0;
+  chunk_->DumpCode();
+  chunk_->DumpConstant();
+#endif
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-    printf("          ");
-    for (Value *slot = stack_; slot != sp_; ++slot) {
-      printf("[ ");
-      printValue(*slot);
-      printf(" ]");
-    }
-    printf("\n");
-    disassembleInstruction(chunk_, (int)(ip - chunk_->code.data()));
+    printf("---- CMD %d ----\n", dbg_op_id);
+    chunk_->DumpCode((int)(ip - chunk_->code.data()));
 #endif
     OpCode instruction;
     switch (instruction = static_cast<OpCode>(READ_BYTE())) {
@@ -58,11 +56,16 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_RETURN: {
+        DPRINTF("Return with: ");
         printValue(Pop());
         printf("\n");
         goto EXIT;
       }
     }
+#ifdef DEBUG_TRACE_EXECUTION
+    DumpStack();
+    ++dbg_op_id;
+#endif
   }
 EXIT:
   ip_ = ip;
@@ -70,6 +73,15 @@ EXIT:
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef BINARY_OP
+}
+void VM::DumpStack() const {
+  printf("Stack:");
+  for (const Value *slot = stack_; slot != sp_; ++slot) {
+    printf("[ ");
+    printValue(*slot);
+    printf(" ]");
+  }
+  printf("\n");
 }
 void VM::ResetStack() { sp_ = stack_; }
 void VM::Push(Value value) { *sp_++ = value; }

@@ -30,6 +30,9 @@ struct Chunk {
   void WriteUInt8(uint8_t data, int line_number);
   int ChunkSize();
   int addConstant(Value value);
+  void DumpCode();
+  void DumpCode(int offset);
+  void DumpConstant();
 };
 }  // namespace vm
 }  // namespace lox
