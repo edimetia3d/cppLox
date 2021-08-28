@@ -13,7 +13,7 @@ ErrCode Compiler::Compile(Scanner *scanner, Chunk *target) {
   scanner_ = scanner;
   current_trunk_ = target;
   Advance();
-  Expression();
+  Expression(Precedence::PREC_ASSIGNMENT);
   Consume(TokenType::EOF_TOKEN, "Expect end of expression.");
   endCompiler();
   if (parser_.hadError) {
@@ -32,19 +32,13 @@ void Compiler::Advance() {
   }
 }
 void Compiler::errorAtCurrent(const char *message) {
-  if (parser_.panicMode) return;
   errorAt(parser_.current, message);
 }
 void Compiler::errorAt(Token token, const char *message) {
+  if (parser_.panicMode) return;
   parser_.panicMode = true;
   fprintf(stderr, "[line %d] Error", token->line);
-
-  if (token->type == TokenType::EOF_TOKEN) {
-    fprintf(stderr, " at end");
-  } else {
-    fprintf(stderr, " at '%.*s'", (int)token->lexeme.size(), token->lexeme.c_str());
-  }
-
+  fprintf(stderr, " at '%.*s'", (int)token->lexeme.size(), token->lexeme.c_str());
   fprintf(stderr, ": %s\n", message);
   parser_.hadError = true;
 }
@@ -60,8 +54,7 @@ Chunk *Compiler::CurrentChunk() { return current_trunk_; }
 void Compiler::endCompiler() { emitReturn(); }
 void Compiler::emitReturn() { emitOpCode(OpCode::OP_RETURN); }
 void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
-void Compiler::Expression() { parsePrecedence(Precedence::PREC_ASSIGNMENT); }
-void Compiler::parsePrecedence(Precedence precedence) {
+void Compiler::Expression(Precedence precedence) {
   Advance();
   auto prefixRule = getRule(parser_.previous)->prefix;
   if (prefixRule == nullptr) {
@@ -146,7 +139,7 @@ void Compiler::unary() {
   TokenType operatorType = parser_.previous->type;
 
   // Compile the operand.
-  parsePrecedence(Precedence::PREC_UNARY);
+  Expression(Precedence::PREC_UNARY);
 
   // Emit the operator instruction.
   switch (operatorType) {
@@ -160,7 +153,7 @@ void Compiler::unary() {
 void Compiler::binary() {
   TokenType operatorType = parser_.previous->type;
   ParseRule *rule = getRule(operatorType);
-  parsePrecedence((Precedence)((int)(rule->precedence) + 1));
+  Expression((Precedence)((int)(rule->precedence) + 1));
 
   switch (operatorType) {
     case TokenType::PLUS:

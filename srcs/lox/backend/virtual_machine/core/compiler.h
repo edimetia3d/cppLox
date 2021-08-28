@@ -70,13 +70,12 @@ class Compiler {
     double value = std::stod(parser_.previous->lexeme);
     emitConstant(value);
   }
-  void Expression();
+  void Expression(Precedence precedence);
   void grouping() {
-    Expression();
+    Expression(Precedence::PREC_ASSIGNMENT);
     Consume(TokenType::LEFT_PAREN, "Expect ')' after expression.");
   }
   void unary();
-  void parsePrecedence(Precedence precedence);
   ParseRule* getRule(TokenType type);
   ParseRule* getRule(Token token);
   void binary();
