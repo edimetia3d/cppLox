@@ -51,6 +51,6 @@ LoxError LoxInterpreter::Eval(const std::string &code) {
   return back_end_->Run(scanner);
 }
 LoxInterpreter::LoxInterpreter(const std::string &backend_name) {
-  back_end_ = BackEnd::CreateBackEnd(GlobalSetting().default_backend);
+  back_end_ = BackEnd::CreateBackEnd(GlobalSetting().backend);
 }
 }  // namespace lox
