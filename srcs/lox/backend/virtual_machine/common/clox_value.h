@@ -4,13 +4,37 @@
 
 #ifndef CLOX_SRCS_CLOX_CLOX_VALUE_H_
 #define CLOX_SRCS_CLOX_CLOX_VALUE_H_
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
+
 namespace lox {
 namespace vm {
+enum class ValueType { NIL, NUMBER, BOOL };
+struct Value {
+  Value() : type(ValueType::NIL), as{.number = 0} {};
+  explicit Value(double number) : type(ValueType::NUMBER), as{.number = number} {}
+  explicit Value(bool boolean) : type(ValueType::BOOL), as{.boolean = boolean} {}
+  bool AsBool() const {
+    assert(IsBool());
+    return as.boolean;
+  };
+  double AsNumber() const {
+    assert(IsNumber());
+    return as.number;
+  };
+  bool IsNil() const { return type == ValueType::NIL; }
+  bool IsBool() const { return type == ValueType::BOOL; }
+  bool IsNumber() const { return type == ValueType::NUMBER; }
+  ValueType Type() const { return type; }
 
-using Value = double;
-
-Value printValue(const Value &value);
+ private:
+  ValueType type;
+  union {
+    bool boolean;
+    double number;
+  } as;
+};
+void printValue(const Value &value);
 }  // namespace vm
 }  // namespace lox
 #endif  // CLOX_SRCS_CLOX_CLOX_VALUE_H_

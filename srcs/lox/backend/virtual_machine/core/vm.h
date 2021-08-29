@@ -23,12 +23,14 @@ class VM {
   VM() { ResetStack(); }
   ErrCode Run();
   void Push(Value value);
+  Value Peek(int distance = 0);
   Value Pop();
   Chunk *chunk_;
   uint8_t *ip_;
   Value stack_[VM_STACK_MAX];
   Value *sp_ = nullptr;
   void DumpStack() const;
+  void runtimeError(const char *format, ...);
 };
 }  // namespace vm
 }  // namespace lox

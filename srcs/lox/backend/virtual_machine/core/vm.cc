@@ -4,6 +4,7 @@
 
 #include "lox/backend/virtual_machine/core/vm.h"
 
+#include <stdarg.h>
 
 namespace lox {
 namespace vm {
@@ -12,16 +13,24 @@ VM *VM::Instance() {
   return &object;
 }
 ErrCode VM::Run() {
-#define READ_BYTE() (*ip++)
+#define READ_BYTE() (*ip_++)
+#define CHEK_STACK_TOP_TYPE(TYPE)                   \
+  do {                                              \
+    if (!Peek().Is##TYPE()) {                       \
+      runtimeError("Operand must be a " #TYPE "."); \
+      return ErrCode::INTERPRET_RUNTIME_ERROR;      \
+    }                                               \
+  } while (0)
 #define READ_CONSTANT() (chunk_->constants[READ_BYTE()])
-#define BINARY_OP(op) \
-  do {                \
-    double b = Pop(); \
-    double a = Pop(); \
-    Push(a op b);     \
+#define BINARY_OP(OutputT, op)                                       \
+  do {                                                               \
+    CHEK_STACK_TOP_TYPE(Number);                                     \
+    Value b = Pop();                                                 \
+    CHEK_STACK_TOP_TYPE(Number);                                     \
+    Value a = Pop();                                                 \
+    Push(Value(static_cast<OutputT>(a.AsNumber() op b.AsNumber()))); \
   } while (false)
 
-  auto ip = ip_;
 #ifdef DEBUG_TRACE_EXECUTION
   int dbg_op_id = 0;
   chunk_->DumpCode();
@@ -30,7 +39,7 @@ ErrCode VM::Run() {
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
     printf("---- CMD %d ----\n", dbg_op_id);
-    chunk_->DumpCode((int)(ip - chunk_->code.data()));
+    chunk_->DumpCode((int)(ip_ - chunk_->code.data()));
 #endif
     OpCode instruction;
     switch (instruction = static_cast<OpCode>(READ_BYTE())) {
@@ -40,19 +49,20 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_ADD:
-        BINARY_OP(+);
+        BINARY_OP(double, +);
         break;
       case OpCode::OP_SUBTRACT:
-        BINARY_OP(-);
+        BINARY_OP(double, -);
         break;
       case OpCode::OP_MULTIPLY:
-        BINARY_OP(*);
+        BINARY_OP(double, *);
         break;
       case OpCode::OP_DIVIDE:
-        BINARY_OP(/);
+        BINARY_OP(double, /);
         break;
       case OpCode::OP_NEGATE: {
-        Push(-Pop());
+        CHEK_STACK_TOP_TYPE(Number);
+        Push(Value(-Pop().AsNumber()));
         break;
       }
       case OpCode::OP_RETURN: {
@@ -68,7 +78,6 @@ ErrCode VM::Run() {
 #endif
   }
 EXIT:
-  ip_ = ip;
   return ErrCode::NO_ERROR;
 #undef READ_BYTE
 #undef READ_CONSTANT
@@ -90,6 +99,22 @@ ErrCode VM::Interpret(Chunk *chunk) {
   chunk_ = chunk;
   ip_ = chunk_->code.data();
   return Run();
+}
+void VM::runtimeError(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+  fputs("\n", stderr);
+
+  size_t instruction = ip_ - chunk_->code.data() - 1;
+  int line = chunk_->lines[instruction];
+  fprintf(stderr, "[line %d] in script\n", line);
+  ResetStack();
+}
+Value VM::Peek(int distance) {
+  assert(distance > 0);
+  return *(sp_ - distance);
 }
 }  // namespace vm
 }  // namespace lox
