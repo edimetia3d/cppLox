@@ -48,6 +48,27 @@ ErrCode VM::Run() {
         Push(constant);
         break;
       }
+      case OpCode::OP_NIL:
+        Push(Value());
+        break;
+      case OpCode::OP_TRUE:
+        Push(Value(true));
+        break;
+      case OpCode::OP_FALSE:
+        Push(Value(false));
+        break;
+      case OpCode::OP_EQUAL: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(Value(a.Equal(b)));
+        break;
+      }
+      case OpCode::OP_GREATER:
+        BINARY_OP(bool, >);
+        break;
+      case OpCode::OP_LESS:
+        BINARY_OP(bool, <);
+        break;
       case OpCode::OP_ADD:
         BINARY_OP(double, +);
         break;
@@ -59,6 +80,9 @@ ErrCode VM::Run() {
         break;
       case OpCode::OP_DIVIDE:
         BINARY_OP(double, /);
+        break;
+      case OpCode::OP_NOT:
+        Push(Value(!Pop().IsTrue()));
         break;
       case OpCode::OP_NEGATE: {
         CHEK_STACK_TOP_TYPE(Number);
@@ -113,8 +137,8 @@ void VM::runtimeError(const char *format, ...) {
   ResetStack();
 }
 Value VM::Peek(int distance) {
-  assert(distance > 0);
-  return *(sp_ - distance);
+  assert(distance >= 0);
+  return *(sp_ - distance - 1);
 }
 }  // namespace vm
 }  // namespace lox

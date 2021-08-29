@@ -13,10 +13,12 @@ LoxError VirtualMachine::Run(Scanner& scanner) {
   Chunk chunk;
   ErrCode err_code = ErrCode::NO_ERROR;
   if ((err_code = compiler.Compile(&scanner, &chunk)) != ErrCode::NO_ERROR) {
-    return LoxError("Compiler Error:: " + std::to_string(static_cast<int>(err_code)));
+    return LoxError("Compiler Error: " + std::to_string(static_cast<int>(err_code)));
   }
   auto vm = VM::Instance();
-  vm->Interpret(&chunk);
+  if ((err_code = vm->Interpret(&chunk)) != ErrCode::NO_ERROR) {
+    return LoxError("Runtime Error: " + std::to_string(static_cast<int>(err_code)));
+  }
   return LoxError();
 }
 }  // namespace vm

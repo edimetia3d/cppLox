@@ -26,6 +26,21 @@ struct Value {
   bool IsBool() const { return type == ValueType::BOOL; }
   bool IsNumber() const { return type == ValueType::NUMBER; }
   ValueType Type() const { return type; }
+  bool Equal(Value rhs) {
+    if (type != rhs.type) return false;
+    switch (type) {
+      case ValueType::BOOL:
+        return AsBool() == rhs.AsBool();
+      case ValueType::NIL:
+        return true;
+      case ValueType::NUMBER:
+        return AsNumber() == rhs.AsNumber();
+      default:
+        return false;  // Unreachable.
+    }
+  }
+
+  bool IsTrue() { return !IsNil() && as.number; }
 
  private:
   ValueType type;

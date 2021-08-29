@@ -75,6 +75,7 @@ class Compiler {
   void emitByte(uint8_t byte) { CurrentChunk()->WriteUInt8(byte, parser_.current->line); }
   void emitBytes(OpCode byte1, uint8_t byte2);
   void emitOpCode(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
+  void emitOpCodes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
   Chunk* CurrentChunk();
   Parser parser_;
   Scanner* scanner_;
@@ -98,9 +99,10 @@ class Compiler {
   void Expression(OperatorType operator_type);
   void grouping() {
     Expression(OperatorType::ASSIGNMENT);
-    Consume(TokenType::LEFT_PAREN, "Expect ')' after expression.");
+    Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
   }
   void unary();
+  void literal();
   friend std::vector<ParseRule> BuildRuleMap();
   ParseRule* getRule(TokenType type);
   ParseRule* getRule(Token token);
