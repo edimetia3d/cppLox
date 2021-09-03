@@ -21,17 +21,18 @@ struct CustomVec {
 
   void push_back(const T &value) { push_buffer(&value, 1); }
 
-  int size() { return element_count_; }
+  int size() const { return element_count_; }
   int byte_size() { return element_count_ * sizeof(T); }
 
   T &operator[](int index) { return buffer_[index]; }
 
   T *data();
-
+  const T *data() const;
   ~CustomVec();
+  bool operator==(const CustomVec &rhs) const;
 
  private:
-  void grow_capacity();
+  void grow_capacity(int min_size);
   int element_count_ = 0;
   int element_capacity_ = SmallOpt;
   T *buffer_ = nullptr;
@@ -39,10 +40,9 @@ struct CustomVec {
 };
 
 template <class T, int SmallOpt>
-void CustomVec<T, SmallOpt>::grow_capacity() {
+void CustomVec<T, SmallOpt>::grow_capacity(int min_size) {
   int old_capacity_ = element_capacity_;
-  constexpr int MINSIZE = (SmallOpt == 0 ? 8 : SmallOpt);
-  element_capacity_ = (element_capacity_ < MINSIZE ? MINSIZE : element_capacity_ * 2);
+  element_capacity_ = ((min_size + 7) / 8) * 16;
   if (buffer_ && buffer_ == small_opt_buffer_) {
     buffer_ = nullptr;
   }
@@ -58,13 +58,34 @@ template <class T, int SmallOpt>
 T *CustomVec<T, SmallOpt>::data() {
   return buffer_;
 }
+
+template <class T, int SmallOpt>
+const T *CustomVec<T, SmallOpt>::data() const {
+  return buffer_;
+}
+
 template <class T, int SmallOpt>
 void CustomVec<T, SmallOpt>::push_buffer(const T *bytes_buffer, int n) {
   if ((element_count_ + n) > element_capacity_) {
-    grow_capacity();
+    grow_capacity(element_count_ + n);
   }
   memcpy(buffer_ + element_count_, bytes_buffer, n * sizeof(T));
   element_count_ += n;
+}
+template <class T, int SmallOpt>
+bool CustomVec<T, SmallOpt>::operator==(const CustomVec &rhs) const {
+  if (&rhs == this) {
+    return true;
+  }
+  if (rhs.size() != size()) {
+    return false;
+  }
+  for (int i = 0; i < size(); ++i) {
+    if (rhs.buffer_[i] != buffer_[i]) {
+      return false;
+    }
+  }
+  return true;
 }
 }  // namespace vm
 }  // namespace lox

@@ -7,7 +7,7 @@ namespace lox {
 
 namespace vm {
 
-void printValue(const Value &value) {
+void printValue(const Value& value) {
 #define q_printf(...)  \
   printf(__VA_ARGS__); \
   break
@@ -18,6 +18,9 @@ void printValue(const Value &value) {
       q_printf("%f", value.AsNumber());
     case ValueType::NIL:
       q_printf("nil");
+    case ValueType::OBJ:
+      value.AsObj()->Print();
+      break;
     default:
       q_printf("Unkown types");
   }

@@ -99,7 +99,7 @@ std::vector<ParseRule> BuildRuleMap() {
       RULE_ITEM(LESS         , nullptr    , M(binary)  , COMPARISON),
       RULE_ITEM(LESS_EQUAL   , nullptr    , M(binary)  , COMPARISON),
       RULE_ITEM(IDENTIFIER   , nullptr    , nullptr  , NONE),
-      RULE_ITEM(STRING       , nullptr    , nullptr  , NONE),
+      RULE_ITEM(STRING       , M(string)    , nullptr  , NONE),
       RULE_ITEM(NUMBER       , M(number)  , nullptr  , NONE),
       RULE_ITEM(AND          , nullptr    , nullptr  , NONE),
       RULE_ITEM(CLASS        , nullptr    , nullptr  , NONE),
@@ -217,6 +217,9 @@ void Compiler::literal() {
     default:
       return;  // Unreachable.
   }
+}
+void Compiler::string() {
+  emitConstant(Value(ObjString::Make(parser_.current->lexeme.c_str() + 1, parser_.current->lexeme.size() - 2)));
 }
 }  // namespace vm
 }  // namespace lox

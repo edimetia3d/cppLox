@@ -39,8 +39,8 @@ static inline Token MakeToken(const TokenType& type, const std::string& lexeme, 
 }
 
 template <size_t N>
-struct StringLiteral {
-  constexpr StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
+struct _StringLiteral {
+  constexpr _StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
 
   char value[N];
 };
@@ -49,7 +49,7 @@ struct StringLiteral {
  * Note: only class LoxInterpreter will handle Errors, all other class only generate
  * errors, and return `PrefixTokenError` to the caller.
  */
-template <StringLiteral name>
+template <_StringLiteral name>
 class PrefixTokenError : public LoxError {
  public:
   explicit PrefixTokenError(const Token& token, const std::string& message);
@@ -58,7 +58,7 @@ class PrefixTokenError : public LoxError {
  private:
   Token token_ = MakeToken(TokenType::_TOKEN_COUNT_NUMBER, "None", -1);
 };
-template <StringLiteral name>
+template <_StringLiteral name>
 PrefixTokenError<name>::PrefixTokenError(const Token& token, const std::string& message)
     : LoxError(name.value + token->Str() + " what(): " + message) {}
 

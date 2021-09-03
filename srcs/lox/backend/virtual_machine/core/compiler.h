@@ -107,6 +107,7 @@ class Compiler {
   ParseRule* getRule(TokenType type);
   ParseRule* getRule(Token token);
   void binary();
+  void string();
 };
 
 }  // namespace vm
