@@ -43,10 +43,19 @@ struct ObjString : public Obj {
     ret->data.push_back('\0');
     return ret;
   }
+  static ObjString* Concat(const ObjString* lhs, const ObjString* rhs) {
+    auto ret = new ObjString;
+    ret->type = TYPE_ID;
+    ret->data.reserve(lhs->size() + rhs->size());
+    ret->data.push_buffer(lhs->c_str(), lhs->size());
+    ret->data.push_buffer(rhs->c_str(), rhs->size());
+    ret->data.push_back('\0');
+    return ret;
+  }
   CustomVec<char> data;
   char* c_str() { return data.data(); }
   [[nodiscard]] const char* c_str() const { return data.data(); }
-  int size() {
+  int size() const {
     return data.size() - 1;  // this is a c style str
   }
 };

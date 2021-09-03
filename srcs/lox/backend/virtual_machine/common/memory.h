@@ -31,6 +31,12 @@ struct CustomVec {
   ~CustomVec();
   bool operator==(const CustomVec &rhs) const;
 
+  void reserve(int min_size) {
+    if (min_size >= element_capacity_) {
+      grow_capacity(min_size);
+    }
+  }
+
  private:
   void grow_capacity(int min_size);
   int element_count_ = 0;

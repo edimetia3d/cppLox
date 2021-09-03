@@ -70,7 +70,18 @@ ErrCode VM::Run() {
         BINARY_OP(bool, <);
         break;
       case OpCode::OP_ADD:
-        BINARY_OP(double, +);
+        if (Peek().IsNumber() && Peek(1).IsNumber()) {
+          Value b = Pop();
+          Value a = Pop();
+          Push(Value(static_cast<double>(a.AsNumber() + b.AsNumber())));
+        } else if (Peek().IsObj() && Peek(1).IsObj()) {
+          Value b = Pop();
+          Value a = Pop();
+          Push(Value(ObjString::Concat(a.AsObj()->As<ObjString>(), b.AsObj()->As<ObjString>())));
+        } else {
+          runtimeError("Add only support string and number.");
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
         break;
       case OpCode::OP_SUBTRACT:
         BINARY_OP(double, -);
