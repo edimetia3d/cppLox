@@ -116,6 +116,8 @@ void lox::Parser::Synchronize() {
       case TokenType::PRINT:
       case TokenType::RETURN:
         return;
+      default:
+        break;
     }
 
     Advance();

@@ -13,7 +13,7 @@ class Clock : public LoxCallable {
   using ClockDummyData = int;
   using RawValueT = ClockDummyData;
   int Arity() override { return 0; }
-  object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) {
+  object::LoxObject Call(Evaluator* evaluator, std::vector<object::LoxObject> arguments) override {
     double clk = clock();
     object::LoxObject();
     return object::MakeLoxObject(clk);
