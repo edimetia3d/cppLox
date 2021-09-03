@@ -31,6 +31,7 @@ class VM {
   Value *sp_ = nullptr;
   void DumpStack() const;
   void runtimeError(const char *format, ...);
+  ~VM();
 };
 }  // namespace vm
 }  // namespace lox

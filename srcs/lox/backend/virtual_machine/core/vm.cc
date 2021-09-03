@@ -151,5 +151,17 @@ Value VM::Peek(int distance) {
   assert(distance >= 0);
   return *(sp_ - distance - 1);
 }
+VM::~VM() {
+  auto p = Obj::AllCreatedObj().Head();
+  int count = 0;
+  while (p) {
+    ++count;
+    Obj::Destroy(p->val);
+    p = p->next;
+  }
+  if (count) {
+    printf("VM destroyed %d CLoxObject at exit.\n", count);
+  }
+}
 }  // namespace vm
 }  // namespace lox
