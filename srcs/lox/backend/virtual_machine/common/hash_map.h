@@ -7,55 +7,55 @@
 #include "lox/backend/virtual_machine/common/buffer.h"
 namespace lox {
 namespace vm {
-template <class KeyT, class ValueT, uint32_t HashFn(KeyT), KeyT FREE_TO_USE_MARK, ValueT TOMBSTONE_MARK>
+template <class KeyT, class ValueT, uint32_t HashFn(KeyT)>
 class HashMap {
+ private:
+  enum class EntryMark { FREE_TO_USE_MARK, TOMBSTONE_MARK, USED_MARK };
+
  public:
   struct Entry {
-    KeyT key = FREE_TO_USE_MARK;
+    KeyT key;
     ValueT value;
-    bool IsFreeToUse() { return key == FREE_TO_USE_MARK; }
-    bool IsTombStone() { return key == FREE_TO_USE_MARK && value == TOMBSTONE_MARK; }
-    bool MarkTomb() {
-      key = FREE_TO_USE_MARK;
-      value = TOMBSTONE_MARK;
-    }
+    EntryMark mark = EntryMark::FREE_TO_USE_MARK;
+    bool IsFreeToUse() { return mark == EntryMark::FREE_TO_USE_MARK || mark == EntryMark::TOMBSTONE_MARK; }
+    bool IsTombStone() { return mark == EntryMark::TOMBSTONE_MARK; }
+    void MarkTomb() { mark = EntryMark::TOMBSTONE_MARK; }
   };
 
   HashMap(int capacity) : capacity(capacity) {
     entries.reserve(capacity);
     for (int i = 0; i < capacity; ++i) {
-      entries[i].key = FREE_TO_USE_MARK;
-      assert(entries[i].value != TOMBSTONE_MARK);
+      entries[i].mark = EntryMark::FREE_TO_USE_MARK;
     }
   }
 
   bool Set(KeyT key, ValueT value) {
-    assert(key != FREE_TO_USE_MARK);
-    assert(value != TOMBSTONE_MARK);
     if ((count + 1) > (capacity * TABLE_MAX_LOAD)) {
       AdJustCapacity(capacity * 2);
     }
-    Entry* entry = FindInsertEntry();
+    Entry* entry = FindInsertEntry(key);
     bool new_key_insert = entry->IsFreeToUse();
     if (new_key_insert && !entry->IsTombStone()) count++;
 
     entry->key = key;
     entry->value = value;
+    entry->mark = EntryMark::USED_MARK;
     return new_key_insert;
   }
-  bool Get(KeyT key, ValueT* value) {
-    assert(key != FREE_TO_USE_MARK);
+  bool Get(KeyT key, Entry* entry_find = nullptr) {
     if (count == 0) return false;
 
     Entry* entry = FindInsertEntry(key);
     if (entry->IsFreeToUse()) return false;
 
-    *value = entry->value;
+    if (entry_find) {
+      *entry_find = *entry;
+    }
+
     return true;
   }
 
   bool Del(KeyT key) {
-    assert(key != FREE_TO_USE_MARK);
     Entry* entry = FindInsertEntry(key);
     if (!entry->IsFreeToUse()) {
       entry->MarkTomb();
@@ -83,7 +83,7 @@ class HashMap {
     }
     *this = std::move(tmp);
   }
-  Entry FindInsertEntry(KeyT key) {
+  Entry* FindInsertEntry(KeyT key) {
     uint32_t index = HashFn(key) % capacity;
     Entry* tombstone = nullptr;
     for (;;) {
@@ -93,7 +93,7 @@ class HashMap {
       } else {
         if ((entry->IsFreeToUse())) {
           if (entry->IsTombStone()) {
-            tombstone = entry;
+            tombstone = tombstone ? tombstone : entry;  // only use first tombstone
           } else {
             return tombstone ? tombstone : entry;
           }

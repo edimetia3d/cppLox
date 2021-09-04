@@ -77,7 +77,8 @@ ErrCode VM::Run() {
         } else if (Peek().IsObj() && Peek(1).IsObj()) {
           Value b = Pop();
           Value a = Pop();
-          Push(Value(ObjString::Concat(a.AsObj()->As<ObjString>(), b.AsObj()->As<ObjString>())));
+          Push(
+              Value(ObjInternedString::Concat(a.AsObj()->As<ObjInternedString>(), b.AsObj()->As<ObjInternedString>())));
         } else {
           runtimeError("Add only support string and number.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;

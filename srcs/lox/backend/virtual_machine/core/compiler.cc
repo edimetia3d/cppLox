@@ -219,7 +219,7 @@ void Compiler::literal() {
   }
 }
 void Compiler::string() {
-  emitConstant(Value(Obj::Make<ObjString>(parser_.current->lexeme.c_str() + 1, parser_.current->lexeme.size() - 2)));
+  emitConstant(Value(ObjInternedString::Make(parser_.current->lexeme.c_str() + 1, parser_.current->lexeme.size() - 2)));
 }
 }  // namespace vm
 }  // namespace lox

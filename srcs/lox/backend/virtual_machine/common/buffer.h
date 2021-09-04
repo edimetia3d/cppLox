@@ -21,9 +21,11 @@ template <TrivialCopyable T, int SmallOpt = 128 / sizeof(T)>
 struct Buffer {
   Buffer() { state_.buffer = state_.small_opt_buffer; }
   Buffer(const Buffer &) = delete;
-  Buffer(Buffer &&rhs) {
+  Buffer(Buffer &&rhs) noexcept { *this = std::move(rhs); }
+  Buffer &operator=(Buffer &&rhs) noexcept {
     state_ = rhs.state_;
     rhs.state_.buffer = nullptr;
+    return *this;
   }
   void push_buffer(const T *bytes_buffer, int n);
 
