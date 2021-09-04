@@ -4,9 +4,9 @@
 
 #ifndef CLOX_SRCS_CLOX_CHUNK_H_
 #define CLOX_SRCS_CLOX_CHUNK_H_
+#include "lox/backend/virtual_machine/common/buffer.h"
 #include "lox/backend/virtual_machine/common/clox_value.h"
 #include "lox/backend/virtual_machine/common/common.h"
-#include "lox/backend/virtual_machine/common/vector.h"
 
 namespace lox {
 namespace vm {
@@ -29,9 +29,9 @@ enum class OpCode : uint8_t {
 };
 
 struct Chunk {
-  Vector<uint8_t, 0> code;
-  Vector<Value, 0> constants;
-  Vector<int, 0> lines;
+  Buffer<uint8_t, 0> code;
+  Buffer<Value, 0> constants;
+  Buffer<int, 0> lines;
 
   void WriteOpCode(OpCode opcode, int line_number);
   void WriteUInt8(uint8_t data, int line_number);

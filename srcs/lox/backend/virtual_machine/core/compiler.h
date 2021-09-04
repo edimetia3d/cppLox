@@ -9,6 +9,7 @@
 
 #include "lox/backend/virtual_machine/bytecode/chunk.h"
 #include "lox/backend/virtual_machine/common/err_code.h"
+#include "lox/backend/virtual_machine/common/hash_map.h"
 #include "lox/frontend/scanner.h"
 namespace lox {
 

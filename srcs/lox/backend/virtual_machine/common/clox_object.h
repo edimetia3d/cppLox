@@ -6,8 +6,8 @@
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_CLOX_OBJECT_H_
 #include <cassert>
 
+#include "lox/backend/virtual_machine/common/buffer.h"
 #include "lox/backend/virtual_machine/common/link_list.h"
-#include "lox/backend/virtual_machine/common/vector.h"
 namespace lox {
 namespace vm {
 
@@ -63,7 +63,7 @@ struct ObjString : public Obj {
     data.push_back('\0');
     UpdateHash();
   }
-  Vector<char> data;
+  Buffer<char> data;
   char* c_str() { return data.data(); }
   [[nodiscard]] const char* c_str() const { return data.data(); }
   int size() const {
