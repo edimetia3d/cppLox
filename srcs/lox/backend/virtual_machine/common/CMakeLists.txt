@@ -1,2 +1,2 @@
 
-add_library(common common.h memory.cc clox_value.cc clox_object.cc)
+add_library(common common.h vector.cc clox_value.cc clox_object.cc)

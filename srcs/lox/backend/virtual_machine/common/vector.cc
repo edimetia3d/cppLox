@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/backend/virtual_machine/common/memory.h"
+#include "lox/backend/virtual_machine/common/vector.h"
 namespace lox {
 namespace vm {
 void *reallocate(void *buffer, int old_size, int new_size) {
