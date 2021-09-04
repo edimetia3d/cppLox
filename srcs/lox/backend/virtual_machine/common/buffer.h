@@ -42,6 +42,8 @@ struct Buffer {
 
   T &operator[](int index) { return state_.buffer[index]; }
 
+  const T &operator[](int index) const { return state_.buffer[index]; }
+
   T *data();
   const T *data() const;
   ~Buffer();

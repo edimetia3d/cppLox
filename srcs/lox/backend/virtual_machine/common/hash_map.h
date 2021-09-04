@@ -17,8 +17,8 @@ class HashMap {
     KeyT key;
     ValueT value;
     EntryMark mark = EntryMark::FREE_TO_USE_MARK;
-    bool IsFreeToUse() { return mark == EntryMark::FREE_TO_USE_MARK || mark == EntryMark::TOMBSTONE_MARK; }
-    bool IsTombStone() { return mark == EntryMark::TOMBSTONE_MARK; }
+    bool IsFreeToUse() const { return mark == EntryMark::FREE_TO_USE_MARK || mark == EntryMark::TOMBSTONE_MARK; }
+    bool IsTombStone() const { return mark == EntryMark::TOMBSTONE_MARK; }
     void MarkTomb() { mark = EntryMark::TOMBSTONE_MARK; }
   };
 
@@ -42,17 +42,13 @@ class HashMap {
     entry->mark = EntryMark::USED_MARK;
     return new_key_insert;
   }
-  bool Get(KeyT key, Entry* entry_find = nullptr) {
-    if (count == 0) return false;
+  Entry* Get(KeyT key) {
+    if (count == 0) return nullptr;
 
     Entry* entry = FindInsertEntry(key);
-    if (entry->IsFreeToUse()) return false;
+    if (entry->IsFreeToUse()) return nullptr;
 
-    if (entry_find) {
-      *entry_find = *entry;
-    }
-
-    return true;
+    return entry;
   }
 
   bool Del(KeyT key) {
@@ -76,11 +72,7 @@ class HashMap {
  private:
   void AdJustCapacity(int new_capacity) {
     HashMap tmp(new_capacity);
-    for (int i = 0; i < capacity; ++i) {
-      if (!entries[i].IsFreeToUse()) {
-        tmp.Set(entries[i].key, entries[i].value);
-      }
-    }
+    tmp.Merge(*this);
     *this = std::move(tmp);
   }
   Entry* FindInsertEntry(KeyT key) {

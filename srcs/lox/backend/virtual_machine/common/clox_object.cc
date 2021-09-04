@@ -54,11 +54,10 @@ ObjInternedString *ObjInternedString::Concat(const ObjInternedString *lhs, const
   buf.push_buffer(lhs->c_str(), lhs->size());
   buf.push_buffer(rhs->c_str(), rhs->size());
   buf.push_back('\0');
-  InternMap::Entry entry;
   InternView view{.data = buf.data(), .hash = fnv_1a((uint8_t *)buf.data(), buf.size() - 1), .size = (buf.size() - 1)};
-  bool found = GetInternMap().Get(view, &entry);
-  if (found) {
-    return entry.value;
+  auto entry = GetInternMap().Get(view);
+  if (entry) {
+    return entry->value;
   } else {
     return new ObjInternedString(std::move(buf));
   }
@@ -91,11 +90,10 @@ ObjInternedString::InternMap &ObjInternedString::GetInternMap() {
   return interning_map;
 }
 ObjInternedString *ObjInternedString::Make(const char *data, int size) {
-  InternMap::Entry entry;
   InternView view{.data = data, .hash = fnv_1a((uint8_t *)data, size), .size = size};
-  bool found = GetInternMap().Get(view, &entry);
-  if (found) {
-    return entry.value;
+  auto entry = GetInternMap().Get(view);
+  if (entry) {
+    return entry->value;
   } else {
     return new ObjInternedString(data, size);
   }
