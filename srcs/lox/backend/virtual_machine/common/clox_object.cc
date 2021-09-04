@@ -35,11 +35,24 @@ LinkList<Obj *> &Obj::AllCreatedObj() {
   static LinkList<Obj *> ret;
   return ret;
 }
+uint32_t ObjString::UpdateHash() {
+  // FNV hash
+  uint32_t new_hash = 2166136261u;
+  for (int i = 0; i < size(); i++) {
+    new_hash ^= (uint8_t)data[i];
+    new_hash *= 16777619;
+  }
+  hash = new_hash;
+  return new_hash;
+}
+
 void Obj::Destroy(Obj *obj) {
   switch (obj->type) {
     case ObjType::OBJ_STRING:
       delete obj->As<ObjString>();
       break;
+    default:
+      printf("Destroying Unknown Type.\n");
   }
 }
 }  // namespace vm

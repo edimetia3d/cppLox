@@ -11,15 +11,12 @@
 namespace lox {
 namespace vm {
 
-#define CLOX_OBJ_HEAP_ONLY(CLASS_NAME) \
- protected:                            \
-  CLASS_NAME() = default;              \
-  friend struct Obj;
 
 enum class ObjType { UNKNOWN, OBJ_STRING };
 
 struct Obj {
   ObjType type;
+  uint32_t hash;
 
   template <class T, class... Args>
   static T* Make(Args... args) {
@@ -49,20 +46,22 @@ struct Obj {
   static LinkList<Obj*>& AllCreatedObj();
 
  protected:
-  Obj() : type(ObjType::UNKNOWN) { AllCreatedObj().Insert(this); };
+  Obj(uint32_t hash) : type(ObjType::UNKNOWN), hash(hash) { AllCreatedObj().Insert(this); };
 };
 
 struct ObjString : public Obj {
   constexpr static ObjType TYPE_ID = ObjType::OBJ_STRING;
 
   static ObjString* Concat(const ObjString* lhs, const ObjString* rhs) {
-    auto ret = new ObjString;
-    ret->type = TYPE_ID;
-    ret->data.reserve(lhs->size() + rhs->size());
-    ret->data.push_buffer(lhs->c_str(), lhs->size());
-    ret->data.push_buffer(rhs->c_str(), rhs->size());
-    ret->data.push_back('\0');
+    auto ret = new ObjString(lhs->c_str(), lhs->size());
+    ret->Append(rhs);
     return ret;
+  }
+  void Append(const ObjString* rhs) {
+    data.resize(data.size() - 1);
+    data.push_buffer(rhs->c_str(), rhs->size());
+    data.push_back('\0');
+    UpdateHash();
   }
   Vector<char> data;
   char* c_str() { return data.data(); }
@@ -70,14 +69,17 @@ struct ObjString : public Obj {
   int size() const {
     return data.size() - 1;  // this is a c style str
   }
-  CLOX_OBJ_HEAP_ONLY(ObjString);
 
  protected:
-  ObjString(const char* buf, int size) {
+  uint32_t UpdateHash();
+  ObjString(const char* buf, int size) : Obj(0) {
     type = TYPE_ID;
     data.push_buffer(buf, size);
     data.push_back('\0');
+    UpdateHash();
   }
+  ObjString() = delete;
+  friend Obj;
 };
 
 }  // namespace vm
