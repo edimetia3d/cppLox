@@ -54,7 +54,14 @@ ObjInternedString *ObjInternedString::Concat(const ObjInternedString *lhs, const
   buf.push_buffer(lhs->c_str(), lhs->size());
   buf.push_buffer(rhs->c_str(), rhs->size());
   buf.push_back('\0');
-  return new ObjInternedString(std::move(buf));
+  InternMap::Entry entry;
+  InternView view{.data = buf.data(), .hash = fnv_1a((uint8_t *)buf.data(), buf.size() - 1), .size = (buf.size() - 1)};
+  bool found = GetInternMap().Get(view, &entry);
+  if (found) {
+    return entry.value;
+  } else {
+    return new ObjInternedString(std::move(buf));
+  }
 }
 int ObjInternedString::size() const {
   return data.size() - 1;  // this is a c style str

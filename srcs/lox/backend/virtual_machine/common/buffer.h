@@ -24,7 +24,12 @@ struct Buffer {
   Buffer(Buffer &&rhs) noexcept { *this = std::move(rhs); }
   Buffer &operator=(Buffer &&rhs) noexcept {
     state_ = rhs.state_;
-    rhs.state_.buffer = nullptr;
+    if (rhs.state_.buffer == rhs.state_.small_opt_buffer) {
+      state_.buffer = state_.small_opt_buffer;
+    } else {
+      rhs.state_.buffer = nullptr;
+    }
+
     return *this;
   }
   void push_buffer(const T *bytes_buffer, int n);
@@ -69,7 +74,7 @@ template <TrivialCopyable T, int SmallOpt>
 void Buffer<T, SmallOpt>::modify_capacity(int min_size, int reserve_ratio) {
   int new_capacity = ((min_size + 7) / 8) * 8 * reserve_ratio;
   T *new_buffer = nullptr;
-  if (new_capacity < SmallOpt) {
+  if (new_capacity <= SmallOpt) {
     new_buffer = state_.small_opt_buffer;
     new_capacity = SmallOpt;
   } else {
