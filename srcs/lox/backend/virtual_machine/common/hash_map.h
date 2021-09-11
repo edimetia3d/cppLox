@@ -7,6 +7,9 @@
 #include "lox/backend/virtual_machine/common/buffer.h"
 namespace lox {
 namespace vm {
+template <class HashMapT>
+class EntryIter;
+
 template <class KeyT, class ValueT, uint32_t HashFn(KeyT)>
 class HashMap {
  private:
@@ -50,6 +53,8 @@ class HashMap {
 
     return entry;
   }
+
+  EntryIter<HashMap> GetAllItem();
 
   bool Del(KeyT key) {
     Entry* entry = FindInsertEntry(key);
@@ -100,7 +105,38 @@ class HashMap {
   int count = 0;
   int capacity = 0;
   Buffer<Entry, 0> entries;
+
+  template <class HashMapT>
+  friend class EntryIter;
 };
+
+template <class HashMapT>
+class EntryIter {
+ public:
+  EntryIter(HashMapT* hash_map)
+      : next_pos(hash_map->entries.data()), end_pos(hash_map->entries.data() + hash_map->capacity) {}
+
+  typename HashMapT::Entry* next() {
+    while (next_pos != end_pos && next_pos->mark != HashMapT::EntryMark::USED_MARK) {
+      ++next_pos;
+    }
+    if (next_pos != end_pos) {
+      auto ret = next_pos;
+      ++next_pos;
+      return ret;
+    }
+    return nullptr;
+  }
+
+ private:
+  typename HashMapT::Entry* next_pos = nullptr;
+  typename HashMapT::Entry* end_pos = 0;
+};
+
+template <class KeyT, class ValueT, uint32_t HashFn(KeyT)>
+EntryIter<HashMap<KeyT, ValueT, HashFn>> HashMap<KeyT, ValueT, HashFn>::GetAllItem() {
+  return EntryIter<HashMap>(this);
+}
 }  // namespace vm
 }  // namespace lox
 #endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_HASH_MAP_H_

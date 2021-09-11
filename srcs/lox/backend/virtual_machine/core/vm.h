@@ -31,6 +31,7 @@ class VM {
   HashMap<ObjInternedString *, Value, ObjInternedString::Hash> globals_;
   Value *sp_ = nullptr;
   void DumpStack() const;
+  void DumpGlobals();
   void runtimeError(const char *format, ...);
   ~VM();
 };

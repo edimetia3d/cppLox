@@ -123,6 +123,7 @@ ErrCode VM::Run() {
     }
 #ifdef DEBUG_TRACE_EXECUTION
     DumpStack();
+    DumpGlobals();
     ++dbg_op_id;
 #endif
   }
@@ -138,6 +139,18 @@ void VM::DumpStack() const {
     printf("[ ");
     printValue(*slot);
     printf(" ]");
+  }
+  printf("\n");
+}
+void VM::DumpGlobals() {
+  printf("Globals:");
+  auto iter = globals_.GetAllItem();
+  while (auto entry = iter.next()) {
+    printf("{ ");
+    printf("%s", entry->key->c_str());
+    printf(" : ");
+    printValue(entry->value);
+    printf(" }");
   }
   printf("\n");
 }
@@ -177,5 +190,6 @@ VM::~VM() {
     printf("VM destroyed %d CLoxObject at exit.\n", count);
   }
 }
+
 }  // namespace vm
 }  // namespace lox
