@@ -81,6 +81,7 @@ class Compiler {
   Parser parser_;
   Scanner* scanner_;
   Chunk* current_trunk_;
+  Precedence last_expression_precedence = Precedence::NONE;
   void endCompiler();
   void emitReturn();
   uint8_t makeConstant(Value value);
@@ -109,6 +110,7 @@ class Compiler {
   ParseRule* getRule(Token token);
   void binary();
   void string();
+  bool canAssign();
   void variable();
   bool MatchAndAdvance(TokenType type);
   void declaration();

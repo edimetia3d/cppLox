@@ -54,6 +54,8 @@ void Compiler::endCompiler() { emitReturn(); }
 void Compiler::emitReturn() { emitByte(OpCode::OP_RETURN); }
 void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
 void Compiler::Expression(OperatorType operator_type) {
+  auto bak_last_expression_precedence = last_expression_precedence;
+  last_expression_precedence = operator_type;
   Precedence precedence = operator_type;
   Advance();
   auto EmitPrefixFn = getRule(parser_.previous)->EmitPrefixFn;
@@ -69,6 +71,7 @@ void Compiler::Expression(OperatorType operator_type) {
     auto EmitInfixFn = getRule(parser_.previous)->EmitInfixFn;
     EmitInfixFn(this);
   }
+  last_expression_precedence = bak_last_expression_precedence;
 }
 
 std::vector<ParseRule> BuildRuleMap() {
@@ -299,7 +302,17 @@ void Compiler::defineVariable(uint8_t global) { emitBytes(OpCode::OP_DEFINE_GLOB
 void Compiler::variable() { namedVariable(parser_.previous); }
 void Compiler::namedVariable(Token varaible_token) {
   uint8_t arg = identifierConstant(varaible_token);
-  emitBytes(OpCode::OP_GET_GLOBAL, arg);
+  if (MatchAndAdvance(TokenType::EQUAL)) {
+    if (canAssign()) {
+      Expression();
+      emitBytes(OpCode::OP_SET_GLOBAL, arg);
+    } else {
+      error("Invalid assignment target.");
+    }
+  } else {
+    emitBytes(OpCode::OP_GET_GLOBAL, arg);
+  }
 }
+bool Compiler::canAssign() { return last_expression_precedence <= Precedence::ASSIGNMENT; }
 }  // namespace vm
 }  // namespace lox

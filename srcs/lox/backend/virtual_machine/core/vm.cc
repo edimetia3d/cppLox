@@ -77,6 +77,16 @@ ErrCode VM::Run() {
         Pop();
         break;
       }
+      case OpCode::OP_SET_GLOBAL: {
+        ObjInternedString *name = READ_STRING();
+        ;
+        if (globals_.Set(name, Peek(0))) {
+          globals_.Del(name);
+          runtimeError("Undefined variable '%s'.", name->c_str());
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
       case OpCode::OP_EQUAL: {
         Value b = Pop();
         Value a = Pop();
