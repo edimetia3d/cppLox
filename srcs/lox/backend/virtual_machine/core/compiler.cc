@@ -23,16 +23,16 @@ ErrCode Compiler::Compile(Scanner *scanner, Chunk *target) {
   return ErrCode::NO_ERROR;
 }
 void Compiler::Advance() {
-  parser_.current = parser_.next;
+  parser_.previous = parser_.current;
 
   for (;;) {
-    auto err = scanner_->ScanOne(&parser_.next);
+    auto err = scanner_->ScanOne(&parser_.current);
     if (err.NoError()) break;
 
-    errorAtCurrent(parser_.next->lexeme.c_str());
+    errorAtCurrent(parser_.current->lexeme.c_str());
   }
 }
-void Compiler::errorAtCurrent(const char *message) { errorAt(parser_.next, message); }
+void Compiler::errorAtCurrent(const char *message) { errorAt(parser_.current, message); }
 void Compiler::errorAt(Token token, const char *message) {
   if (parser_.panicMode) return;
   parser_.panicMode = true;
@@ -42,7 +42,7 @@ void Compiler::errorAt(Token token, const char *message) {
   parser_.hadError = true;
 }
 void Compiler::Consume(TokenType type, const char *message) {
-  if (parser_.next->type == type) {
+  if (parser_.current->type == type) {
     Advance();
     return;
   }
@@ -51,12 +51,12 @@ void Compiler::Consume(TokenType type, const char *message) {
 }
 Chunk *Compiler::CurrentChunk() { return current_trunk_; }
 void Compiler::endCompiler() { emitReturn(); }
-void Compiler::emitReturn() { emitOpCode(OpCode::OP_RETURN); }
-void Compiler::error(const char *message) { errorAt(parser_.current, message); }
+void Compiler::emitReturn() { emitByte(OpCode::OP_RETURN); }
+void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
 void Compiler::Expression(OperatorType operator_type) {
   Precedence precedence = operator_type;
   Advance();
-  auto EmitPrefixFn = getRule(parser_.current)->EmitPrefixFn;
+  auto EmitPrefixFn = getRule(parser_.previous)->EmitPrefixFn;
   if (EmitPrefixFn == nullptr) {
     error("Expect expression.");
     return;
@@ -64,9 +64,9 @@ void Compiler::Expression(OperatorType operator_type) {
 
   EmitPrefixFn(this);
 
-  while (precedence <= getRule(parser_.next)->operator_type) {
+  while (precedence <= getRule(parser_.current)->operator_type) {
     Advance();
-    auto EmitInfixFn = getRule(parser_.current)->EmitInfixFn;
+    auto EmitInfixFn = getRule(parser_.previous)->EmitInfixFn;
     EmitInfixFn(this);
   }
 }
@@ -133,7 +133,7 @@ ParseRule *Compiler::getRule(TokenType type) {
   return &rules[(int)type];
 }
 void Compiler::emitBytes(OpCode byte1, uint8_t byte2) {
-  emitOpCode(byte1);
+  emitByte(byte1);
   emitByte(byte2);
 }
 uint8_t Compiler::makeConstant(Value value) {
@@ -146,7 +146,7 @@ uint8_t Compiler::makeConstant(Value value) {
   return (uint8_t)constant;
 }
 void Compiler::unary() {
-  TokenType token_type = parser_.current->type;
+  TokenType token_type = parser_.previous->type;
 
   // Compile the operand.
   Expression(OperatorType::UNARY);
@@ -154,50 +154,50 @@ void Compiler::unary() {
   // Emit the operator instruction.
   switch (token_type) {
     case TokenType::MINUS:
-      emitOpCode(OpCode::OP_NEGATE);
+      emitByte(OpCode::OP_NEGATE);
       break;
     case TokenType::BANG:
-      emitOpCode(OpCode::OP_NOT);
+      emitByte(OpCode::OP_NOT);
       break;
     default:
       return;  // Unreachable.
   }
 }
 void Compiler::binary() {
-  TokenType token_type = parser_.current->type;
+  TokenType token_type = parser_.previous->type;
   ParseRule *rule = getRule(token_type);
   Expression((OperatorType)((int)(rule->operator_type) + 1));
 
   switch (token_type) {
     case TokenType::BANG_EQUAL:
-      emitOpCodes(OpCode::OP_EQUAL, OpCode::OP_NOT);
+      emitBytes(OpCode::OP_EQUAL, OpCode::OP_NOT);
       break;
     case TokenType::EQUAL_EQUAL:
-      emitOpCode(OpCode::OP_EQUAL);
+      emitByte(OpCode::OP_EQUAL);
       break;
     case TokenType::GREATER:
-      emitOpCode(OpCode::OP_GREATER);
+      emitByte(OpCode::OP_GREATER);
       break;
     case TokenType::GREATER_EQUAL:
-      emitOpCodes(OpCode::OP_LESS, OpCode::OP_NOT);
+      emitBytes(OpCode::OP_LESS, OpCode::OP_NOT);
       break;
     case TokenType::LESS:
-      emitOpCode(OpCode::OP_LESS);
+      emitByte(OpCode::OP_LESS);
       break;
     case TokenType::LESS_EQUAL:
-      emitOpCodes(OpCode::OP_GREATER, OpCode::OP_NOT);
+      emitBytes(OpCode::OP_GREATER, OpCode::OP_NOT);
       break;
     case TokenType::PLUS:
-      emitOpCode(OpCode::OP_ADD);
+      emitByte(OpCode::OP_ADD);
       break;
     case TokenType::MINUS:
-      emitOpCode(OpCode::OP_SUBTRACT);
+      emitByte(OpCode::OP_SUBTRACT);
       break;
     case TokenType::STAR:
-      emitOpCode(OpCode::OP_MULTIPLY);
+      emitByte(OpCode::OP_MULTIPLY);
       break;
     case TokenType::SLASH:
-      emitOpCode(OpCode::OP_DIVIDE);
+      emitByte(OpCode::OP_DIVIDE);
       break;
     default:
       return;  // Unreachable.
@@ -205,22 +205,23 @@ void Compiler::binary() {
 }
 ParseRule *Compiler::getRule(Token token) { return getRule(token->type); }
 void Compiler::literal() {
-  switch (parser_.current->type) {
+  switch (parser_.previous->type) {
     case TokenType::FALSE:
-      emitOpCode(OpCode::OP_FALSE);
+      emitByte(OpCode::OP_FALSE);
       break;
     case TokenType::NIL:
-      emitOpCode(OpCode::OP_NIL);
+      emitByte(OpCode::OP_NIL);
       break;
     case TokenType::TRUE:
-      emitOpCode(OpCode::OP_TRUE);
+      emitByte(OpCode::OP_TRUE);
       break;
     default:
       return;  // Unreachable.
   }
 }
 void Compiler::string() {
-  emitConstant(Value(ObjInternedString::Make(parser_.current->lexeme.c_str() + 1, parser_.current->lexeme.size() - 2)));
+  emitConstant(
+      Value(ObjInternedString::Make(parser_.previous->lexeme.c_str() + 1, parser_.previous->lexeme.size() - 2)));
 }
 bool Compiler::MatchAndAdvance(TokenType type) {
   if (!Check(type)) return false;
@@ -245,20 +246,20 @@ void Compiler::statement() {
 void Compiler::printStatement() {
   Expression();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  emitOpCode(OpCode::OP_PRINT);
+  emitByte(OpCode::OP_PRINT);
 }
-bool Compiler::Check(TokenType type) { return parser_.next->type == type; }
+bool Compiler::Check(TokenType type) { return parser_.current->type == type; }
 void Compiler::expressionStatement() {
   Expression();
   Consume(TokenType::SEMICOLON, "Expect ';' after expression.");
-  emitOpCode(OpCode::OP_POP);
+  emitByte(OpCode::OP_POP);
 }
 void Compiler::synchronize() {
   parser_.panicMode = false;
 
-  while (parser_.next->type != TokenType::EOF_TOKEN) {
-    if (parser_.current->type == TokenType::SEMICOLON) return;
-    switch (parser_.next->type) {
+  while (parser_.current->type != TokenType::EOF_TOKEN) {
+    if (parser_.previous->type == TokenType::SEMICOLON) return;
+    switch (parser_.current->type) {
       case TokenType::CLASS:
       case TokenType::FUN:
       case TokenType::VAR:
@@ -281,7 +282,7 @@ void Compiler::varDeclaration() {
   if (MatchAndAdvance(TokenType::EQUAL)) {
     Expression();
   } else {
-    emitOpCode(OpCode::OP_NIL);
+    emitByte(OpCode::OP_NIL);
   }
   Consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
 
@@ -289,13 +290,13 @@ void Compiler::varDeclaration() {
 }
 uint8_t Compiler::parseVariable(const char *errorMessage) {
   Consume(TokenType::IDENTIFIER, errorMessage);
-  return identifierConstant(parser_.current);
+  return identifierConstant(parser_.previous);
 }
 uint8_t Compiler::identifierConstant(Token token) {
   return makeConstant(Value(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
 }
 void Compiler::defineVariable(uint8_t global) { emitBytes(OpCode::OP_DEFINE_GLOBAL, global); }
-void Compiler::variable() { namedVariable(parser_.current); }
+void Compiler::variable() { namedVariable(parser_.previous); }
 void Compiler::namedVariable(Token varaible_token) {
   uint8_t arg = identifierConstant(varaible_token);
   emitBytes(OpCode::OP_GET_GLOBAL, arg);

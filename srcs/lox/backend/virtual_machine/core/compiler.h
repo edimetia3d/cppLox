@@ -15,8 +15,8 @@ namespace lox {
 
 namespace vm {
 struct Parser {
-  Token current;  // current is the last consumed token
-  Token next;     // next is the next might to be consumed token.
+  Token previous;  // previous is the last consumed token
+  Token current;   // current is the next might to be consumed token.
   bool hadError = false;
   bool panicMode = false;
 };
@@ -73,10 +73,10 @@ class Compiler {
   void error(const char* message);
   void errorAt(Token token, const char* message);
   void Consume(TokenType type, const char* message);
-  void emitByte(uint8_t byte) { CurrentChunk()->WriteUInt8(byte, parser_.current->line); }
+  void emitByte(uint8_t byte) { CurrentChunk()->WriteUInt8(byte, parser_.previous->line); }
   void emitBytes(OpCode byte1, uint8_t byte2);
-  void emitOpCode(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
-  void emitOpCodes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
+  void emitByte(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
+  void emitBytes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
   Chunk* CurrentChunk();
   Parser parser_;
   Scanner* scanner_;
@@ -86,7 +86,7 @@ class Compiler {
   uint8_t makeConstant(Value value);
   void emitConstant(Value value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
   void number() {
-    double value = std::stod(parser_.current->lexeme);
+    double value = std::stod(parser_.previous->lexeme);
     emitConstant(Value(value));
   }
   /**
