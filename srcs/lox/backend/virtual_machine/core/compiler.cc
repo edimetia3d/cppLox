@@ -13,8 +13,9 @@ ErrCode Compiler::Compile(Scanner *scanner, Chunk *target) {
   scanner_ = scanner;
   current_trunk_ = target;
   Advance();
-  Expression(OperatorType::ASSIGNMENT);
-  Consume(TokenType::EOF_TOKEN, "Expect end of expression.");
+  while (!MatchAndAdvance(TokenType::EOF_TOKEN)) {
+    declaration();
+  }
   endCompiler();
   if (parser_.hadError) {
     return ErrCode::PARSE_FAIL;
@@ -221,5 +222,22 @@ void Compiler::literal() {
 void Compiler::string() {
   emitConstant(Value(ObjInternedString::Make(parser_.current->lexeme.c_str() + 1, parser_.current->lexeme.size() - 2)));
 }
+bool Compiler::MatchAndAdvance(TokenType type) {
+  if (!Check(type)) return false;
+  Advance();
+  return true;
+}
+void Compiler::declaration() { statement(); }
+void Compiler::statement() {
+  if (MatchAndAdvance(TokenType::PRINT)) {
+    printStatement();
+  }
+}
+void Compiler::printStatement() {
+  Expression();
+  Consume(TokenType::SEMICOLON, "Expect ';' after value.");
+  emitOpCode(OpCode::OP_PRINT);
+}
+bool Compiler::Check(TokenType type) { return parser_.next->type == type; }
 }  // namespace vm
 }  // namespace lox

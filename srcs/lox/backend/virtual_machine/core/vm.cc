@@ -101,10 +101,13 @@ ErrCode VM::Run() {
         Push(Value(-Pop().AsNumber()));
         break;
       }
-      case OpCode::OP_RETURN: {
-        DPRINTF("Return with: ");
+      case OpCode::OP_PRINT: {
         printValue(Pop());
         printf("\n");
+        break;
+      }
+      case OpCode::OP_RETURN: {
+        DPRINTF("Returned. \n");
         goto EXIT;
       }
     }

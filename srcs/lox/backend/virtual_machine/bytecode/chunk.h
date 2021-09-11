@@ -25,6 +25,7 @@ enum class OpCode : uint8_t {
   OP_SUBTRACT,
   OP_MULTIPLY,
   OP_DIVIDE,
+  OP_PRINT,
   OP_RETURN,
 };
 

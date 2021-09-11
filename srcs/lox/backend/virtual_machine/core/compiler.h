@@ -15,8 +15,8 @@ namespace lox {
 
 namespace vm {
 struct Parser {
-  Token current;
-  Token next;
+  Token current;  // current is the last consumed token
+  Token next;     // next is the next might to be consumed token.
   bool hadError = false;
   bool panicMode = false;
 };
@@ -97,9 +97,9 @@ class Compiler {
    * Because we know what the expression will be used for, we known when to stop the parsing, that is , when we meet
    * some operator that has lower (or equal) precedence
    */
-  void Expression(OperatorType operator_type);
+  void Expression(OperatorType operator_type = OperatorType::ASSIGNMENT);
   void grouping() {
-    Expression(OperatorType::ASSIGNMENT);
+    Expression();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
   }
   void unary();
@@ -109,6 +109,11 @@ class Compiler {
   ParseRule* getRule(Token token);
   void binary();
   void string();
+  bool MatchAndAdvance(TokenType type);
+  void declaration();
+  void statement();
+  void printStatement();
+  bool Check(TokenType type);
 };
 
 }  // namespace vm
