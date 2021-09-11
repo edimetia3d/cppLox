@@ -114,6 +114,7 @@ class Compiler {
   void statement();
   void printStatement();
   bool Check(TokenType type);
+  void expressionStatement();
 };
 
 }  // namespace vm

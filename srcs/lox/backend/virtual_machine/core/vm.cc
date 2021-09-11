@@ -57,6 +57,9 @@ ErrCode VM::Run() {
       case OpCode::OP_FALSE:
         Push(Value(false));
         break;
+      case OpCode::OP_POP:
+        Pop();
+        break;
       case OpCode::OP_EQUAL: {
         Value b = Pop();
         Value a = Pop();

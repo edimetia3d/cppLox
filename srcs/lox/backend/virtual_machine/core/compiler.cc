@@ -231,6 +231,8 @@ void Compiler::declaration() { statement(); }
 void Compiler::statement() {
   if (MatchAndAdvance(TokenType::PRINT)) {
     printStatement();
+  } else {
+    expressionStatement();
   }
 }
 void Compiler::printStatement() {
@@ -239,5 +241,10 @@ void Compiler::printStatement() {
   emitOpCode(OpCode::OP_PRINT);
 }
 bool Compiler::Check(TokenType type) { return parser_.next->type == type; }
+void Compiler::expressionStatement() {
+  Expression();
+  Consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+  emitOpCode(OpCode::OP_POP);
+}
 }  // namespace vm
 }  // namespace lox
