@@ -115,6 +115,11 @@ class Compiler {
   void printStatement();
   bool Check(TokenType type);
   void expressionStatement();
+  void synchronize();
+  void varDeclaration();
+  uint8_t parseVariable(const char* string);
+  uint8_t identifierConstant(Token token);
+  void defineVariable(uint8_t global);
 };
 
 }  // namespace vm

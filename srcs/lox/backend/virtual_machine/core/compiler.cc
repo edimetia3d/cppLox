@@ -227,7 +227,14 @@ bool Compiler::MatchAndAdvance(TokenType type) {
   Advance();
   return true;
 }
-void Compiler::declaration() { statement(); }
+void Compiler::declaration() {
+  if (MatchAndAdvance(TokenType::VAR)) {
+    varDeclaration();
+  } else {
+    statement();
+  }
+  if (parser_.panicMode) synchronize();
+}
 void Compiler::statement() {
   if (MatchAndAdvance(TokenType::PRINT)) {
     printStatement();
@@ -246,5 +253,47 @@ void Compiler::expressionStatement() {
   Consume(TokenType::SEMICOLON, "Expect ';' after expression.");
   emitOpCode(OpCode::OP_POP);
 }
+void Compiler::synchronize() {
+  parser_.panicMode = false;
+
+  while (parser_.next->type != TokenType::EOF_TOKEN) {
+    if (parser_.current->type == TokenType::SEMICOLON) return;
+    switch (parser_.next->type) {
+      case TokenType::CLASS:
+      case TokenType::FUN:
+      case TokenType::VAR:
+      case TokenType::FOR:
+      case TokenType::IF:
+      case TokenType::WHILE:
+      case TokenType::PRINT:
+      case TokenType::RETURN:
+        return;
+
+      default:;  // Do nothing.
+    }
+
+    Advance();
+  }
+}
+void Compiler::varDeclaration() {
+  uint8_t global = parseVariable("Expect variable name.");
+
+  if (MatchAndAdvance(TokenType::EQUAL)) {
+    Expression();
+  } else {
+    emitOpCode(OpCode::OP_NIL);
+  }
+  Consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
+
+  defineVariable(global);
+}
+uint8_t Compiler::parseVariable(const char *errorMessage) {
+  Consume(TokenType::IDENTIFIER, errorMessage);
+  return identifierConstant(parser_.current);
+}
+uint8_t Compiler::identifierConstant(Token token) {
+  return makeConstant(Value(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
+}
+void Compiler::defineVariable(uint8_t global) { emitBytes(OpCode::OP_DEFINE_GLOBAL, global); }
 }  // namespace vm
 }  // namespace lox

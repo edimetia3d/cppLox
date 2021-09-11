@@ -28,6 +28,7 @@ class VM {
   Chunk *chunk_;
   uint8_t *ip_;
   Value stack_[VM_STACK_MAX];
+  HashMap<ObjInternedString *, Value, ObjInternedString::Hash> globals_;
   Value *sp_ = nullptr;
   void DumpStack() const;
   void runtimeError(const char *format, ...);

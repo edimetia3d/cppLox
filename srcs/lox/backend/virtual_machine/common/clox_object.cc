@@ -65,7 +65,7 @@ ObjInternedString *ObjInternedString::Concat(const ObjInternedString *lhs, const
 int ObjInternedString::size() const {
   return data.size() - 1;  // this is a c style str
 }
-ObjInternedString::ObjInternedString(const char *buf, int size) : Obj(0) {
+ObjInternedString::ObjInternedString(const char *buf, int size) {
   type = TYPE_ID;
   data.push_buffer(buf, size);
   data.push_back('\0');
@@ -79,7 +79,7 @@ void ObjInternedString::TryInternThis() {
     printf("Warning: Get repeated intern string\n");
   }
 }
-ObjInternedString::ObjInternedString(Buffer<char> &&buffer) : Obj(0) {
+ObjInternedString::ObjInternedString(Buffer<char> &&buffer) {
   type = TYPE_ID;
   data = std::move(buffer);
   UpdateHash();

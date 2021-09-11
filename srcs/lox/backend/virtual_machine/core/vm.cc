@@ -22,6 +22,7 @@ ErrCode VM::Run() {
     }                                               \
   } while (0)
 #define READ_CONSTANT() (chunk_->constants[READ_BYTE()])
+#define READ_STRING() ((READ_CONSTANT()).AsObj()->As<ObjInternedString>())
 #define BINARY_OP(OutputT, op)                                       \
   do {                                                               \
     CHEK_STACK_TOP_TYPE(Number);                                     \
@@ -60,6 +61,12 @@ ErrCode VM::Run() {
       case OpCode::OP_POP:
         Pop();
         break;
+      case OpCode::OP_DEFINE_GLOBAL: {
+        ObjInternedString *name = READ_STRING();
+        globals_.Set(name, Peek(0));
+        Pop();
+        break;
+      }
       case OpCode::OP_EQUAL: {
         Value b = Pop();
         Value a = Pop();

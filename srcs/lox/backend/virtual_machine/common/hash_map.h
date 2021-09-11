@@ -22,7 +22,7 @@ class HashMap {
     void MarkTomb() { mark = EntryMark::TOMBSTONE_MARK; }
   };
 
-  HashMap(int capacity) : capacity(capacity) {
+  HashMap(int capacity = 32) : capacity(capacity) {
     entries.reserve(capacity);
     for (int i = 0; i < capacity; ++i) {
       entries[i].mark = EntryMark::FREE_TO_USE_MARK;

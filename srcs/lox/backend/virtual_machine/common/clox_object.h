@@ -17,7 +17,6 @@ enum class ObjType { UNKNOWN, OBJ_STRING };
 
 struct Obj {
   ObjType type;
-  uint32_t hash;
 
   template <class T>
   const T* const As() const {
@@ -29,7 +28,6 @@ struct Obj {
     assert(type == T::TYPE_ID);
     return reinterpret_cast<T*>(this);
   }
-
   template <class T>
   bool IsType() const {
     return type == T::TYPE_ID;
@@ -41,11 +39,14 @@ struct Obj {
   static LinkList<Obj*>& AllCreatedObj();
 
  protected:
-  Obj(uint32_t hash) : type(ObjType::UNKNOWN), hash(hash) { AllCreatedObj().Insert(this); };
+  Obj() : type(ObjType::UNKNOWN) { AllCreatedObj().Insert(this); };
 };
 
 struct ObjInternedString : public Obj {
   constexpr static ObjType TYPE_ID = ObjType::OBJ_STRING;
+  uint32_t hash;
+
+  uint32_t static Hash(ObjInternedString* obj_str) { return obj_str->hash; }
 
   static ObjInternedString* Make(const char* data, int size);
 
