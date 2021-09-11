@@ -61,6 +61,16 @@ ErrCode VM::Run() {
       case OpCode::OP_POP:
         Pop();
         break;
+      case OpCode::OP_GET_GLOBAL: {
+        ObjInternedString *name = READ_STRING();
+        auto entry = globals_.Get(name);
+        if (!entry) {
+          runtimeError("Undefined variable '%s'.", name->c_str());
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
+        Push(entry->value);
+        break;
+      }
       case OpCode::OP_DEFINE_GLOBAL: {
         ObjInternedString *name = READ_STRING();
         globals_.Set(name, Peek(0));

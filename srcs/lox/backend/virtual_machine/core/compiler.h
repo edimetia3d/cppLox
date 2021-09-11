@@ -109,6 +109,7 @@ class Compiler {
   ParseRule* getRule(Token token);
   void binary();
   void string();
+  void variable();
   bool MatchAndAdvance(TokenType type);
   void declaration();
   void statement();
@@ -120,6 +121,7 @@ class Compiler {
   uint8_t parseVariable(const char* string);
   uint8_t identifierConstant(Token token);
   void defineVariable(uint8_t global);
+  void namedVariable(Token varaible_token);
 };
 
 }  // namespace vm

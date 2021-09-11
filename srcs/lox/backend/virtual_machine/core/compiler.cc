@@ -99,7 +99,7 @@ std::vector<ParseRule> BuildRuleMap() {
       RULE_ITEM(GREATER_EQUAL, nullptr    , M(binary)  , COMPARISON),
       RULE_ITEM(LESS         , nullptr    , M(binary)  , COMPARISON),
       RULE_ITEM(LESS_EQUAL   , nullptr    , M(binary)  , COMPARISON),
-      RULE_ITEM(IDENTIFIER   , nullptr    , nullptr  , NONE),
+      RULE_ITEM(IDENTIFIER   , M(variable)    , nullptr  , NONE),
       RULE_ITEM(STRING       , M(string)    , nullptr  , NONE),
       RULE_ITEM(NUMBER       , M(number)  , nullptr  , NONE),
       RULE_ITEM(AND          , nullptr    , nullptr  , NONE),
@@ -295,5 +295,10 @@ uint8_t Compiler::identifierConstant(Token token) {
   return makeConstant(Value(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
 }
 void Compiler::defineVariable(uint8_t global) { emitBytes(OpCode::OP_DEFINE_GLOBAL, global); }
+void Compiler::variable() { namedVariable(parser_.current); }
+void Compiler::namedVariable(Token varaible_token) {
+  uint8_t arg = identifierConstant(varaible_token);
+  emitBytes(OpCode::OP_GET_GLOBAL, arg);
+}
 }  // namespace vm
 }  // namespace lox
