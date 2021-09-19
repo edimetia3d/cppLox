@@ -11,8 +11,9 @@ namespace vm {
 LoxError VirtualMachine::Run(Scanner& scanner) {
   Compiler compiler;
   Chunk chunk;
+  LexicalScope scope;
   ErrCode err_code = ErrCode::NO_ERROR;
-  if ((err_code = compiler.Compile(&scanner, &chunk)) != ErrCode::NO_ERROR) {
+  if ((err_code = compiler.Compile(&scanner, &chunk, &scope)) != ErrCode::NO_ERROR) {
     return LoxError("Compiler Error: " + std::to_string(static_cast<int>(err_code)));
   }
   auto vm = VM::Instance();

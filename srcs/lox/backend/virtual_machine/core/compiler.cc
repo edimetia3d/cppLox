@@ -9,7 +9,8 @@
 namespace lox {
 
 namespace vm {
-ErrCode Compiler::Compile(Scanner *scanner, Chunk *target) {
+ErrCode Compiler::Compile(Scanner *scanner, Chunk *target, LexicalScope *scope) {
+  current_scope_ = scope;
   scanner_ = scanner;
   current_trunk_ = target;
   Advance();
@@ -242,6 +243,10 @@ void Compiler::declaration() {
 void Compiler::statement() {
   if (MatchAndAdvance(TokenType::PRINT)) {
     printStatement();
+  } else if (MatchAndAdvance(TokenType::LEFT_BRACE)) {
+    beginScope();
+    block();
+    endScope();
   } else {
     expressionStatement();
   }
@@ -293,26 +298,101 @@ void Compiler::varDeclaration() {
 }
 uint8_t Compiler::parseVariable(const char *errorMessage) {
   Consume(TokenType::IDENTIFIER, errorMessage);
+  declareVariable();
+  if (current_scope_->scopeDepth > 0) return 0;
   return identifierConstant(parser_.previous);
 }
 uint8_t Compiler::identifierConstant(Token token) {
   return makeConstant(Value(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
 }
-void Compiler::defineVariable(uint8_t global) { emitBytes(OpCode::OP_DEFINE_GLOBAL, global); }
+void Compiler::defineVariable(uint8_t global) {
+  if (current_scope_->scopeDepth > 0) {
+    markInitialized();
+    return;
+  }
+  emitBytes(OpCode::OP_DEFINE_GLOBAL, global);
+}
 void Compiler::variable() { namedVariable(parser_.previous); }
 void Compiler::namedVariable(Token varaible_token) {
-  uint8_t arg = identifierConstant(varaible_token);
+  OpCode getOp, setOp;
+  int arg = resolveLocal(varaible_token);
+  if (arg != -1) {
+    getOp = OpCode::OP_GET_LOCAL;
+    setOp = OpCode::OP_SET_LOCAL;
+  } else {
+    arg = identifierConstant(varaible_token);
+    getOp = OpCode::OP_GET_GLOBAL;
+    setOp = OpCode::OP_SET_GLOBAL;
+  }
   if (MatchAndAdvance(TokenType::EQUAL)) {
     if (canAssign()) {
       Expression();
-      emitBytes(OpCode::OP_SET_GLOBAL, arg);
+      emitBytes(setOp, arg);
     } else {
       error("Invalid assignment target.");
     }
   } else {
-    emitBytes(OpCode::OP_GET_GLOBAL, arg);
+    emitBytes(getOp, arg);
   }
 }
 bool Compiler::canAssign() { return last_expression_precedence <= Precedence::ASSIGNMENT; }
+void Compiler::block() {
+  while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
+    declaration();
+  }
+
+  Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+}
+void Compiler::beginScope() { ++current_scope_->scopeDepth; }
+void Compiler::endScope() {
+  --current_scope_->scopeDepth;
+  while (current_scope_->localCount > 0 &&
+         current_scope_->locals[current_scope_->localCount - 1].depth > current_scope_->scopeDepth) {
+    emitByte(OpCode::OP_POP);
+    current_scope_->localCount--;
+  }
+}
+void Compiler::declareVariable() {
+  if (current_scope_->scopeDepth == 0) return;
+
+  Token name = parser_.previous;
+  for (int i = current_scope_->localCount - 1; i >= 0; i--) {
+    auto local = &current_scope_->locals[i];
+    if (local->depth != -1 && local->depth < current_scope_->scopeDepth) {
+      break;
+    }
+
+    if (identifiersEqual(name, local->name)) {
+      error("Already a variable with this name in this scope.");
+    }
+  }
+  addLocal(name);
+}
+void Compiler::addLocal(Token token) {
+  if (current_scope_->localCount == LexicalScope::LOCAL_MAX_COUNT) {
+    error("Too many local variables in function.");
+    return;
+  }
+  LexicalScope::Local *local = &current_scope_->locals[current_scope_->localCount++];
+  local->name = token;
+  local->depth = -1;
+}
+bool Compiler::identifiersEqual(Token t0, Token t1) { return t0->lexeme == t1->lexeme; }
+int Compiler::resolveLocal(Token token) {
+  for (int i = current_scope_->localCount - 1; i >= 0; i--) {
+    LexicalScope::Local *local = &current_scope_->locals[i];
+    if (identifiersEqual(token, local->name)) {
+      if (local->depth == -1) {
+        error("Can't read local variable in its own initializer.");
+      }
+      return i;
+    }
+  }
+
+  return -1;
+}
+void Compiler::markInitialized() {
+  current_scope_->locals[current_scope_->localCount - 1].depth = current_scope_->scopeDepth;
+}
 }  // namespace vm
 }  // namespace lox

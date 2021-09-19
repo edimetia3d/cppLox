@@ -61,6 +61,16 @@ ErrCode VM::Run() {
       case OpCode::OP_POP:
         Pop();
         break;
+      case OpCode::OP_GET_LOCAL: {
+        uint8_t slot = READ_BYTE();
+        Push(stack_[slot]);
+        break;
+      }
+      case OpCode::OP_SET_LOCAL: {
+        uint8_t slot = READ_BYTE();
+        stack_[slot] = Peek(0);
+        break;
+      }
       case OpCode::OP_GET_GLOBAL: {
         ObjInternedString *name = READ_STRING();
         auto entry = globals_.Get(name);

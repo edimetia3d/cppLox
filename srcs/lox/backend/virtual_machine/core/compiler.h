@@ -43,6 +43,18 @@ struct ParseRule {
   OperatorType operator_type;
 };
 
+struct LexicalScope {
+  struct Local {
+    Token name;
+    int depth;
+  };
+  static constexpr int LOCAL_MAX_COUNT =
+      UINT8_MAX + 1;  // the offset of some local var in locals will be used in opcodes, thus will have a uint8 limit.
+  Local locals[LOCAL_MAX_COUNT];
+  int localCount = 0;
+  int scopeDepth = 0;
+};
+
 /**
  * Compiler is mainly a Pratt Parser, which could generate an bytecode IR that can work directly with stack machine.
  *
@@ -65,7 +77,7 @@ struct ParseRule {
 class Compiler {
  public:
   Compiler() = default;
-  ErrCode Compile(Scanner* scanner, Chunk* target);
+  ErrCode Compile(Scanner* scanner, Chunk* target, LexicalScope* scope);
 
  private:
   void Advance();
@@ -78,10 +90,6 @@ class Compiler {
   void emitByte(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
   void emitBytes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
   Chunk* CurrentChunk();
-  Parser parser_;
-  Scanner* scanner_;
-  Chunk* current_trunk_;
-  Precedence last_expression_precedence = Precedence::NONE;
   void endCompiler();
   void emitReturn();
   uint8_t makeConstant(Value value);
@@ -124,6 +132,20 @@ class Compiler {
   uint8_t identifierConstant(Token token);
   void defineVariable(uint8_t global);
   void namedVariable(Token varaible_token);
+
+  LexicalScope* current_scope_;
+  Parser parser_;
+  Scanner* scanner_;
+  Chunk* current_trunk_;
+  Precedence last_expression_precedence = Precedence::NONE;
+  void block();
+  void beginScope();
+  void endScope();
+  void declareVariable();
+  void addLocal(Token shared_ptr);
+  bool identifiersEqual(Token shared_ptr, Token shared_ptr_1);
+  int resolveLocal(Token shared_ptr);
+  void markInitialized();
 };
 
 }  // namespace vm
