@@ -243,6 +243,8 @@ void Compiler::declaration() {
 void Compiler::statement() {
   if (MatchAndAdvance(TokenType::PRINT)) {
     printStatement();
+  } else if (MatchAndAdvance(TokenType::IF)) {
+    ifStatement();
   } else if (MatchAndAdvance(TokenType::LEFT_BRACE)) {
     beginScope();
     block();
@@ -393,6 +395,42 @@ int Compiler::resolveLocal(Token token) {
 }
 void Compiler::markInitialized() {
   current_scope_->locals[current_scope_->localCount - 1].depth = current_scope_->scopeDepth;
+}
+void Compiler::ifStatement() {
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
+  Expression();
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
+
+  int thenJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+  emitByte(OpCode::OP_POP);
+  statement();
+  int elseJump = emitJump(OpCode::OP_JUMP);
+  patchJump(thenJump);
+  emitByte(OpCode::OP_POP);
+  if (MatchAndAdvance(TokenType::ELSE)) {
+    statement();
+  }
+  patchJump(elseJump);
+}
+int Compiler::emitJump(OpCode jump_cmd) {
+  emitByte(jump_cmd);
+  // reserve two bytes to store jmp diff
+  emitByte(0xff);
+  emitByte(0xff);
+  return current_trunk_->ChunkSize() - 2;
+}
+void Compiler::patchJump(int offset) {
+  int ip_beg = offset + 2;
+  // at runtime, jump will load 1 byte of OPCode and 2 byte of position, so ip will pointer to `BASE + offset + 2`
+  int ip_target = current_trunk_->ChunkSize();
+  int jump_diff = ip_target - ip_beg;
+
+  if (jump_diff > UINT16_MAX) {
+    error("Too much code to jump_diff over.");
+  }
+
+  current_trunk_->code[offset] = (jump_diff >> 8) & 0xff;
+  current_trunk_->code[offset + 1] = jump_diff & 0xff;
 }
 }  // namespace vm
 }  // namespace lox

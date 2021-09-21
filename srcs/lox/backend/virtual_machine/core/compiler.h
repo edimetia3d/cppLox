@@ -146,6 +146,9 @@ class Compiler {
   bool identifiersEqual(Token shared_ptr, Token shared_ptr_1);
   int resolveLocal(Token shared_ptr);
   void markInitialized();
+  void ifStatement();
+  int emitJump(OpCode code);
+  void patchJump(int jump);
 };
 
 }  // namespace vm

@@ -14,6 +14,7 @@ VM *VM::Instance() {
 }
 ErrCode VM::Run() {
 #define READ_BYTE() (*ip_++)
+#define READ_SHORT() (*ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))
 #define CHEK_STACK_TOP_TYPE(TYPE)                   \
   do {                                              \
     if (!Peek().Is##TYPE()) {                       \
@@ -144,6 +145,16 @@ ErrCode VM::Run() {
       case OpCode::OP_PRINT: {
         printValue(Pop());
         printf("\n");
+        break;
+      }
+      case OpCode::OP_JUMP: {
+        uint16_t offset = READ_SHORT();
+        ip_ += offset;
+        break;
+      }
+      case OpCode::OP_JUMP_IF_FALSE: {
+        uint16_t offset = READ_SHORT();
+        if (!Peek(0).IsTrue()) ip_ += offset;
         break;
       }
       case OpCode::OP_RETURN: {
