@@ -53,7 +53,7 @@ struct Value {
     }
   }
 
-  bool IsTrue() { return !IsNil() && as.number; }
+  bool IsTrue() { return !IsNil() && IsBool() && AsBool(); }
 
  private:
   ValueType type;

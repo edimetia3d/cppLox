@@ -151,6 +151,9 @@ class Compiler {
   void ifStatement();
   int emitJump(OpCode code);
   void patchJump(int jump);
+  void whileStatement();
+  void emitLoop(int start);
+  void forStatement();
 };
 
 }  // namespace vm

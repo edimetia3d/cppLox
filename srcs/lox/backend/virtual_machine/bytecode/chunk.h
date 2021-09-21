@@ -34,6 +34,7 @@ enum class OpCode : uint8_t {
   OP_PRINT,
   OP_JUMP,
   OP_JUMP_IF_FALSE,
+  OP_JUMP_BACK,
   OP_RETURN,
 };
 

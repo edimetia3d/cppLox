@@ -245,6 +245,12 @@ void Compiler::statement() {
     printStatement();
   } else if (MatchAndAdvance(TokenType::IF)) {
     ifStatement();
+  } else if (MatchAndAdvance(TokenType::WHILE)) {
+    whileStatement();
+  } else if (MatchAndAdvance(TokenType::FOR)) {
+    beginScope();
+    forStatement();
+    endScope();
   } else if (MatchAndAdvance(TokenType::LEFT_BRACE)) {
     beginScope();
     block();
@@ -420,10 +426,10 @@ int Compiler::emitJump(OpCode jump_cmd) {
   return current_trunk_->ChunkSize() - 2;
 }
 void Compiler::patchJump(int offset) {
-  int ip_beg = offset + 2;
+  int ip_from = offset + 2;
   // at runtime, jump will load 1 byte of OPCode and 2 byte of position, so ip will pointer to `BASE + offset + 2`
   int ip_target = current_trunk_->ChunkSize();
-  int jump_diff = ip_target - ip_beg;
+  int jump_diff = ip_target - ip_from;
 
   if (jump_diff > UINT16_MAX) {
     error("Too much code to jump_diff over.");
@@ -449,6 +455,70 @@ void Compiler::or_() {
 
   Expression(Precedence::OR);
   patchJump(endJump);
+}
+void Compiler::whileStatement() {
+  int loopStart = current_trunk_->ChunkSize();
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
+  Expression();
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
+
+  int exitJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+  emitByte(OpCode::OP_POP);
+  statement();
+  emitLoop(loopStart);
+  patchJump(exitJump);
+  emitByte(OpCode::OP_POP);
+}
+void Compiler::emitLoop(int start) {
+  int ip_target = start;
+  int ip_from = current_trunk_->ChunkSize() + 3;  // after OP_JUMP_BACK is executed, ip will pointer to this pos
+
+  emitByte(OpCode::OP_JUMP_BACK);
+  int offset = -1 * (ip_target - ip_from);  // always use a positive number, for we store offset into a uint16
+  if (offset > UINT16_MAX) error("Loop body too large.");
+
+  emitByte((offset >> 8) & 0xff);
+  emitByte(offset & 0xff);
+}
+void Compiler::forStatement() {
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
+  if (MatchAndAdvance(TokenType::SEMICOLON)) {
+    // No initializer.
+  } else if (MatchAndAdvance(TokenType::VAR)) {
+    varDeclaration();
+  } else {
+    expressionStatement();
+  }
+
+  int loopStart = current_trunk_->ChunkSize();
+  int exitJump = -1;
+  if (!MatchAndAdvance(TokenType::SEMICOLON)) {
+    Expression();
+    Consume(TokenType::SEMICOLON, "Expect ';' after loop condition.");
+
+    // Jump out of the loop if the condition is false.
+    exitJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+    emitByte(OpCode::OP_POP);  // Condition.
+  }
+
+  if (!MatchAndAdvance(TokenType::RIGHT_PAREN)) {
+    int bodyJump = emitJump(OpCode::OP_JUMP);
+    int incrementStart = current_trunk_->ChunkSize();
+    Expression();              // this will leave a value on top of stack
+    emitByte(OpCode::OP_POP);  // discard stack top
+    Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
+
+    emitLoop(loopStart);
+    loopStart = incrementStart;
+    patchJump(bodyJump);
+  }
+  statement();
+  emitLoop(loopStart);
+
+  if (exitJump != -1) {
+    patchJump(exitJump);
+    emitByte(OpCode::OP_POP);  // Condition.
+  }
 }
 }  // namespace vm
 }  // namespace lox
