@@ -106,7 +106,7 @@ std::vector<ParseRule> BuildRuleMap() {
       RULE_ITEM(IDENTIFIER   , M(variable)    , nullptr  , NONE),
       RULE_ITEM(STRING       , M(string)    , nullptr  , NONE),
       RULE_ITEM(NUMBER       , M(number)  , nullptr  , NONE),
-      RULE_ITEM(AND          , nullptr    , nullptr  , NONE),
+      RULE_ITEM(AND          , nullptr    , M(and_)  , AND),
       RULE_ITEM(CLASS        , nullptr    , nullptr  , NONE),
       RULE_ITEM(ELSE         , nullptr    , nullptr  , NONE),
       RULE_ITEM(FALSE        , M(literal)    , nullptr  , NONE),
@@ -114,7 +114,7 @@ std::vector<ParseRule> BuildRuleMap() {
       RULE_ITEM(FUN          , nullptr    , nullptr  , NONE),
       RULE_ITEM(IF           , nullptr    , nullptr  , NONE),
       RULE_ITEM(NIL          , M(literal)    , nullptr  , NONE),
-      RULE_ITEM(OR           , nullptr    , nullptr  , NONE),
+      RULE_ITEM(OR           , nullptr    , M(or_)  , OR),
       RULE_ITEM(PRINT        , nullptr    , nullptr  , NONE),
       RULE_ITEM(RETURN       , nullptr    , nullptr  , NONE),
       RULE_ITEM(THIS         , nullptr    , nullptr  , NONE),
@@ -431,6 +431,24 @@ void Compiler::patchJump(int offset) {
 
   current_trunk_->code[offset] = (jump_diff >> 8) & 0xff;
   current_trunk_->code[offset + 1] = jump_diff & 0xff;
+}
+void Compiler::and_() {
+  int endJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+
+  emitByte(OpCode::OP_POP);
+  Expression(Precedence::AND);
+
+  patchJump(endJump);
+}
+void Compiler::or_() {
+  int elseJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+  int endJump = emitJump(OpCode::OP_JUMP);
+
+  patchJump(elseJump);
+  emitByte(OpCode::OP_POP);
+
+  Expression(Precedence::OR);
+  patchJump(endJump);
 }
 }  // namespace vm
 }  // namespace lox

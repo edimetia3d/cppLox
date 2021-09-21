@@ -118,6 +118,8 @@ class Compiler {
   ParseRule* getRule(Token token);
   void binary();
   void string();
+  void and_();
+  void or_();
   bool canAssign();
   void variable();
   bool MatchAndAdvance(TokenType type);
