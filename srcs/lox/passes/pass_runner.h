@@ -6,7 +6,7 @@
 #define CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_RUNNER_H_
 #include <cassert>
 
-#include "lox/ast/ast.h"
+#include "lox/ast/ast_node_visitor.h"
 #include "pass.h"
 namespace lox {
 class PassRunner : public IAstNodeVisitor {

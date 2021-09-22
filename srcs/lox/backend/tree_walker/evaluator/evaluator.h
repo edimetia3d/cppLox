@@ -7,7 +7,7 @@
 
 #include <cassert>
 
-#include "lox/ast/ast.h"
+#include "lox/ast/ast_node_visitor.h"
 #include "lox/backend/tree_walker/evaluator/environment.h"
 #include "lox/backend/tree_walker/lox_object/lox_object.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/resolve_map.h"
