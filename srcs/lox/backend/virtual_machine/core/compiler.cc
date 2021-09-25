@@ -11,9 +11,9 @@ namespace lox {
 namespace vm {
 ObjFunction *Compiler::Compile(Scanner *scanner, CompileUnit *cu) {
   current_cu_ = cu;
-  auto local = &current_cu_->locals[current_cu_->localCount++];
-  local->depth = 0;
-  local->name = MakeToken(TokenType::EOF_TOKEN, "", 0);
+  //  auto local = &current_cu_->locals[current_cu_->localCount++];
+  //  local->depth = 0;
+  //  local->name = MakeToken(TokenType::EOF_TOKEN, "", 0);
 
   scanner_ = scanner;
   Advance();
@@ -257,6 +257,8 @@ void Compiler::declaration() {
 void Compiler::statement() {
   if (MatchAndAdvance(TokenType::PRINT)) {
     printStatement();
+  } else if (MatchAndAdvance(TokenType::BREAK)) {
+    breakStatement();
   } else if (MatchAndAdvance(TokenType::IF)) {
     ifStatement();
   } else if (MatchAndAdvance(TokenType::WHILE)) {
@@ -419,25 +421,25 @@ void Compiler::ifStatement() {
   Expression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
 
-  int thenJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+  int thenJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
   emitByte(OpCode::OP_POP);
   statement();
-  int elseJump = emitJump(OpCode::OP_JUMP);
-  patchJump(thenJump);
+  int elseJump = emitJumpDown(OpCode::OP_JUMP);
+  patchJumpDown(thenJump);
   emitByte(OpCode::OP_POP);
   if (MatchAndAdvance(TokenType::ELSE)) {
     statement();
   }
-  patchJump(elseJump);
+  patchJumpDown(elseJump);
 }
-int Compiler::emitJump(OpCode jump_cmd) {
+int Compiler::emitJumpDown(OpCode jump_cmd) {
   emitByte(jump_cmd);
   // reserve two bytes to store jmp diff
   emitByte(0xff);
   emitByte(0xff);
   return CurrentChunk()->ChunkSize() - 2;
 }
-void Compiler::patchJump(int offset) {
+void Compiler::patchJumpDown(int offset) {
   int ip_from = offset + 2;
   // at runtime, jump will load 1 byte of OPCode and 2 byte of position, so ip will pointer to `BASE + offset + 2`
   int ip_target = CurrentChunk()->ChunkSize();
@@ -451,22 +453,22 @@ void Compiler::patchJump(int offset) {
   CurrentChunk()->code[offset + 1] = jump_diff & 0xff;
 }
 void Compiler::and_() {
-  int endJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+  int endJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
 
   emitByte(OpCode::OP_POP);
   Expression(Precedence::AND);
 
-  patchJump(endJump);
+  patchJumpDown(endJump);
 }
 void Compiler::or_() {
-  int elseJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
-  int endJump = emitJump(OpCode::OP_JUMP);
+  int elseJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
+  int endJump = emitJumpDown(OpCode::OP_JUMP);
 
-  patchJump(elseJump);
+  patchJumpDown(elseJump);
   emitByte(OpCode::OP_POP);
 
   Expression(Precedence::OR);
-  patchJump(endJump);
+  patchJumpDown(endJump);
 }
 void Compiler::whileStatement() {
   int loopStart = CurrentChunk()->ChunkSize();
@@ -474,14 +476,16 @@ void Compiler::whileStatement() {
   Expression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
 
-  int exitJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+  int exitJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
   emitByte(OpCode::OP_POP);
+  openBreak();
   statement();
-  emitLoop(loopStart);
-  patchJump(exitJump);
+  emitJumpBack(loopStart);
+  patchJumpDown(exitJump);
   emitByte(OpCode::OP_POP);
+  closeBreak();
 }
-void Compiler::emitLoop(int start) {
+void Compiler::emitJumpBack(int start) {
   int ip_target = start;
   int ip_from = CurrentChunk()->ChunkSize() + 3;  // after OP_JUMP_BACK is executed, ip will pointer to this pos
 
@@ -509,28 +513,61 @@ void Compiler::forStatement() {
     Consume(TokenType::SEMICOLON, "Expect ';' after loop condition.");
 
     // Jump out of the loop if the condition is false.
-    exitJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+    exitJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
     emitByte(OpCode::OP_POP);  // Condition.
   }
 
   if (!MatchAndAdvance(TokenType::RIGHT_PAREN)) {
-    int bodyJump = emitJump(OpCode::OP_JUMP);
+    int bodyJump = emitJumpDown(OpCode::OP_JUMP);
     int incrementStart = CurrentChunk()->ChunkSize();
     Expression();              // this will leave a value on top of stack
     emitByte(OpCode::OP_POP);  // discard stack top
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
 
-    emitLoop(loopStart);
+    emitJumpBack(loopStart);
     loopStart = incrementStart;
-    patchJump(bodyJump);
+    patchJumpDown(bodyJump);
   }
+  openBreak();
   statement();
-  emitLoop(loopStart);
-
+  emitJumpBack(loopStart);
   if (exitJump != -1) {
-    patchJump(exitJump);
+    patchJumpDown(exitJump);
     emitByte(OpCode::OP_POP);  // Condition.
   }
+  closeBreak();
+}
+void Compiler::breakStatement() {
+  Consume(TokenType::SEMICOLON, "Expect ';' after value.");
+  if (loop_nest_level < 0) {
+    error("Can not break here");
+    return;
+  }
+  auto tail = &loop_break_info;
+  while (tail->next) {
+    tail = tail->next;
+  }
+  int jump = emitJumpDown(OpCode::OP_JUMP);
+  tail->next = new LoopBreak;
+  tail->next->offset = jump;
+  tail->next->level = loop_nest_level;
+}
+void Compiler::openBreak() { ++loop_nest_level; }
+void Compiler::closeBreak() {
+  auto p = &loop_break_info;
+  auto new_tail = &loop_break_info;
+  while (p->level != loop_nest_level) {
+    new_tail = p;
+    p = p->next;
+  }
+  while (p) {
+    patchJumpDown(p->offset);
+    auto tmp = p;
+    p = p->next;
+    delete tmp;
+  }
+  --loop_nest_level;
+  new_tail->next = nullptr;
 }
 }  // namespace vm
 }  // namespace lox

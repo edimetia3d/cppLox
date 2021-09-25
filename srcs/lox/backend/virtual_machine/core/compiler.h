@@ -148,6 +148,15 @@ class Compiler {
   Parser parser_;
   Scanner* scanner_;
   Precedence last_expression_precedence = Precedence::NONE;
+  struct LoopBreak {
+    int offset = -1;
+    LoopBreak* next = nullptr;
+    int level = -1;   // nested loop level value
+  } loop_break_info;  // a dummy head
+  int loop_nest_level = -1;
+  void openBreak();
+  void breakStatement();
+  void closeBreak();
   void block();
   void beginScope();
   void endScope();
@@ -157,10 +166,10 @@ class Compiler {
   int resolveLocal(Token shared_ptr);
   void markInitialized();
   void ifStatement();
-  int emitJump(OpCode code);
-  void patchJump(int jump);
+  int emitJumpDown(OpCode jump_cmd);
+  void patchJumpDown(int jump);
   void whileStatement();
-  void emitLoop(int start);
+  void emitJumpBack(int start);
   void forStatement();
 };
 
