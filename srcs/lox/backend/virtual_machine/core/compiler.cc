@@ -9,8 +9,8 @@
 namespace lox {
 
 namespace vm {
-ErrCode Compiler::Compile(Scanner *scanner, Chunk *target, LexicalScope *scope) {
-  current_scope_ = scope;
+ErrCode Compiler::Compile(Scanner *scanner, Chunk *target, CompileUnit *cu) {
+  current_cu_ = cu;
   scanner_ = scanner;
   current_trunk_ = target;
   Advance();
@@ -307,14 +307,14 @@ void Compiler::varDeclaration() {
 uint8_t Compiler::parseVariable(const char *errorMessage) {
   Consume(TokenType::IDENTIFIER, errorMessage);
   declareVariable();
-  if (current_scope_->scopeDepth > 0) return 0;
+  if (current_cu_->scopeDepth > 0) return 0;
   return identifierConstant(parser_.previous);
 }
 uint8_t Compiler::identifierConstant(Token token) {
   return makeConstant(Value(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
 }
 void Compiler::defineVariable(uint8_t global) {
-  if (current_scope_->scopeDepth > 0) {
+  if (current_cu_->scopeDepth > 0) {
     markInitialized();
     return;
   }
@@ -351,22 +351,22 @@ void Compiler::block() {
 
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
 }
-void Compiler::beginScope() { ++current_scope_->scopeDepth; }
+void Compiler::beginScope() { ++current_cu_->scopeDepth; }
 void Compiler::endScope() {
-  --current_scope_->scopeDepth;
-  while (current_scope_->localCount > 0 &&
-         current_scope_->locals[current_scope_->localCount - 1].depth > current_scope_->scopeDepth) {
+  --current_cu_->scopeDepth;
+  while (current_cu_->localCount > 0 &&
+         current_cu_->locals[current_cu_->localCount - 1].depth > current_cu_->scopeDepth) {
     emitByte(OpCode::OP_POP);
-    current_scope_->localCount--;
+    current_cu_->localCount--;
   }
 }
 void Compiler::declareVariable() {
-  if (current_scope_->scopeDepth == 0) return;
+  if (current_cu_->scopeDepth == 0) return;
 
   Token name = parser_.previous;
-  for (int i = current_scope_->localCount - 1; i >= 0; i--) {
-    auto local = &current_scope_->locals[i];
-    if (local->depth != -1 && local->depth < current_scope_->scopeDepth) {
+  for (int i = current_cu_->localCount - 1; i >= 0; i--) {
+    auto local = &current_cu_->locals[i];
+    if (local->depth != -1 && local->depth < current_cu_->scopeDepth) {
       break;
     }
 
@@ -377,18 +377,18 @@ void Compiler::declareVariable() {
   addLocal(name);
 }
 void Compiler::addLocal(Token token) {
-  if (current_scope_->localCount == LexicalScope::LOCAL_MAX_COUNT) {
+  if (current_cu_->localCount == CompileUnit::LOCAL_MAX_COUNT) {
     error("Too many local variables in function.");
     return;
   }
-  LexicalScope::Local *local = &current_scope_->locals[current_scope_->localCount++];
+  CompileUnit::Local *local = &current_cu_->locals[current_cu_->localCount++];
   local->name = token;
   local->depth = -1;
 }
 bool Compiler::identifiersEqual(Token t0, Token t1) { return t0->lexeme == t1->lexeme; }
 int Compiler::resolveLocal(Token token) {
-  for (int i = current_scope_->localCount - 1; i >= 0; i--) {
-    LexicalScope::Local *local = &current_scope_->locals[i];
+  for (int i = current_cu_->localCount - 1; i >= 0; i--) {
+    CompileUnit::Local *local = &current_cu_->locals[i];
     if (identifiersEqual(token, local->name)) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
@@ -399,9 +399,7 @@ int Compiler::resolveLocal(Token token) {
 
   return -1;
 }
-void Compiler::markInitialized() {
-  current_scope_->locals[current_scope_->localCount - 1].depth = current_scope_->scopeDepth;
-}
+void Compiler::markInitialized() { current_cu_->locals[current_cu_->localCount - 1].depth = current_cu_->scopeDepth; }
 void Compiler::ifStatement() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
   Expression();

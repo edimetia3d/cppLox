@@ -43,7 +43,7 @@ struct ParseRule {
   OperatorType operator_type;
 };
 
-struct LexicalScope {
+struct CompileUnit {
   struct Local {
     Token name;
     int depth;
@@ -77,7 +77,7 @@ struct LexicalScope {
 class Compiler {
  public:
   Compiler() = default;
-  ErrCode Compile(Scanner* scanner, Chunk* target, LexicalScope* scope);
+  ErrCode Compile(Scanner* scanner, Chunk* target, CompileUnit* cu);
 
  private:
   void Advance();
@@ -135,7 +135,7 @@ class Compiler {
   void defineVariable(uint8_t global);
   void namedVariable(Token varaible_token);
 
-  LexicalScope* current_scope_;
+  CompileUnit* current_cu_;
   Parser parser_;
   Scanner* scanner_;
   Chunk* current_trunk_;
