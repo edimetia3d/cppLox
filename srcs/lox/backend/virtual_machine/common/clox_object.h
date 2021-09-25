@@ -13,7 +13,7 @@
 namespace lox {
 namespace vm {
 
-enum class ObjType { UNKNOWN, OBJ_STRING };
+enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION };
 
 struct Obj {
   ObjType type;
@@ -40,6 +40,16 @@ struct Obj {
 
  protected:
   Obj() : type(ObjType::UNKNOWN) { AllCreatedObj().Insert(this); };
+};
+
+class Chunk;
+struct ObjFunction : public Obj {
+  ObjFunction();
+  constexpr static ObjType TYPE_ID = ObjType::OBJ_FUNCTION;
+  int arity = 0;
+  std::string name;
+  Chunk* chunk;
+  ~ObjFunction();
 };
 
 struct ObjInternedString : public Obj {

@@ -2,10 +2,12 @@
 // LICENSE: MIT
 //
 
-#include "clox_object.h"
+#include "lox/backend/virtual_machine/common/clox_object.h"
 
 #include <cstdio>
 #include <cstring>
+
+#include "lox/backend/virtual_machine/bytecode/chunk.h"
 
 namespace lox {
 namespace vm {
@@ -35,6 +37,8 @@ void Obj::Print() const {
   switch (type) {
     case ObjType::OBJ_STRING:
       q_printf("%s", As<ObjInternedString>()->c_str());
+    case ObjType::OBJ_FUNCTION:
+      q_printf("<fn %s>", As<ObjFunction>()->name.c_str());
     default:
       q_printf("Unknown Obj type");
   }
@@ -105,10 +109,18 @@ void Obj::Destroy(Obj *obj) {
     case ObjType::OBJ_STRING:
       delete obj->As<ObjInternedString>();
       break;
+    case ObjType::OBJ_FUNCTION:
+      delete obj->As<ObjFunction>();
+      break;
     default:
       printf("Destroying Unknown Type.\n");
   }
 }
 
+ObjFunction::ObjFunction() {
+  type = TYPE_ID;
+  chunk = new Chunk();
+}
+ObjFunction::~ObjFunction() { delete chunk; }
 }  // namespace vm
 }  // namespace lox
