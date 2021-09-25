@@ -8,6 +8,7 @@
 #include <functional>
 
 #include "lox/backend/virtual_machine/bytecode/chunk.h"
+#include "lox/backend/virtual_machine/common/clox_object.h"
 #include "lox/backend/virtual_machine/common/err_code.h"
 #include "lox/backend/virtual_machine/common/hash_map.h"
 #include "lox/frontend/scanner.h"
@@ -44,6 +45,14 @@ struct ParseRule {
 };
 
 struct CompileUnit {
+  enum class CUType { UNKOWN, FUNCTION, SCRIPT };
+  CompileUnit() {
+    entry_point = new ObjFunction();  // obj function will get gc cleaned, so we only new , not delete
+    entry_point->name = "<script>";
+    type = CUType::SCRIPT;
+  }
+  ObjFunction* entry_point;
+  CUType type = CUType::UNKOWN;
   struct Local {
     Token name;
     int depth;
@@ -77,7 +86,7 @@ struct CompileUnit {
 class Compiler {
  public:
   Compiler() = default;
-  ErrCode Compile(Scanner* scanner, Chunk* target, CompileUnit* cu);
+  ObjFunction* Compile(Scanner* scanner, CompileUnit* cu);
 
  private:
   void Advance();
@@ -90,7 +99,7 @@ class Compiler {
   void emitByte(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
   void emitBytes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
   Chunk* CurrentChunk();
-  void endCompiler();
+  ObjFunction* endCompiler();
   void emitReturn();
   uint8_t makeConstant(Value value);
   void emitConstant(Value value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
@@ -138,7 +147,6 @@ class Compiler {
   CompileUnit* current_cu_;
   Parser parser_;
   Scanner* scanner_;
-  Chunk* current_trunk_;
   Precedence last_expression_precedence = Precedence::NONE;
   void block();
   void beginScope();

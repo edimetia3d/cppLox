@@ -35,13 +35,11 @@ ErrCode VM::Run() {
 
 #ifdef DEBUG_TRACE_EXECUTION
   int dbg_op_id = 0;
-  chunk_->DumpCode();
-  chunk_->DumpConstant();
 #endif
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
     printf("---- CMD %d ----\n", dbg_op_id);
-    chunk_->DumpCode((int)(ip_ - chunk_->code.data()));
+    chunk_->DumpByOffset((int)(ip_ - chunk_->code.data()));
 #endif
     OpCode instruction;
     switch (instruction = static_cast<OpCode>(READ_BYTE())) {

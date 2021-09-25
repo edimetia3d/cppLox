@@ -9,19 +9,22 @@
 namespace lox {
 
 namespace vm {
-ErrCode Compiler::Compile(Scanner *scanner, Chunk *target, CompileUnit *cu) {
+ObjFunction *Compiler::Compile(Scanner *scanner, CompileUnit *cu) {
   current_cu_ = cu;
+  auto local = &current_cu_->locals[current_cu_->localCount++];
+  local->depth = 0;
+  local->name = MakeToken(TokenType::EOF_TOKEN, "", 0);
+
   scanner_ = scanner;
-  current_trunk_ = target;
   Advance();
   while (!MatchAndAdvance(TokenType::EOF_TOKEN)) {
     declaration();
   }
-  endCompiler();
+  auto ret_func = endCompiler();
   if (parser_.hadError) {
-    return ErrCode::PARSE_FAIL;
+    return nullptr;
   }
-  return ErrCode::NO_ERROR;
+  return ret_func;
 }
 void Compiler::Advance() {
   parser_.previous = parser_.current;
@@ -50,8 +53,19 @@ void Compiler::Consume(TokenType type, const char *message) {
 
   errorAtCurrent(message);
 }
-Chunk *Compiler::CurrentChunk() { return current_trunk_; }
-void Compiler::endCompiler() { emitReturn(); }
+Chunk *Compiler::CurrentChunk() { return current_cu_->entry_point->chunk; }
+ObjFunction *Compiler::endCompiler() {
+  emitReturn();
+  ObjFunction *function = current_cu_->entry_point;
+#ifndef NDEBUG
+  if (!parser_.hadError) {
+    CurrentChunk()->DumpCode(function->name.c_str());
+    CurrentChunk()->DumpConstant();
+  }
+#endif
+
+  return function;
+}
 void Compiler::emitReturn() { emitByte(OpCode::OP_RETURN); }
 void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
 void Compiler::Expression(OperatorType operator_type) {
@@ -421,20 +435,20 @@ int Compiler::emitJump(OpCode jump_cmd) {
   // reserve two bytes to store jmp diff
   emitByte(0xff);
   emitByte(0xff);
-  return current_trunk_->ChunkSize() - 2;
+  return CurrentChunk()->ChunkSize() - 2;
 }
 void Compiler::patchJump(int offset) {
   int ip_from = offset + 2;
   // at runtime, jump will load 1 byte of OPCode and 2 byte of position, so ip will pointer to `BASE + offset + 2`
-  int ip_target = current_trunk_->ChunkSize();
+  int ip_target = CurrentChunk()->ChunkSize();
   int jump_diff = ip_target - ip_from;
 
   if (jump_diff > UINT16_MAX) {
     error("Too much code to jump_diff over.");
   }
 
-  current_trunk_->code[offset] = (jump_diff >> 8) & 0xff;
-  current_trunk_->code[offset + 1] = jump_diff & 0xff;
+  CurrentChunk()->code[offset] = (jump_diff >> 8) & 0xff;
+  CurrentChunk()->code[offset + 1] = jump_diff & 0xff;
 }
 void Compiler::and_() {
   int endJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
@@ -455,7 +469,7 @@ void Compiler::or_() {
   patchJump(endJump);
 }
 void Compiler::whileStatement() {
-  int loopStart = current_trunk_->ChunkSize();
+  int loopStart = CurrentChunk()->ChunkSize();
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
   Expression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
@@ -469,7 +483,7 @@ void Compiler::whileStatement() {
 }
 void Compiler::emitLoop(int start) {
   int ip_target = start;
-  int ip_from = current_trunk_->ChunkSize() + 3;  // after OP_JUMP_BACK is executed, ip will pointer to this pos
+  int ip_from = CurrentChunk()->ChunkSize() + 3;  // after OP_JUMP_BACK is executed, ip will pointer to this pos
 
   emitByte(OpCode::OP_JUMP_BACK);
   int offset = -1 * (ip_target - ip_from);  // always use a positive number, for we store offset into a uint16
@@ -488,7 +502,7 @@ void Compiler::forStatement() {
     expressionStatement();
   }
 
-  int loopStart = current_trunk_->ChunkSize();
+  int loopStart = CurrentChunk()->ChunkSize();
   int exitJump = -1;
   if (!MatchAndAdvance(TokenType::SEMICOLON)) {
     Expression();
@@ -501,7 +515,7 @@ void Compiler::forStatement() {
 
   if (!MatchAndAdvance(TokenType::RIGHT_PAREN)) {
     int bodyJump = emitJump(OpCode::OP_JUMP);
-    int incrementStart = current_trunk_->ChunkSize();
+    int incrementStart = CurrentChunk()->ChunkSize();
     Expression();              // this will leave a value on top of stack
     emitByte(OpCode::OP_POP);  // discard stack top
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");

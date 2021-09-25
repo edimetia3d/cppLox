@@ -19,8 +19,8 @@ int Chunk::addConstant(Value value) {
 }
 int Chunk::ChunkSize() { return code.size(); }
 void Chunk::WriteOpCode(OpCode opcode, int line_number) { WriteUInt8(static_cast<uint8_t>(opcode), 0); }
-void Chunk::DumpCode() { disassembleChunk(this, "Dump"); }
-void Chunk::DumpCode(int offset) { disassembleInstruction(this, offset); }
+void Chunk::DumpCode(const char *name) { disassembleChunk(this, name); }
+void Chunk::DumpByOffset(int offset) { disassembleInstruction(this, offset); }
 void Chunk::DumpConstant() {
   printf("== Constant ==\n");
   for (Value *p = constants.data(); p != constants.data() + constants.size(); ++p) {
