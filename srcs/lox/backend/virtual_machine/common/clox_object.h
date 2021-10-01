@@ -6,6 +6,7 @@
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_CLOX_OBJECT_H_
 #include <cassert>
 #include <cstring>
+#include <string>
 
 #include "lox/backend/virtual_machine/common/buffer.h"
 #include "lox/backend/virtual_machine/common/hash_map.h"

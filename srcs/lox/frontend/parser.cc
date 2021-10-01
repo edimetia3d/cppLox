@@ -8,8 +8,12 @@
 
 #include "lox/global_setting.h"
 namespace lox {
-using ParserError = PrefixTokenError<"ParserError">;
 
+class ParserError : public PrefixTokenError<ParserError> {
+ public:
+  using PrefixTokenError<ParserError>::PrefixTokenError;
+  static std::string StrName() { return "ParserError"; }
+};
 template <TokenType type, TokenType... remained_types>
 bool Parser::AdvanceIfMatchAny() {
   if (!Check(type)) {

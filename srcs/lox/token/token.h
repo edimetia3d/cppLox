@@ -38,29 +38,20 @@ static inline Token MakeToken(const TokenType& type, const std::string& lexeme, 
   return TokenBase::Make(type, lexeme, line);
 }
 
-template <size_t N>
-struct _StringLiteral {
-  constexpr _StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
-
-  char value[N];
-};
-
 /**
  * Note: only class LoxInterpreter will handle Errors, all other class only generate
  * errors, and return `PrefixTokenError` to the caller.
  */
-template <_StringLiteral name>
+template <class CRTP>  // use crtp to make different derived class
 class PrefixTokenError : public LoxError {
  public:
-  explicit PrefixTokenError(const Token& token, const std::string& message);
+  explicit PrefixTokenError(const Token& token, const std::string& message)
+      : LoxError(CRTP::StrName() + token->Str() + " what(): " + message) {}
   [[nodiscard]] const Token& SourceToken() const { return token_; }
 
  private:
   Token token_ = MakeToken(TokenType::_TOKEN_COUNT_NUMBER, "None", -1);
 };
-template <_StringLiteral name>
-PrefixTokenError<name>::PrefixTokenError(const Token& token, const std::string& message)
-    : LoxError(name.value + token->Str() + " what(): " + message) {}
 
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_TOKEN_H_
