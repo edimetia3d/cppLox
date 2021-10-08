@@ -11,9 +11,9 @@ namespace lox {
 namespace vm {
 ObjFunction *Compiler::Compile(Scanner *scanner, CompileUnit *cu) {
   current_cu_ = cu;
-  //  auto local = &current_cu_->locals[current_cu_->localCount++];
-  //  local->depth = 0;
-  //  local->name = MakeToken(TokenType::EOF_TOKEN, "", 0);
+  auto local = &current_cu_->locals[current_cu_->localCount++];
+  local->depth = 0;
+  local->name = MakeToken(TokenType::EOF_TOKEN, "entry_point", 0);
 
   scanner_ = scanner;
   Advance();

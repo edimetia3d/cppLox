@@ -13,8 +13,9 @@ VM *VM::Instance() {
   return &object;
 }
 ErrCode VM::Run() {
-#define READ_BYTE() (*ip_++)
-#define READ_SHORT() (ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))
+  CallFrame *frame = &frames[frameCount - 1];
+#define READ_BYTE() (*frame->ip++)
+#define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #define CHEK_STACK_TOP_TYPE(TYPE)                   \
   do {                                              \
     if (!Peek().Is##TYPE()) {                       \
@@ -22,7 +23,7 @@ ErrCode VM::Run() {
       return ErrCode::INTERPRET_RUNTIME_ERROR;      \
     }                                               \
   } while (0)
-#define READ_CONSTANT() (chunk_->constants[READ_BYTE()])
+#define READ_CONSTANT() (frame->function->chunk->constants[READ_BYTE()])
 #define READ_STRING() ((READ_CONSTANT()).AsObj()->As<ObjInternedString>())
 #define BINARY_OP(OutputT, op)                                       \
   do {                                                               \
@@ -39,7 +40,7 @@ ErrCode VM::Run() {
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
     printf("---- CMD %d ----\n", dbg_op_id);
-    chunk_->DumpByOffset((int)(ip_ - chunk_->code.data()));
+    frame->function->chunk->DumpByOffset((int)(frame->ip - frame->function->chunk->code.data()));
 #endif
     OpCode instruction;
     switch (instruction = static_cast<OpCode>(READ_BYTE())) {
@@ -62,12 +63,12 @@ ErrCode VM::Run() {
         break;
       case OpCode::OP_GET_LOCAL: {
         uint8_t slot = READ_BYTE();
-        Push(stack_[slot]);
+        Push(frame->slots[slot]);
         break;
       }
       case OpCode::OP_SET_LOCAL: {
         uint8_t slot = READ_BYTE();
-        stack_[slot] = Peek(0);
+        frame->slots[slot] = Peek(0);
         break;
       }
       case OpCode::OP_GET_GLOBAL: {
@@ -150,17 +151,17 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_JUMP: {
         uint16_t offset = READ_SHORT();
-        ip_ += offset;
+        frame->ip += offset;
         break;
       }
       case OpCode::OP_JUMP_IF_FALSE: {
         uint16_t offset = READ_SHORT();
-        if (!Peek(0).IsTrue()) ip_ += offset;
+        if (!Peek(0).IsTrue()) frame->ip += offset;
         break;
       }
       case OpCode::OP_JUMP_BACK: {
         uint16_t offset = READ_SHORT();
-        ip_ -= offset;
+        frame->ip -= offset;
         break;
       }
       case OpCode::OP_RETURN: {
@@ -204,9 +205,12 @@ void VM::DumpGlobals() {
 void VM::ResetStack() { sp_ = stack_; }
 void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
-ErrCode VM::Interpret(Chunk *chunk) {
-  chunk_ = chunk;
-  ip_ = chunk_->code.data();
+ErrCode VM::Interpret(ObjFunction *function) {
+  Push(Value(function));
+  CallFrame *frame = &frames[frameCount++];
+  frame->function = function;
+  frame->ip = &function->chunk->code[0];
+  frame->slots = stack_;
   return Run();
 }
 void VM::runtimeError(const char *format, ...) {
@@ -215,9 +219,9 @@ void VM::runtimeError(const char *format, ...) {
   vfprintf(stderr, format, args);
   va_end(args);
   fputs("\n", stderr);
-
-  size_t instruction = ip_ - chunk_->code.data() - 1;
-  int line = chunk_->lines[instruction];
+  CallFrame *frame = &frames[frameCount - 1];
+  size_t instruction = frame->ip - frame->function->chunk->code.data() - 1;
+  int line = frame->function->chunk->lines[instruction];
   fprintf(stderr, "[line %d] in script\n", line);
   ResetStack();
 }
