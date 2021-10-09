@@ -9,22 +9,30 @@
 namespace lox {
 
 namespace vm {
-ObjFunction *Compiler::Compile(Scanner *scanner, CompileUnit *cu) {
-  current_cu_ = cu;
-  auto local = &current_cu_->locals[current_cu_->localCount++];
-  local->depth = 0;
-  local->name = MakeToken(TokenType::EOF_TOKEN, "entry_point", 0);
+ObjFunction *Compiler::Compile(Scanner *scanner) {
+  CompileUnit top_level_cu(CompileUnit::CUType::SCRIPT, "<script>");
+  // the function in top_level_cu will be pushed to stack at runtime, so locals[0] is occupied here
+  auto &local = top_level_cu.locals[top_level_cu.localCount++];
+  local.depth = 0;
+  local.name = MakeToken(TokenType::EOF_TOKEN, "<script>", 0);
 
+  current_cu_ = &top_level_cu;
   scanner_ = scanner;
   Advance();
   while (!MatchAndAdvance(TokenType::EOF_TOKEN)) {
     declaration();
   }
-  auto ret_func = endCompiler();
+  endCompiler();
   if (parser_.hadError) {
     return nullptr;
   }
-  return ret_func;
+#ifndef NDEBUG
+  if (!parser_.hadError) {
+    CurrentChunk()->DumpCode(current_cu_->func->name.c_str());
+    CurrentChunk()->DumpConstant();
+  }
+#endif
+  return top_level_cu.func;
 }
 void Compiler::Advance() {
   parser_.previous = parser_.current;
@@ -53,19 +61,8 @@ void Compiler::Consume(TokenType type, const char *message) {
 
   errorAtCurrent(message);
 }
-Chunk *Compiler::CurrentChunk() { return current_cu_->entry_point->chunk; }
-ObjFunction *Compiler::endCompiler() {
-  emitReturn();
-  ObjFunction *function = current_cu_->entry_point;
-#ifndef NDEBUG
-  if (!parser_.hadError) {
-    CurrentChunk()->DumpCode(function->name.c_str());
-    CurrentChunk()->DumpConstant();
-  }
-#endif
-
-  return function;
-}
+Chunk *Compiler::CurrentChunk() { return current_cu_->func->chunk; }
+void Compiler::endCompiler() { emitReturn(); }
 void Compiler::emitReturn() { emitByte(OpCode::OP_RETURN); }
 void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
 void Compiler::Expression(OperatorType operator_type) {
@@ -393,7 +390,7 @@ void Compiler::declareVariable() {
   addLocal(name);
 }
 void Compiler::addLocal(Token token) {
-  if (current_cu_->localCount == CompileUnit::LOCAL_MAX_COUNT) {
+  if (current_cu_->localCount == STACK_LOOKUP_OFFSET_MAX) {
     error("Too many local variables in function.");
     return;
   }

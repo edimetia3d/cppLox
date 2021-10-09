@@ -9,7 +9,8 @@
 #include "lox/backend/virtual_machine/common/err_code.h"
 
 #define VM_FRAMES_MAX 64
-#define VM_STACK_MAX VM_FRAMES_MAX * 256
+#define STACK_LOOKUP_OFFSET_MAX (UINT8_MAX + 1)  // same as the value in compiler
+#define VM_STACK_MAX (VM_FRAMES_MAX * IMMEDIATE_NUMBER_MAX)
 // Stack uses relative address , and command has a 256 limit,
 // so a command can find only in [frame_pointer,frame_pointer+256]
 
@@ -18,7 +19,7 @@ namespace vm {
 
 struct CallFrame {
   ObjFunction *function;  // the callee function
-  uint8_t *ip;            // pointer to somewhere in function.trunk
+  uint8_t *ip;            // pointer to somewhere in function->chunk
   Value *slots;           // pointer to somewhere in VM::stack_
 };
 
@@ -39,7 +40,7 @@ class VM {
   Value Pop();
   CallFrame frames[VM_FRAMES_MAX];
   int frameCount = 0;
-  Value stack_[VM_STACK_MAX];
+  Value stack_[STACK_LOOKUP_OFFSET_MAX];
   HashMap<ObjInternedString *, Value, ObjInternedString::Hash> globals_;
   Value *sp_ = nullptr;  // stack pointer
   void DumpStack() const;

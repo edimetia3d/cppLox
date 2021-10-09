@@ -10,13 +10,13 @@ namespace vm {
 
 LoxError VirtualMachine::Run(Scanner& scanner) {
   Compiler compiler;
-  CompileUnit cu;
   ErrCode err_code = ErrCode::NO_ERROR;
-  if (!compiler.Compile(&scanner, &cu)) {
+  ObjFunction* entry_point = compiler.Compile(&scanner);
+  if (!entry_point) {
     return LoxError("Compiler Error: " + std::to_string(static_cast<int>(err_code)));
   }
   auto vm = VM::Instance();
-  if ((err_code = vm->Interpret(cu.entry_point)) != ErrCode::NO_ERROR) {
+  if ((err_code = vm->Interpret(entry_point)) != ErrCode::NO_ERROR) {
     return LoxError("Runtime Error: " + std::to_string(static_cast<int>(err_code)));
   }
   return LoxError();

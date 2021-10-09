@@ -12,6 +12,9 @@
 #include "lox/backend/virtual_machine/common/err_code.h"
 #include "lox/backend/virtual_machine/common/hash_map.h"
 #include "lox/frontend/scanner.h"
+
+#define STACK_LOOKUP_OFFSET_MAX (UINT8_MAX + 1)  // we only use one byte to store the local lookup offset
+
 namespace lox {
 
 namespace vm {
@@ -46,20 +49,17 @@ struct ParseRule {
 
 struct CompileUnit {
   enum class CUType { UNKOWN, FUNCTION, SCRIPT };
-  CompileUnit() {
-    entry_point = new ObjFunction();  // obj function will get gc cleaned, so we only new , not delete
-    entry_point->name = "<script>";
-    type = CUType::SCRIPT;
+  CompileUnit(CUType type, std::string name) : type(type) {
+    func = new ObjFunction();  // obj function will get gc cleaned, so we only new , not delete
+    func->name = name;
   }
-  ObjFunction* entry_point;
-  CUType type = CUType::UNKOWN;
   struct Local {
     Token name;
     int depth;
   };
-  static constexpr int LOCAL_MAX_COUNT =
-      UINT8_MAX + 1;  // the offset of some local var in locals will be used in opcodes, thus will have a uint8 limit.
-  Local locals[LOCAL_MAX_COUNT];
+  ObjFunction* func;
+  CUType type = CUType::UNKOWN;
+  Local locals[STACK_LOOKUP_OFFSET_MAX];
   int localCount = 0;
   int scopeDepth = 0;
 };
@@ -86,7 +86,7 @@ struct CompileUnit {
 class Compiler {
  public:
   Compiler() = default;
-  ObjFunction* Compile(Scanner* scanner, CompileUnit* cu);
+  ObjFunction* Compile(Scanner* scanner);
 
  private:
   void Advance();
@@ -99,7 +99,7 @@ class Compiler {
   void emitByte(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
   void emitBytes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
   Chunk* CurrentChunk();
-  ObjFunction* endCompiler();
+  void endCompiler();
   void emitReturn();
   uint8_t makeConstant(Value value);
   void emitConstant(Value value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
