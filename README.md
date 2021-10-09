@@ -14,3 +14,8 @@ There are (will be) three versions of Lox interpreter, they all share a same fro
     - [x] A naive tree-walker interpreter, it runs directly on the AST from frontend.
     - [ ] WIP: A virtual machine interpreter, this one uses only scanner from frontend, and do a one pass  compilation, which convert tokens to bytecode directly.
     - [ ] A MLIR based JIT interpreter, it will first run a pass on AST to generate an MLIR IR of Lox Dialect, and then lower to LLVM dialect, so we can leverage the LLVM JIT utilities to do a JIT run.
+
+# Build
+
+## Requirements
+1. A C++20 compiler, gcc >= 10.0 or clang >= 10.0 would be fine, check [cppreference](https://en.cppreference.com/w/cpp/compiler_support/20) to see more
