@@ -10,11 +10,7 @@ namespace lox {
 
 namespace vm {
 ObjFunction *Compiler::Compile(Scanner *scanner) {
-  CompileUnit top_level_cu(CompileUnit::CUType::SCRIPT, "<script>");
-  // the function in top_level_cu will be pushed to stack at runtime, so locals[0] is occupied here
-  auto &local = top_level_cu.locals[top_level_cu.localCount++];
-  local.depth = 0;
-  local.name = MakeToken(TokenType::EOF_TOKEN, "<script>", 0);
+  FunctionCU top_level_cu(nullptr, FunctionType::SCRIPT, "<script>");
 
   current_cu_ = &top_level_cu;
   scanner_ = scanner;
@@ -22,16 +18,10 @@ ObjFunction *Compiler::Compile(Scanner *scanner) {
   while (!MatchAndAdvance(TokenType::EOF_TOKEN)) {
     declaration();
   }
-  endCompiler();
+  endFunctionCompilation();
   if (parser_.hadError) {
     return nullptr;
   }
-#ifndef NDEBUG
-  if (!parser_.hadError) {
-    CurrentChunk()->DumpCode(current_cu_->func->name.c_str());
-    CurrentChunk()->DumpConstant();
-  }
-#endif
   return top_level_cu.func;
 }
 void Compiler::Advance() {
@@ -62,8 +52,20 @@ void Compiler::Consume(TokenType type, const char *message) {
   errorAtCurrent(message);
 }
 Chunk *Compiler::CurrentChunk() { return current_cu_->func->chunk; }
-void Compiler::endCompiler() { emitReturn(); }
-void Compiler::emitReturn() { emitByte(OpCode::OP_RETURN); }
+void Compiler::endFunctionCompilation() {
+  emitReturn();
+#ifndef NDEBUG
+  if (!parser_.hadError) {
+    CurrentChunk()->DumpCode(current_cu_->func->name.c_str());
+    CurrentChunk()->DumpConstant();
+  }
+#endif
+  current_cu_ = current_cu_->enclosing_;
+}
+void Compiler::emitReturn() {
+  emitByte(OpCode::OP_NIL);
+  emitByte(OpCode::OP_RETURN);
+}
 void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
 void Compiler::Expression(OperatorType operator_type) {
   auto bak_last_expression_precedence = last_expression_precedence;
@@ -95,7 +97,7 @@ std::vector<ParseRule> BuildRuleMap() {
   // clang-format off
     static std::map<TokenType,ParseRule> rules_map    = {
 /*     TokenType ,         PrefixEmitFn , InfixEmitFn, OperatorType */
-      RULE_ITEM(LEFT_PAREN   , M(grouping), nullptr  , NONE),
+      RULE_ITEM(LEFT_PAREN   , M(grouping), M(call)  , CALL),
       RULE_ITEM(RIGHT_PAREN  , nullptr    , nullptr  , NONE),
       RULE_ITEM(LEFT_BRACE   , nullptr    , nullptr  , NONE),
       RULE_ITEM(RIGHT_BRACE  , nullptr    , nullptr  , NONE),
@@ -244,7 +246,9 @@ bool Compiler::MatchAndAdvance(TokenType type) {
   return true;
 }
 void Compiler::declaration() {
-  if (MatchAndAdvance(TokenType::VAR)) {
+  if (MatchAndAdvance(TokenType::FUN)) {
+    funDeclaration();
+  } else if (MatchAndAdvance(TokenType::VAR)) {
     varDeclaration();
   } else {
     statement();
@@ -260,6 +264,8 @@ void Compiler::statement() {
     beginScope(ScopeType::IF_ELSE);
     ifStatement();
     endScope(ScopeType::IF_ELSE);
+  } else if (MatchAndAdvance(TokenType::RETURN)) {
+    returnStatement();
   } else if (MatchAndAdvance(TokenType::WHILE)) {
     beginScope(ScopeType::WHILE);
     whileStatement();
@@ -423,7 +429,7 @@ void Compiler::declareVariable() {
       break;
     }
 
-    if (identifiersEqual(name, local->name)) {
+    if (identifiersEqual(name->lexeme, local->name)) {
       error("Already a variable with this name in this scope.");
     }
   }
@@ -434,15 +440,15 @@ void Compiler::addLocal(Token token) {
     error("Too many local variables in function.");
     return;
   }
-  CompileUnit::Local *local = &current_cu_->locals[current_cu_->localCount++];
-  local->name = token;
+  FunctionCU::Local *local = &current_cu_->locals[current_cu_->localCount++];
+  local->name = token->lexeme;
   local->depth = -1;
 }
-bool Compiler::identifiersEqual(Token t0, Token t1) { return t0->lexeme == t1->lexeme; }
+bool Compiler::identifiersEqual(const std::string &t0, const std::string &t1) { return t0 == t1; }
 int Compiler::resolveLocal(Token token) {
   for (int i = current_cu_->localCount - 1; i >= 0; i--) {
-    CompileUnit::Local *local = &current_cu_->locals[i];
-    if (identifiersEqual(token, local->name)) {
+    FunctionCU::Local *local = &current_cu_->locals[i];
+    if (identifiersEqual(token->lexeme, local->name)) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
       }
@@ -452,7 +458,10 @@ int Compiler::resolveLocal(Token token) {
 
   return -1;
 }
-void Compiler::markInitialized() { current_cu_->locals[current_cu_->localCount - 1].depth = current_cu_->scopeDepth; }
+void Compiler::markInitialized() {
+  if (current_cu_->scopeDepth == 0) return;
+  current_cu_->locals[current_cu_->localCount - 1].depth = current_cu_->scopeDepth;
+}
 void Compiler::ifStatement() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
   Expression();
@@ -607,6 +616,65 @@ void Compiler::patchBreaks(int level) {
     delete tmp;
   }
   new_tail->next = nullptr;
+}
+void Compiler::funDeclaration() {
+  uint8_t global = parseVariable("Expect function name.");
+  markInitialized();
+  func(FunctionType::FUNCTION);
+  defineVariable(global);
+}
+void Compiler::func(FunctionType type) {
+  FunctionCU new_cu(current_cu_, type, parser_.previous->lexeme);
+  current_cu_ = &new_cu;
+  beginScope(ScopeType::FUNCTION);
+
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
+  if (!Check(TokenType::RIGHT_PAREN)) {
+    do {
+      current_cu_->func->arity++;
+      if (current_cu_->func->arity > 255) {
+        errorAtCurrent("Can't have more than 255 parameters.");
+      }
+      uint8_t constant = parseVariable("Expect parameter name.");
+      defineVariable(constant);
+    } while (MatchAndAdvance(TokenType::COMMA));
+  }
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
+  Consume(TokenType::LEFT_BRACE, "Expect '{' before function body.");
+  block();
+
+  endFunctionCompilation();
+  emitBytes(OpCode::OP_CONSTANT, makeConstant(Value(new_cu.func)));
+}
+void Compiler::call() {
+  uint8_t argCount = argumentList();
+  emitBytes(OpCode::OP_CALL, argCount);
+}
+uint8_t Compiler::argumentList() {
+  uint8_t argCount = 0;
+  if (!Check(TokenType::RIGHT_PAREN)) {
+    do {
+      Expression();
+      if (argCount == 255) {
+        error("Can't have more than 255 arguments.");
+      }
+      argCount++;
+    } while (MatchAndAdvance(TokenType::COMMA));
+  }
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
+  return argCount;
+}
+void Compiler::returnStatement() {
+  if (current_cu_->type == FunctionType::SCRIPT) {
+    error("Can't return from top-level code.");
+  }
+  if (MatchAndAdvance(TokenType::SEMICOLON)) {
+    emitReturn();
+  } else {
+    Expression();
+    Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
+    emitByte(OpCode::OP_RETURN);
+  }
 }
 }  // namespace vm
 }  // namespace lox

@@ -39,6 +39,10 @@ class VM {
   Value Peek(int distance = 0);
   Value Pop();
   CallFrame frames[VM_FRAMES_MAX];
+  CallFrame *currentFrame() {
+    assert(frameCount > 0);
+    return &frames[frameCount - 1];
+  }
   int frameCount = 0;
   Value stack_[STACK_LOOKUP_OFFSET_MAX];
   HashMap<ObjInternedString *, Value, ObjInternedString::Hash> globals_;
@@ -47,6 +51,8 @@ class VM {
   void DumpGlobals();
   void runtimeError(const char *format, ...);
   ~VM();
+  bool callValue(Value callee, int count);
+  bool call(ObjFunction *function, int arg_count);
 };
 }  // namespace vm
 }  // namespace lox

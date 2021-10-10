@@ -42,25 +42,33 @@ using Precedence = OperatorType;  // OperatorType is intended to sorted by prece
 
 enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION };
 
+enum class FunctionType { UNKNOWN, FUNCTION, METHOD, INITIALIZER, SCRIPT };
 class Compiler;
 struct ParseRule {
   std::function<void(Compiler*)> EmitPrefixFn;
   std::function<void(Compiler*)> EmitInfixFn;
   OperatorType operator_type;
 };
-
-struct CompileUnit {
-  enum class CUType { UNKOWN, FUNCTION, SCRIPT };
-  CompileUnit(CUType type, std::string name) : type(type) {
+/**
+ * Function compilation unit is the representation of function during compilation
+ */
+struct FunctionCU {
+  FunctionCU(FunctionCU* enclosing, FunctionType type, const std::string& name) : type(type) {
+    enclosing_ = enclosing;
     func = new ObjFunction();  // obj function will get gc cleaned, so we only new , not delete
     func->name = name;
+    // the function object will be pushed to stack at runtime, so locals[0] is occupied here
+    auto& local = locals[localCount++];
+    local.depth = 0;
+    local.name = name;
   }
   struct Local {
-    Token name;
+    std::string name;
     int depth;
   };
+  FunctionCU* enclosing_ = nullptr;
   ObjFunction* func;
-  CUType type = CUType::UNKOWN;
+  FunctionType type = FunctionType::UNKNOWN;
   Local locals[STACK_LOOKUP_OFFSET_MAX];
   int localCount = 0;
   int scopeDepth = 0;
@@ -101,7 +109,7 @@ class Compiler {
   void emitByte(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
   void emitBytes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
   Chunk* CurrentChunk();
-  void endCompiler();
+  void endFunctionCompilation();
   void emitReturn();
   uint8_t makeConstant(Value value);
   void emitConstant(Value value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
@@ -122,6 +130,7 @@ class Compiler {
     Expression();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
   }
+  void call();
   void unary();
   void literal();
   friend std::vector<ParseRule> BuildRuleMap();
@@ -146,7 +155,7 @@ class Compiler {
   void defineVariable(uint8_t global);
   void namedVariable(Token varaible_token);
 
-  CompileUnit* current_cu_;
+  FunctionCU* current_cu_;
   Parser parser_;
   Scanner* scanner_;
   Precedence last_expression_precedence = Precedence::NONE;
@@ -164,7 +173,7 @@ class Compiler {
   void endScope(ScopeType type);
   void declareVariable();
   void addLocal(Token shared_ptr);
-  bool identifiersEqual(Token shared_ptr, Token shared_ptr_1);
+  bool identifiersEqual(const std::string& t0, const std::string& t1);
   int resolveLocal(Token shared_ptr);
   void markInitialized();
   void ifStatement();
@@ -176,6 +185,10 @@ class Compiler {
   void patchBreaks(int level);
   void createBreakJump(int level);
   int updateScopeCount();
+  void funDeclaration();
+  void func(FunctionType type);
+  uint8_t argumentList();
+  void returnStatement();
 };
 
 }  // namespace vm

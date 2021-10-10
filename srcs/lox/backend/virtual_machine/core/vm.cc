@@ -13,7 +13,7 @@ VM *VM::Instance() {
   return &object;
 }
 ErrCode VM::Run() {
-  CallFrame *frame = &frames[frameCount - 1];
+  CallFrame *frame = currentFrame();  // we use a local variable as cache, to avoid calling currentFrame.
 #define READ_BYTE() (*frame->ip++)
 #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #define CHEK_STACK_TOP_TYPE(TYPE)                   \
@@ -164,9 +164,25 @@ ErrCode VM::Run() {
         frame->ip -= offset;
         break;
       }
+      case OpCode::OP_CALL: {
+        int argCount = READ_BYTE();
+        if (!callValue(Peek(argCount), argCount)) {
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
+        frame = currentFrame();  // active frame has changed, update cache
+        break;
+      }
       case OpCode::OP_RETURN: {
-        DPRINTF("Returned. \n");
-        goto EXIT;
+        Value result = Pop();
+        frameCount--;
+        if (frameCount == 0) {
+          Pop();
+          goto EXIT;
+        }
+        sp_ = frame->slots;
+        Push(result);
+        frame = currentFrame();  // active frame has changed, update cache
+        break;
       }
     }
 #ifdef DEBUG_TRACE_EXECUTION
@@ -207,6 +223,7 @@ void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
 ErrCode VM::Interpret(ObjFunction *function) {
   Push(Value(function));
+  call(function, 0);
   CallFrame *frame = &frames[frameCount++];
   frame->function = function;
   frame->ip = &function->chunk->code[0];
@@ -219,10 +236,13 @@ void VM::runtimeError(const char *format, ...) {
   vfprintf(stderr, format, args);
   va_end(args);
   fputs("\n", stderr);
-  CallFrame *frame = &frames[frameCount - 1];
-  size_t instruction = frame->ip - frame->function->chunk->code.data() - 1;
-  int line = frame->function->chunk->lines[instruction];
-  fprintf(stderr, "[line %d] in script\n", line);
+  for (int i = frameCount - 1; i >= 0; i--) {
+    CallFrame *frame = &frames[i];
+    ObjFunction *function = frame->function;
+    size_t instruction = frame->ip - function->chunk->code.data() - 1;
+    fprintf(stderr, "[line %d] in ", function->chunk->lines[instruction]);
+    fprintf(stderr, "%s()\n", function->name.c_str());
+  }
   ResetStack();
 }
 Value VM::Peek(int distance) {
@@ -240,6 +260,34 @@ VM::~VM() {
   if (count) {
     printf("VM destroyed %d CLoxObject at exit.\n", count);
   }
+}
+bool VM::callValue(Value callee, int count) {
+  if (callee.IsObj()) {
+    switch (callee.AsObj()->type) {
+      case ObjType::OBJ_FUNCTION:
+        return call(callee.AsObj()->As<ObjFunction>(), count);
+      default:
+        break;  // Non-callable object type.
+    }
+  }
+  runtimeError("Can only call functions and classes.");
+  return false;
+}
+bool VM::call(ObjFunction *function, int arg_count) {
+  if (arg_count != function->arity) {
+    runtimeError("Expected %d arguments but got %d.", function->arity, arg_count);
+    return false;
+  }
+  if (frameCount == VM_FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+
+  CallFrame *frame = &frames[frameCount++];
+  frame->function = function;
+  frame->ip = function->chunk->code.data();
+  frame->slots = sp_ - arg_count - 1;
+  return true;
 }
 
 }  // namespace vm
