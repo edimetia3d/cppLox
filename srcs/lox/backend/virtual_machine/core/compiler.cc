@@ -257,17 +257,21 @@ void Compiler::statement() {
   } else if (MatchAndAdvance(TokenType::BREAK)) {
     breakStatement();
   } else if (MatchAndAdvance(TokenType::IF)) {
+    beginScope(ScopeType::IF_ELSE);
     ifStatement();
+    endScope(ScopeType::IF_ELSE);
   } else if (MatchAndAdvance(TokenType::WHILE)) {
+    beginScope(ScopeType::WHILE);
     whileStatement();
+    endScope(ScopeType::WHILE);
   } else if (MatchAndAdvance(TokenType::FOR)) {
-    beginScope();
+    beginScope(ScopeType::FOR);
     forStatement();
-    endScope();
+    endScope(ScopeType::FOR);
   } else if (MatchAndAdvance(TokenType::LEFT_BRACE)) {
-    beginScope();
+    beginScope(ScopeType::BLOCK);
     block();
-    endScope();
+    endScope(ScopeType::BLOCK);
   } else {
     expressionStatement();
   }
@@ -364,14 +368,50 @@ void Compiler::block() {
 
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
 }
-void Compiler::beginScope() { ++current_cu_->scopeDepth; }
-void Compiler::endScope() {
+void Compiler::beginScope(ScopeType type) {
+  if (type == ScopeType::FOR || type == ScopeType::WHILE) {
+    openBreak();
+  }
+  ++current_cu_->scopeDepth;
+}
+void Compiler::endScope(ScopeType type) {
+  int scope_var_num = updateScopeCount();
+  if (loop_nest_level != -1) {
+    // we are in some loop, so there might be breaks, there will be a branch at runtime
+
+    // if vm goes here directly, that means scope ended normally, we just clear scope and go on
+    for (int i = 0; i < scope_var_num; ++i) {
+      emitByte(OpCode::OP_POP);
+    }
+    auto offset = emitJumpDown(OpCode::OP_JUMP);
+    // if vm goes here, it means vm jumped to here by some break, we clear scope, and tries to jump to next endScope
+    patchBreaks(loop_nest_level);
+    for (int i = 0; i < scope_var_num; ++i) {
+      emitByte(OpCode::OP_POP);
+    }
+    if (type == ScopeType::FOR || type == ScopeType::WHILE) {
+      // if the scope is an end of for loop, we just close it and go on
+      closeBreak();
+    } else {
+      // else, we jump to next endScope
+      createBreakJump(loop_nest_level);
+    }
+    patchJumpDown(offset);
+  } else {
+    for (int i = 0; i < scope_var_num; ++i) {
+      emitByte(OpCode::OP_POP);
+    }
+  }
   --current_cu_->scopeDepth;
+}
+int Compiler::updateScopeCount() {
+  int scope_var_count = 0;
   while (current_cu_->localCount > 0 &&
          current_cu_->locals[current_cu_->localCount - 1].depth > current_cu_->scopeDepth) {
-    emitByte(OpCode::OP_POP);
     current_cu_->localCount--;
+    ++scope_var_count;
   }
+  return scope_var_count;
 }
 void Compiler::declareVariable() {
   if (current_cu_->scopeDepth == 0) return;
@@ -475,12 +515,10 @@ void Compiler::whileStatement() {
 
   int exitJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
   emitByte(OpCode::OP_POP);
-  openBreak();
   statement();
   emitJumpBack(loopStart);
   patchJumpDown(exitJump);
   emitByte(OpCode::OP_POP);
-  closeBreak();
 }
 void Compiler::emitJumpBack(int start) {
   int ip_target = start;
@@ -525,14 +563,12 @@ void Compiler::forStatement() {
     loopStart = incrementStart;
     patchJumpDown(bodyJump);
   }
-  openBreak();
   statement();
   emitJumpBack(loopStart);
   if (exitJump != -1) {
     patchJumpDown(exitJump);
     emitByte(OpCode::OP_POP);  // Condition.
   }
-  closeBreak();
 }
 void Compiler::breakStatement() {
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
@@ -540,6 +576,9 @@ void Compiler::breakStatement() {
     error("Can not break here");
     return;
   }
+  createBreakJump(loop_nest_level);
+}
+void Compiler::createBreakJump(int level) {
   auto tail = &loop_break_info;
   while (tail->next) {
     tail = tail->next;
@@ -547,13 +586,17 @@ void Compiler::breakStatement() {
   int jump = emitJumpDown(OpCode::OP_JUMP);
   tail->next = new LoopBreak;
   tail->next->offset = jump;
-  tail->next->level = loop_nest_level;
+  tail->next->level = level;
 }
 void Compiler::openBreak() { ++loop_nest_level; }
-void Compiler::closeBreak() {
+void Compiler::closeBreak() { --loop_nest_level; }
+void Compiler::patchBreaks(int level) {
+  if (level < 0) {
+    return;
+  }
   auto p = &loop_break_info;
   auto new_tail = &loop_break_info;
-  while (p->level != loop_nest_level) {
+  while (p && p->level != level) {
     new_tail = p;
     p = p->next;
   }
@@ -563,7 +606,6 @@ void Compiler::closeBreak() {
     p = p->next;
     delete tmp;
   }
-  --loop_nest_level;
   new_tail->next = nullptr;
 }
 }  // namespace vm

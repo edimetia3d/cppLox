@@ -40,6 +40,8 @@ enum class OperatorType {
 };
 using Precedence = OperatorType;  // OperatorType is intended to sorted by precedence
 
+enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION };
+
 class Compiler;
 struct ParseRule {
   std::function<void(Compiler*)> EmitPrefixFn;
@@ -158,8 +160,8 @@ class Compiler {
   void breakStatement();
   void closeBreak();
   void block();
-  void beginScope();
-  void endScope();
+  void beginScope(ScopeType type);
+  void endScope(ScopeType type);
   void declareVariable();
   void addLocal(Token shared_ptr);
   bool identifiersEqual(Token shared_ptr, Token shared_ptr_1);
@@ -171,6 +173,9 @@ class Compiler {
   void whileStatement();
   void emitJumpBack(int start);
   void forStatement();
+  void patchBreaks(int level);
+  void createBreakJump(int level);
+  int updateScopeCount();
 };
 
 }  // namespace vm
