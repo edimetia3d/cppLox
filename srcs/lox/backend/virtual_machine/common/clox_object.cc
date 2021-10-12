@@ -70,7 +70,6 @@ int ObjInternedString::size() const {
   return data.size() - 1;  // this is a c style str
 }
 ObjInternedString::ObjInternedString(const char *buf, int size) {
-  type = TYPE_ID;
   data.push_buffer(buf, size);
   data.push_back('\0');
   UpdateHash();
@@ -84,7 +83,6 @@ void ObjInternedString::TryInternThis() {
   }
 }
 ObjInternedString::ObjInternedString(Buffer<char> &&buffer) {
-  type = TYPE_ID;
   data = std::move(buffer);
   UpdateHash();
   TryInternThis();
@@ -118,7 +116,6 @@ void Obj::Destroy(Obj *obj) {
 }
 
 ObjFunction::ObjFunction() {
-  type = TYPE_ID;
   chunk = new Chunk();
 }
 ObjFunction::~ObjFunction() { delete chunk; }

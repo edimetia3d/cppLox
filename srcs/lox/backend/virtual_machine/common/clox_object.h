@@ -40,21 +40,26 @@ struct Obj {
   static LinkList<Obj*>& AllCreatedObj();
 
  protected:
-  Obj() : type(ObjType::UNKNOWN) { AllCreatedObj().Insert(this); };
+  explicit Obj(ObjType type) : type(type) { AllCreatedObj().Insert(this); };
 };
 
+template <ObjType TYPE>
+struct ObjWithID : public Obj {
+  constexpr static ObjType TYPE_ID = TYPE;
+
+ protected:
+  ObjWithID() : Obj(TYPE) {}
+};
 class Chunk;
-struct ObjFunction : public Obj {
+struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
   ObjFunction();
-  constexpr static ObjType TYPE_ID = ObjType::OBJ_FUNCTION;
   int arity = 0;
   std::string name;
   Chunk* chunk;
   ~ObjFunction();
 };
 
-struct ObjInternedString : public Obj {
-  constexpr static ObjType TYPE_ID = ObjType::OBJ_STRING;
+struct ObjInternedString :  public ObjWithID<ObjType::OBJ_STRING> {
   uint32_t hash;
 
   uint32_t static Hash(ObjInternedString* obj_str) { return obj_str->hash; }
