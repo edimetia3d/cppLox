@@ -4,6 +4,8 @@
 
 #include "lox/backend/virtual_machine/core/vm.h"
 
+#include <lox/backend/virtual_machine/common/builtin_fn.h>
+
 #include <stdarg.h>
 
 namespace lox {
@@ -224,10 +226,6 @@ Value VM::Pop() { return *(--sp_); }
 ErrCode VM::Interpret(ObjFunction *function) {
   Push(Value(function));
   call(function, 0);
-  CallFrame *frame = &frames[frameCount++];
-  frame->function = function;
-  frame->ip = &function->chunk->code[0];
-  frame->slots = stack_;
   return Run();
 }
 void VM::runtimeError(const char *format, ...) {
@@ -266,6 +264,13 @@ bool VM::callValue(Value callee, int count) {
     switch (callee.AsObj()->type) {
       case ObjType::OBJ_FUNCTION:
         return call(callee.AsObj()->As<ObjFunction>(), count);
+      case ObjType::OBJ_NATIVE_FUNCTION: {
+        auto native = callee.AsObj()->As<ObjNativeFunction>()->function;
+        Value result = native(count, sp_ - count);
+        sp_-=(count+1);
+        Push(result);
+        return true;
+      }
       default:
         break;  // Non-callable object type.
     }
@@ -288,6 +293,21 @@ bool VM::call(ObjFunction *function, int arg_count) {
   frame->ip = function->chunk->code.data();
   frame->slots = sp_ - arg_count - 1;
   return true;
+}
+VM::VM() {
+  ResetStack();
+  defineBultins();
+}
+void VM::defineBultins() {
+  defineNativeFunction("clock",&clockNative);
+}
+void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function) {
+  Push(Value(ObjInternedString::Make(name.c_str(), name.size())));
+  Push(Value(new ObjNativeFunction(function)));
+  assert(globals_.Get(Peek(1).AsObj()->As<ObjInternedString>()) == nullptr);
+  globals_.Set(Peek(1).AsObj()->As<ObjInternedString>(),Peek(0) );
+  Pop();
+  Pop();
 }
 
 }  // namespace vm

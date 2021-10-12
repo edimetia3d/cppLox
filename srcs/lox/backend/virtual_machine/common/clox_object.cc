@@ -20,15 +20,7 @@ static uint32_t fnv_1a(uint8_t *data, int size) {
   return new_hash;
 }
 bool lox::vm::Obj::Equal(const lox::vm::Obj *rhs) const {
-  if (type != rhs->type) {
-    return false;
-  }
-  switch (type) {
-    case ObjType::OBJ_STRING:
-      return this == rhs;  // all string are interned
-    default:
-      return false;
-  }
+  return this == rhs;  // all string are interned, so we can compare directly
 }
 void Obj::Print() const {
 #define q_printf(...)  \
@@ -39,6 +31,8 @@ void Obj::Print() const {
       q_printf("%s", As<ObjInternedString>()->c_str());
     case ObjType::OBJ_FUNCTION:
       q_printf("<fn %s>", As<ObjFunction>()->name.c_str());
+    case ObjType::OBJ_NATIVE_FUNCTION:
+      q_printf("<native fn>");
     default:
       q_printf("Unknown Obj type");
   }
@@ -110,6 +104,10 @@ void Obj::Destroy(Obj *obj) {
     case ObjType::OBJ_FUNCTION:
       delete obj->As<ObjFunction>();
       break;
+    case ObjType::OBJ_NATIVE_FUNCTION:
+      delete obj->As<ObjNativeFunction>();
+      break;
+
     default:
       printf("Destroying Unknown Type.\n");
   }

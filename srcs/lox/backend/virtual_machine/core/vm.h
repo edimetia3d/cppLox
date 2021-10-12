@@ -33,7 +33,8 @@ class VM {
 
  private:
   void ResetStack();
-  VM() { ResetStack(); }
+  VM();
+  void defineBultins();
   ErrCode Run();
   void Push(Value value);
   Value Peek(int distance = 0);
@@ -53,6 +54,7 @@ class VM {
   ~VM();
   bool callValue(Value callee, int count);
   bool call(ObjFunction *function, int arg_count);
+  void defineNativeFunction(const std::string & name, ObjNativeFunction::NativeFn function);
 };
 }  // namespace vm
 }  // namespace lox

@@ -14,7 +14,7 @@
 namespace lox {
 namespace vm {
 
-enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION };
+enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION,OBJ_NATIVE_FUNCTION };
 
 struct Obj {
   ObjType type;
@@ -58,6 +58,13 @@ struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
   Chunk* chunk;
   ~ObjFunction();
 };
+
+class Value;
+struct ObjNativeFunction: public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION>{
+  using NativeFn = Value (*)(int argCount, Value* args);
+  explicit ObjNativeFunction(NativeFn fn):function(fn){}
+  NativeFn function = nullptr;
+} ;
 
 struct ObjInternedString :  public ObjWithID<ObjType::OBJ_STRING> {
   uint32_t hash;
