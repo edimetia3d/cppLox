@@ -55,6 +55,7 @@ class VM {
   bool callValue(Value callee, int count);
   bool call(ObjRuntimeFunction *closure, int arg_count);
   void defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function);
+  ObjUpvalue *captureUpvalue(Value *pValue);
 };
 }  // namespace vm
 }  // namespace lox

@@ -14,7 +14,7 @@
 namespace lox {
 namespace vm {
 
-enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION, OBJ_RUNTIME_FUNCTION, OBJ_NATIVE_FUNCTION };
+enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION, OBJ_UPVALUE, OBJ_RUNTIME_FUNCTION, OBJ_NATIVE_FUNCTION };
 
 struct Obj {
   ObjType type;
@@ -56,7 +56,14 @@ struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
   int arity = 0;
   std::string name;
   Chunk* chunk;
+  int upvalueCount = 0;
   ~ObjFunction();
+};
+
+class Value;
+struct ObjUpvalue : public ObjWithID<ObjType::OBJ_UPVALUE> {
+  explicit ObjUpvalue(Value* location) : location(location) {}
+  Value* location;
 };
 
 /**
@@ -64,12 +71,18 @@ struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
  * runtime function is same as compile time function
  */
 struct ObjRuntimeFunction : public ObjWithID<ObjType::OBJ_RUNTIME_FUNCTION> {
-  ObjRuntimeFunction(ObjFunction* func) : function(func) {}
-  bool isClosure() const { return false; }
+  using ObjUpvaluePtr = ObjUpvalue*;
+  ObjRuntimeFunction(ObjFunction* func) : function(func) {
+    upvalueCount = func->upvalueCount;
+    upvalues = new ObjUpvaluePtr[upvalueCount]{};
+  }
+  bool isClosure() const { return function->upvalueCount > 0; }
   ObjFunction* function;
+  ObjUpvaluePtr* upvalues;
+  int upvalueCount;
+  ~ObjRuntimeFunction() { delete[] upvalues; }
 };
 
-class Value;
 struct ObjNativeFunction : public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION> {
   using NativeFn = Value (*)(int argCount, Value* args);
   explicit ObjNativeFunction(NativeFn fn) : function(fn) {}

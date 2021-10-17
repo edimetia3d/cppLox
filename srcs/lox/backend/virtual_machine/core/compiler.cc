@@ -346,10 +346,13 @@ void Compiler::defineVariable(uint8_t global) {
 void Compiler::variable() { namedVariable(parser_.previous); }
 void Compiler::namedVariable(Token varaible_token) {
   OpCode getOp, setOp;
-  int arg = resolveLocal(varaible_token);
+  int arg = resolveLocal(current_cu_, varaible_token);
   if (arg != -1) {
     getOp = OpCode::OP_GET_LOCAL;
     setOp = OpCode::OP_SET_LOCAL;
+  } else if ((arg = resolveUpvalue(current_cu_, varaible_token)) != -1) {
+    getOp = OpCode::OP_GET_UPVALUE;
+    setOp = OpCode::OP_SET_UPVALUE;
   } else {
     arg = identifierConstant(varaible_token);
     getOp = OpCode::OP_GET_GLOBAL;
@@ -445,9 +448,9 @@ void Compiler::addLocal(Token token) {
   local->depth = -1;
 }
 bool Compiler::identifiersEqual(const std::string &t0, const std::string &t1) { return t0 == t1; }
-int Compiler::resolveLocal(Token token) {
-  for (int i = current_cu_->localCount - 1; i >= 0; i--) {
-    FunctionCU::Local *local = &current_cu_->locals[i];
+int Compiler::resolveLocal(FunctionCU *cu, Token token) {
+  for (int i = cu->localCount - 1; i >= 0; i--) {
+    FunctionCU::Local *local = &cu->locals[i];
     if (identifiersEqual(token->lexeme, local->name)) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
@@ -645,6 +648,10 @@ void Compiler::func(FunctionType type) {
 
   endFunctionCompilation();
   emitBytes(OpCode::OP_CLOSURE, makeConstant(Value(new_cu.func)));
+  for (int i = 0; i < current_cu_->func->upvalueCount; i++) {
+    emitByte(current_cu_->upvalues[i].isLocal ? 1 : 0);
+    emitByte(current_cu_->upvalues[i].index);
+  }
 }
 void Compiler::call() {
   uint8_t argCount = argumentList();
@@ -675,6 +682,45 @@ void Compiler::returnStatement() {
     Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
     emitByte(OpCode::OP_RETURN);
   }
+}
+int Compiler::resolveUpvalue(FunctionCU *cu, Token varaible_name) {
+  /**
+   * In enclosing, only direct enclosing is surely alive, other indirect enclosing maybe out of stack
+   */
+  if (cu->enclosing_ == nullptr) return -1;
+
+  int local = resolveLocal(cu->enclosing_, varaible_name);
+  if (local != -1) {
+    // if isLocal is true , upvalue will be on enclosing fn's stack with offset of `local`
+    // at runtime, we update this closure's upvalues[] from stack
+    return addUpvalue(cu, (uint8_t)local, true);
+  }
+  int upvalue = resolveUpvalue(cu->enclosing_, varaible_name);
+  if (upvalue != -1) {
+    // if isLocal is false, upvalue will be on enclosing fn's `upvalues[upvalue]`
+    // at runtime ,we update this functions upvalue from enclosing fn's upvalues
+    return addUpvalue(cu, (uint8_t)upvalue, false);
+  }
+
+  return -1;
+}
+int Compiler::addUpvalue(FunctionCU *cu, uint8_t index, bool isOnStack) {
+  int upvalueCount = cu->func->upvalueCount;
+
+  // check if upvalue is already added
+  for (int i = 0; i < upvalueCount; i++) {
+    FunctionCU::UpValue *upvalue = &cu->upvalues[i];
+    if (upvalue->index == index && upvalue->isLocal == isOnStack) {
+      return i;
+    }
+  }
+  if (upvalueCount == UPVALUE_LIMIT) {
+    error("Too many closure variables in function.");
+    return 0;
+  }
+  cu->upvalues[upvalueCount].isLocal = isOnStack;
+  cu->upvalues[upvalueCount].index = index;
+  return cu->func->upvalueCount++;
 }
 }  // namespace vm
 }  // namespace lox

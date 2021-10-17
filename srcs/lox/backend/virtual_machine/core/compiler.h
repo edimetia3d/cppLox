@@ -14,7 +14,7 @@
 #include "lox/frontend/scanner.h"
 
 #define STACK_LOOKUP_OFFSET_MAX (UINT8_MAX + 1)  // we only use one byte to store the local lookup offset
-
+#define UPVALUE_LIMIT 256
 namespace lox {
 
 namespace vm {
@@ -66,10 +66,15 @@ struct FunctionCU {
     std::string name;
     int depth;
   };
+  struct UpValue {
+    bool isLocal = false;
+    int index;
+  };
   FunctionCU* enclosing_ = nullptr;
   ObjFunction* func;
   FunctionType type = FunctionType::UNKNOWN;
   Local locals[STACK_LOOKUP_OFFSET_MAX];
+  UpValue upvalues[UPVALUE_LIMIT];
   int localCount = 0;
   int scopeDepth = 0;
 };
@@ -174,7 +179,7 @@ class Compiler {
   void declareVariable();
   void addLocal(Token shared_ptr);
   bool identifiersEqual(const std::string& t0, const std::string& t1);
-  int resolveLocal(Token shared_ptr);
+  int resolveLocal(FunctionCU* cu, Token token);
   void markInitialized();
   void ifStatement();
   int emitJumpDown(OpCode jump_cmd);
@@ -189,6 +194,8 @@ class Compiler {
   void func(FunctionType type);
   uint8_t argumentList();
   void returnStatement();
+  int resolveUpvalue(FunctionCU* cu, Token sharedPtr);
+  int addUpvalue(FunctionCU* cu, uint8_t index, bool isOnStack);
 };
 
 }  // namespace vm

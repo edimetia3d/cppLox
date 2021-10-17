@@ -41,6 +41,8 @@ void Obj::Print() const {
         q_printf("<fn %s>", As<ObjRuntimeFunction>()->function->name.c_str());
       }
     }
+    case ObjType::OBJ_UPVALUE:
+      q_printf("upvalue");
     default:
       q_printf("Unknown Obj type");
   }
@@ -117,6 +119,9 @@ void Obj::Destroy(Obj *obj) {
       break;
     case ObjType::OBJ_RUNTIME_FUNCTION:
       delete obj->As<ObjRuntimeFunction>();
+      break;
+    case ObjType::OBJ_UPVALUE:
+      delete obj->As<ObjUpvalue>();
       break;
     default:
       printf("Destroying Unknown Type.\n");

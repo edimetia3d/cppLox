@@ -99,6 +99,16 @@ ErrCode VM::Run() {
         }
         break;
       }
+      case OpCode::OP_GET_UPVALUE: {
+        uint8_t slot = READ_BYTE();
+        Push(*frame->closure->upvalues[slot]->location);
+        break;
+      }
+      case OpCode::OP_SET_UPVALUE: {
+        uint8_t slot = READ_BYTE();
+        *frame->closure->upvalues[slot]->location = Peek(0);
+        break;
+      }
       case OpCode::OP_EQUAL: {
         Value b = Pop();
         Value a = Pop();
@@ -175,7 +185,18 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_CLOSURE: {
-        Push(Value(new ObjRuntimeFunction(READ_CONSTANT().AsObj()->As<ObjFunction>())));
+        auto closure = new ObjRuntimeFunction(READ_CONSTANT().AsObj()->As<ObjFunction>());
+        Push(Value(closure));
+        for (int i = 0; i < closure->upvalueCount; i++) {
+          uint8_t isLocal = READ_BYTE();
+          uint8_t index = READ_BYTE();
+          if (isLocal) {
+            closure->upvalues[i] = captureUpvalue(frame->slots + index);
+          } else {
+            closure->upvalues[i] = frame->closure->upvalues[index];
+          }
+        }
+        break;
       }
       case OpCode::OP_RETURN: {
         Value result = Pop();
@@ -311,10 +332,11 @@ void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::Native
   Push(Value(ObjInternedString::Make(name.c_str(), name.size())));
   Push(Value(new ObjNativeFunction(function)));
   assert(globals_.Get(Peek(1).AsObj()->As<ObjInternedString>()) == nullptr);
-  globals_.Set(Peek(1).AsObj()->As<ObjInternedString>(),Peek(0) );
+  globals_.Set(Peek(1).AsObj()->As<ObjInternedString>(), Peek(0));
   Pop();
   Pop();
 }
+ObjUpvalue *VM::captureUpvalue(Value *pValue) { return new ObjUpvalue(pValue); }
 
 }  // namespace vm
 }  // namespace lox
