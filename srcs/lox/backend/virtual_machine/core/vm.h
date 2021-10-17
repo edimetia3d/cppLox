@@ -18,9 +18,9 @@ namespace lox {
 namespace vm {
 
 struct CallFrame {
-  ObjFunction *function;  // the callee function
-  uint8_t *ip;            // pointer to somewhere in function->chunk
-  Value *slots;           // pointer to somewhere in VM::stack_
+  ObjRuntimeFunction *closure;  // the callee function
+  uint8_t *ip;                  // pointer to somewhere in function->chunk
+  Value *slots;                 // pointer to somewhere in VM::stack_
 };
 
 /**
@@ -53,8 +53,8 @@ class VM {
   void runtimeError(const char *format, ...);
   ~VM();
   bool callValue(Value callee, int count);
-  bool call(ObjFunction *function, int arg_count);
-  void defineNativeFunction(const std::string & name, ObjNativeFunction::NativeFn function);
+  bool call(ObjRuntimeFunction *closure, int arg_count);
+  void defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function);
 };
 }  // namespace vm
 }  // namespace lox

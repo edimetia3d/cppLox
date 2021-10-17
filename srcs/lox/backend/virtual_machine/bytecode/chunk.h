@@ -12,7 +12,7 @@ namespace lox {
 namespace vm {
 
 enum class OpCode : uint8_t {
-  OP_CONSTANT,
+  OP_CONSTANT,  // read constant
   OP_NIL,
   OP_TRUE,
   OP_FALSE,
@@ -36,6 +36,7 @@ enum class OpCode : uint8_t {
   OP_JUMP_IF_FALSE,
   OP_JUMP_BACK,
   OP_CALL,
+  OP_CLOSURE,  // create closure
   OP_RETURN,
 };
 

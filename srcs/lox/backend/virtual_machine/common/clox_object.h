@@ -14,7 +14,7 @@
 namespace lox {
 namespace vm {
 
-enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION,OBJ_NATIVE_FUNCTION };
+enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION, OBJ_RUNTIME_FUNCTION, OBJ_NATIVE_FUNCTION };
 
 struct Obj {
   ObjType type;
@@ -59,14 +59,24 @@ struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
   ~ObjFunction();
 };
 
-class Value;
-struct ObjNativeFunction: public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION>{
-  using NativeFn = Value (*)(int argCount, Value* args);
-  explicit ObjNativeFunction(NativeFn fn):function(fn){}
-  NativeFn function = nullptr;
-} ;
+/**
+ * Runtime function is used for supporting of closure, when no closure is used
+ * runtime function is same as compile time function
+ */
+struct ObjRuntimeFunction : public ObjWithID<ObjType::OBJ_RUNTIME_FUNCTION> {
+  ObjRuntimeFunction(ObjFunction* func) : function(func) {}
+  bool isClosure() const { return false; }
+  ObjFunction* function;
+};
 
-struct ObjInternedString :  public ObjWithID<ObjType::OBJ_STRING> {
+class Value;
+struct ObjNativeFunction : public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION> {
+  using NativeFn = Value (*)(int argCount, Value* args);
+  explicit ObjNativeFunction(NativeFn fn) : function(fn) {}
+  NativeFn function = nullptr;
+};
+
+struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
   uint32_t hash;
 
   uint32_t static Hash(ObjInternedString* obj_str) { return obj_str->hash; }

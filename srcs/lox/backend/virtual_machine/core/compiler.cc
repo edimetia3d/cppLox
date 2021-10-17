@@ -644,7 +644,7 @@ void Compiler::func(FunctionType type) {
   block();
 
   endFunctionCompilation();
-  emitBytes(OpCode::OP_CONSTANT, makeConstant(Value(new_cu.func)));
+  emitBytes(OpCode::OP_CLOSURE, makeConstant(Value(new_cu.func)));
 }
 void Compiler::call() {
   uint8_t argCount = argumentList();

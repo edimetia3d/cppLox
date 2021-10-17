@@ -33,6 +33,14 @@ void Obj::Print() const {
       q_printf("<fn %s>", As<ObjFunction>()->name.c_str());
     case ObjType::OBJ_NATIVE_FUNCTION:
       q_printf("<native fn>");
+    case ObjType::OBJ_RUNTIME_FUNCTION: {
+      auto p = As<ObjRuntimeFunction>();
+      if (p->isClosure()) {
+        q_printf("<closure %s>", As<ObjRuntimeFunction>()->function->name.c_str());
+      } else {
+        q_printf("<fn %s>", As<ObjRuntimeFunction>()->function->name.c_str());
+      }
+    }
     default:
       q_printf("Unknown Obj type");
   }
@@ -107,7 +115,9 @@ void Obj::Destroy(Obj *obj) {
     case ObjType::OBJ_NATIVE_FUNCTION:
       delete obj->As<ObjNativeFunction>();
       break;
-
+    case ObjType::OBJ_RUNTIME_FUNCTION:
+      delete obj->As<ObjRuntimeFunction>();
+      break;
     default:
       printf("Destroying Unknown Type.\n");
   }

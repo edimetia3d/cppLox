@@ -25,7 +25,7 @@ ErrCode VM::Run() {
       return ErrCode::INTERPRET_RUNTIME_ERROR;      \
     }                                               \
   } while (0)
-#define READ_CONSTANT() (frame->function->chunk->constants[READ_BYTE()])
+#define READ_CONSTANT() (frame->closure->function->chunk->constants[READ_BYTE()])
 #define READ_STRING() ((READ_CONSTANT()).AsObj()->As<ObjInternedString>())
 #define BINARY_OP(OutputT, op)                                       \
   do {                                                               \
@@ -42,7 +42,7 @@ ErrCode VM::Run() {
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
     printf("---- CMD %d ----\n", dbg_op_id);
-    frame->function->chunk->DumpByOffset((int)(frame->ip - frame->function->chunk->code.data()));
+    frame->closure->function->chunk->DumpByOffset((int)(frame->ip - frame->closure->function->chunk->code.data()));
 #endif
     OpCode instruction;
     switch (instruction = static_cast<OpCode>(READ_BYTE())) {
@@ -174,6 +174,9 @@ ErrCode VM::Run() {
         frame = currentFrame();  // active frame has changed, update cache
         break;
       }
+      case OpCode::OP_CLOSURE: {
+        Push(Value(new ObjRuntimeFunction(READ_CONSTANT().AsObj()->As<ObjFunction>())));
+      }
       case OpCode::OP_RETURN: {
         Value result = Pop();
         frameCount--;
@@ -225,7 +228,10 @@ void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
 ErrCode VM::Interpret(ObjFunction *function) {
   Push(Value(function));
-  call(function, 0);
+  auto rt_fn = new ObjRuntimeFunction(function);
+  Pop();
+  Push(Value(rt_fn));
+  call(rt_fn, 0);
   return Run();
 }
 void VM::runtimeError(const char *format, ...) {
@@ -236,7 +242,7 @@ void VM::runtimeError(const char *format, ...) {
   fputs("\n", stderr);
   for (int i = frameCount - 1; i >= 0; i--) {
     CallFrame *frame = &frames[i];
-    ObjFunction *function = frame->function;
+    ObjFunction *function = frame->closure->function;
     size_t instruction = frame->ip - function->chunk->code.data() - 1;
     fprintf(stderr, "[line %d] in ", function->chunk->lines[instruction]);
     fprintf(stderr, "%s()\n", function->name.c_str());
@@ -262,12 +268,12 @@ VM::~VM() {
 bool VM::callValue(Value callee, int count) {
   if (callee.IsObj()) {
     switch (callee.AsObj()->type) {
-      case ObjType::OBJ_FUNCTION:
-        return call(callee.AsObj()->As<ObjFunction>(), count);
+      case ObjType::OBJ_RUNTIME_FUNCTION:
+        return call(callee.AsObj()->As<ObjRuntimeFunction>(), count);
       case ObjType::OBJ_NATIVE_FUNCTION: {
         auto native = callee.AsObj()->As<ObjNativeFunction>()->function;
         Value result = native(count, sp_ - count);
-        sp_-=(count+1);
+        sp_ -= (count + 1);
         Push(result);
         return true;
       }
@@ -278,9 +284,9 @@ bool VM::callValue(Value callee, int count) {
   runtimeError("Can only call functions and classes.");
   return false;
 }
-bool VM::call(ObjFunction *function, int arg_count) {
-  if (arg_count != function->arity) {
-    runtimeError("Expected %d arguments but got %d.", function->arity, arg_count);
+bool VM::call(ObjRuntimeFunction *closure, int arg_count) {
+  if (arg_count != closure->function->arity) {
+    runtimeError("Expected %d arguments but got %d.", closure->function->arity, arg_count);
     return false;
   }
   if (frameCount == VM_FRAMES_MAX) {
@@ -289,8 +295,8 @@ bool VM::call(ObjFunction *function, int arg_count) {
   }
 
   CallFrame *frame = &frames[frameCount++];
-  frame->function = function;
-  frame->ip = function->chunk->code.data();
+  frame->closure = closure;
+  frame->ip = closure->function->chunk->code.data();
   frame->slots = sp_ - arg_count - 1;
   return true;
 }
