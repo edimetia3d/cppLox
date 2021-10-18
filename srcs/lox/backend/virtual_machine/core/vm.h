@@ -5,7 +5,7 @@
 #ifndef CLOX_SRCS_CLOX_VM_VM_H_
 #define CLOX_SRCS_CLOX_VM_VM_H_
 #include "lox/backend/virtual_machine/bytecode/chunk.h"
-#include "lox/backend/virtual_machine/common/clox_object.h"
+#include "lox/backend/virtual_machine/common/clox_value.h"
 #include "lox/backend/virtual_machine/common/err_code.h"
 
 #define VM_FRAMES_MAX 64
