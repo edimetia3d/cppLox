@@ -46,6 +46,7 @@ class VM {
   }
   int frameCount = 0;
   Value stack_[STACK_LOOKUP_OFFSET_MAX];
+  ObjUpvalue *openUpvalues;
   HashMap<ObjInternedString *, Value, ObjInternedString::Hash> globals_;
   Value *sp_ = nullptr;  // stack pointer
   void DumpStack() const;
@@ -56,6 +57,7 @@ class VM {
   bool call(ObjRuntimeFunction *closure, int arg_count);
   void defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function);
   ObjUpvalue *captureUpvalue(Value *pValue);
+  void closeUpvalues(Value *PValue);
 };
 }  // namespace vm
 }  // namespace lox

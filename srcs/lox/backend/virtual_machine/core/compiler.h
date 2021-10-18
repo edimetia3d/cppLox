@@ -65,6 +65,7 @@ struct FunctionCU {
   struct Local {
     std::string name;
     int depth;
+    bool isCaptured = false;
   };
   struct UpValue {
     bool isLocal = false;
@@ -196,6 +197,7 @@ class Compiler {
   void returnStatement();
   int resolveUpvalue(FunctionCU* cu, Token sharedPtr);
   int addUpvalue(FunctionCU* cu, uint8_t index, bool isOnStack);
+  void cleanUpLocals(int scope_var_num);
 };
 
 }  // namespace vm

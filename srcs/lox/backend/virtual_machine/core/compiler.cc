@@ -389,15 +389,11 @@ void Compiler::endScope(ScopeType type) {
     // we are in some loop, so there might be breaks, there will be a branch at runtime
 
     // if vm goes here directly, that means scope ended normally, we just clear scope and go on
-    for (int i = 0; i < scope_var_num; ++i) {
-      emitByte(OpCode::OP_POP);
-    }
+    cleanUpLocals(scope_var_num);
     auto offset = emitJumpDown(OpCode::OP_JUMP);
     // if vm goes here, it means vm jumped to here by some break, we clear scope, and tries to jump to next endScope
     patchBreaks(loop_nest_level);
-    for (int i = 0; i < scope_var_num; ++i) {
-      emitByte(OpCode::OP_POP);
-    }
+    cleanUpLocals(scope_var_num);
     if (type == ScopeType::FOR || type == ScopeType::WHILE) {
       // if the scope is an end of for loop, we just close it and go on
       closeBreak();
@@ -407,11 +403,18 @@ void Compiler::endScope(ScopeType type) {
     }
     patchJumpDown(offset);
   } else {
-    for (int i = 0; i < scope_var_num; ++i) {
+    cleanUpLocals(scope_var_num);
+  }
+  --current_cu_->scopeDepth;
+}
+void Compiler::cleanUpLocals(int scope_var_num) {
+  for (int i = 0; i < scope_var_num; ++i) {
+    if (current_cu_->locals[current_cu_->localCount + i].isCaptured) {
+      emitByte(OpCode::OP_CLOSE_UPVALUE);
+    } else {
       emitByte(OpCode::OP_POP);
     }
   }
-  --current_cu_->scopeDepth;
 }
 int Compiler::updateScopeCount() {
   int scope_var_count = 0;
@@ -648,9 +651,9 @@ void Compiler::func(FunctionType type) {
 
   endFunctionCompilation();
   emitBytes(OpCode::OP_CLOSURE, makeConstant(Value(new_cu.func)));
-  for (int i = 0; i < current_cu_->func->upvalueCount; i++) {
-    emitByte(current_cu_->upvalues[i].isLocal ? 1 : 0);
-    emitByte(current_cu_->upvalues[i].index);
+  for (int i = 0; i < new_cu.func->upvalueCount; i++) {
+    emitByte(new_cu.upvalues[i].isLocal ? 1 : 0);
+    emitByte(new_cu.upvalues[i].index);
   }
 }
 void Compiler::call() {
@@ -693,6 +696,7 @@ int Compiler::resolveUpvalue(FunctionCU *cu, Token varaible_name) {
   if (local != -1) {
     // if isLocal is true , upvalue will be on enclosing fn's stack with offset of `local`
     // at runtime, we update this closure's upvalues[] from stack
+    current_cu_->enclosing_->locals[local].isCaptured = true;
     return addUpvalue(cu, (uint8_t)local, true);
   }
   int upvalue = resolveUpvalue(cu->enclosing_, varaible_name);

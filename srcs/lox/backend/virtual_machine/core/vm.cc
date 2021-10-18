@@ -198,17 +198,23 @@ ErrCode VM::Run() {
         }
         break;
       }
+      case OpCode::OP_CLOSE_UPVALUE:
+        closeUpvalues(sp_ - 1);
+        Pop();
+        break;
       case OpCode::OP_RETURN: {
-        Value result = Pop();
+        Value result = Pop();         // retrive return first
+        closeUpvalues(frame->slots);  // discard parameter ,if some parameter is closed ,close them
         frameCount--;
         if (frameCount == 0) {
           Pop();
           goto EXIT;
+        } else {
+          sp_ = frame->slots;
+          Push(result);
+          frame = currentFrame();  // active frame has changed, update cache
+          break;
         }
-        sp_ = frame->slots;
-        Push(result);
-        frame = currentFrame();  // active frame has changed, update cache
-        break;
       }
     }
 #ifdef DEBUG_TRACE_EXECUTION
@@ -325,9 +331,7 @@ VM::VM() {
   ResetStack();
   defineBultins();
 }
-void VM::defineBultins() {
-  defineNativeFunction("clock",&clockNative);
-}
+void VM::defineBultins() { defineNativeFunction("clock", &clockNative); }
 void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function) {
   Push(Value(ObjInternedString::Make(name.c_str(), name.size())));
   Push(Value(new ObjNativeFunction(function)));
@@ -336,7 +340,39 @@ void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::Native
   Pop();
   Pop();
 }
-ObjUpvalue *VM::captureUpvalue(Value *pValue) { return new ObjUpvalue(pValue); }
+ObjUpvalue *VM::captureUpvalue(Value *pValue) {
+  // we insert pValue into a sorted link-list
+  // so `p->location` > `p->next->location` is always true
+  ObjUpvalue *prevUpvalue = nullptr;
+  ObjUpvalue *upvalue = openUpvalues;
+  while (upvalue != nullptr && pValue < upvalue->location) {
+    prevUpvalue = upvalue;
+    upvalue = upvalue->next;
+  }
+
+  if (upvalue != nullptr && upvalue->location == pValue) {
+    return upvalue;
+  }
+  auto createdUpvalue = new ObjUpvalue(pValue);
+  createdUpvalue->next = upvalue;
+
+  if (prevUpvalue == nullptr) {
+    openUpvalues = createdUpvalue;
+  } else {
+    prevUpvalue->next = createdUpvalue;
+  }
+  return createdUpvalue;
+}
+void VM::closeUpvalues(Value *last) {
+  // for `p->location` > `p->next->location` is always true
+  // we could just delete all directly one by one
+  while (openUpvalues != nullptr && openUpvalues->location >= last) {
+    ObjUpvalue *upvalue = openUpvalues;
+    upvalue->closed = *upvalue->location;
+    upvalue->location = &upvalue->closed;
+    openUpvalues = upvalue->next;
+  }
+}
 
 }  // namespace vm
 }  // namespace lox
