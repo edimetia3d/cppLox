@@ -1,0 +1,7 @@
+if (NOT DEFINED CLI11_DIR)
+    set(CLI11_DIR "${CMAKE_CURRENT_LIST_DIR}/CLI11" CACHE STRING "Bundled CLI11 repo")
+endif ()
+if (NOT DEFINED SPDLOG_DIR)
+    set(SPDLOG_DIR "${CMAKE_CURRENT_LIST_DIR}/spdlog" CACHE STRING "Bundled spdlog repo")
+endif ()
+
