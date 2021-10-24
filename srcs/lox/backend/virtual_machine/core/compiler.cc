@@ -726,5 +726,17 @@ int Compiler::addUpvalue(FunctionCU *cu, uint8_t index, bool isOnStack) {
   cu->upvalues[upvalueCount].index = index;
   return cu->func->upvalueCount++;
 }
+void Compiler::markRoots(void *compiler_p) {
+  Compiler *compiler = static_cast<Compiler *>(compiler_p);
+  auto &gc = GC::Instance();
+
+  // mark functions
+  auto cu = compiler->current_cu_;
+  while (cu) {
+    gc.markObject(cu->func);
+    cu = cu->enclosing_;
+  }
+}
+Compiler::Compiler() : marker_register_guard(&markRoots, this) {}
 }  // namespace vm
 }  // namespace lox

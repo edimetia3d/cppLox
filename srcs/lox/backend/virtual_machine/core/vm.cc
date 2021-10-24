@@ -5,9 +5,9 @@
 #include "lox/backend/virtual_machine/core/vm.h"
 
 #include <lox/backend/virtual_machine/common/builtin_fn.h>
-
 #include <stdarg.h>
 
+#define DEBUG_STRESS_GC
 namespace lox {
 namespace vm {
 VM *VM::Instance() {
@@ -208,11 +208,13 @@ ErrCode VM::Run() {
         frameCount--;
         if (frameCount == 0) {
           Pop();
+          tryGC();
           goto EXIT;
         } else {
           sp_ = frame->slots;
           Push(result);
           frame = currentFrame();  // active frame has changed, update cache
+          tryGC();
           break;
         }
       }
@@ -228,6 +230,16 @@ EXIT:
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef BINARY_OP
+}
+void VM::tryGC() const {
+#ifdef DEBUG_STRESS_GC
+  GC::Instance().collectGarbage();
+#else
+  if (Obj::ObjCount() > GC::Instance().gc_threashold) {
+    GC::Instance().collectGarbage();
+    GC::Instance().gc_threashold = Obj::ObjCount() * 1.2;
+  }
+#endif
 }
 void VM::DumpStack() const {
   printf("Stack:");
@@ -281,12 +293,10 @@ Value VM::Peek(int distance) {
   return *(sp_ - distance - 1);
 }
 VM::~VM() {
-  auto p = Obj::AllCreatedObj().Head();
   int count = 0;
-  while (p) {
+  while (auto p = Obj::AllCreatedObj().Head()) {
     ++count;
     Obj::Destroy(p->val);
-    p = p->next;
   }
   if (count) {
     printf("VM destroyed %d CLoxObject at exit.\n", count);
@@ -327,7 +337,7 @@ bool VM::call(ObjRuntimeFunction *closure, int arg_count) {
   frame->slots = sp_ - arg_count - 1;
   return true;
 }
-VM::VM() {
+VM::VM() : marker_register_guard(&markRoots, this) {
   ResetStack();
   defineBultins();
 }
@@ -371,6 +381,26 @@ void VM::closeUpvalues(Value *last) {
     upvalue->closed = *upvalue->location;
     upvalue->location = &upvalue->closed;
     openUpvalues = upvalue->next;
+  }
+}
+void VM::markRoots(void *vm_p) {
+  VM *vm = static_cast<VM *>(vm_p);
+  // mark stacks
+  auto &gc = GC::Instance();
+  for (Value *slot = vm->stack_; slot < vm->sp_; slot++) {
+    gc.markValue(*slot);
+  }
+  // mark globals
+  gc.markTable(&vm->globals_);
+
+  // mark closures
+  for (int i = 0; i < vm->frameCount; i++) {
+    gc.markObject(vm->frames[i].closure);
+  }
+
+  // mark openUpvalue
+  for (ObjUpvalue *upvalue = vm->openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
+    gc.markObject((Obj *)upvalue);
   }
 }
 

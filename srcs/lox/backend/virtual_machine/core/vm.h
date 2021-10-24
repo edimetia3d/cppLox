@@ -58,6 +58,9 @@ class VM {
   void defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function);
   ObjUpvalue *captureUpvalue(Value *pValue);
   void closeUpvalues(Value *PValue);
+  static void markRoots(void *vm);
+  GC::RegisterMarkerGuard marker_register_guard;
+  void tryGC() const;
 };
 }  // namespace vm
 }  // namespace lox

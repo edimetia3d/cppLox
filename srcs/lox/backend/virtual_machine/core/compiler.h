@@ -101,7 +101,7 @@ struct FunctionCU {
  */
 class Compiler {
  public:
-  Compiler() = default;
+  Compiler();
   ObjFunction* Compile(Scanner* scanner);
 
  private:
@@ -198,6 +198,8 @@ class Compiler {
   int resolveUpvalue(FunctionCU* cu, Token sharedPtr);
   int addUpvalue(FunctionCU* cu, uint8_t index, bool isOnStack);
   void cleanUpLocals(int scope_var_num);
+  static void markRoots(void* compiler);
+  GC::RegisterMarkerGuard marker_register_guard;
 };
 
 }  // namespace vm

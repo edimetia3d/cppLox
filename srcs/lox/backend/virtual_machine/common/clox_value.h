@@ -56,12 +56,12 @@ struct Value {
     Obj* obj;
   } as;
 };
-void printValue(const Value& value);
-
+void printValue(const Value& value, bool print_to_debug = false);
 enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION, OBJ_UPVALUE, OBJ_RUNTIME_FUNCTION, OBJ_NATIVE_FUNCTION };
 
 struct Obj {
   ObjType type;
+  bool isMarked = false;  // gc mark
 
   template <class T>
   const T* const As() const {
@@ -78,13 +78,17 @@ struct Obj {
     return type == T::TYPE_ID;
   }
   bool Equal(const Obj* rhs) const;
-  void Print() const;
+  void Print(bool print_to_debug = false) const;
   static void Destroy(Obj* obj);
 
   static LinkList<Obj*>& AllCreatedObj();
+  static int& ObjCount();
+
+  static void MarkReference(Obj*);
 
  protected:
-  explicit Obj(ObjType type) : type(type) { AllCreatedObj().Insert(this); };
+  explicit Obj(ObjType type);
+  ~Obj();
 };
 
 template <ObjType TYPE>
@@ -165,6 +169,7 @@ struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
   static uint32_t CachedStringHash(InternView string) { return string.hash; }
 
   using InternMap = HashMap<InternView, ObjInternedString*, CachedStringHash>;
+  friend class GC;
   static InternMap& GetInternMap();
   uint32_t UpdateHash();
   ObjInternedString(const char* buf, int size);
@@ -172,6 +177,54 @@ struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
   ObjInternedString() = delete;
   void TryInternThis();
 };
+
+struct GC {
+  // singleton
+  using MarkerFn = void (*)(void*);
+  struct Marker {
+    MarkerFn marker_fn;
+    void* marker_fn_arg;
+    bool operator==(const Marker& rhs) const {
+      return rhs.marker_fn_arg == marker_fn_arg && rhs.marker_fn == marker_fn;
+    }
+    bool operator!=(const Marker& rhs) const { return !(*this == rhs); }
+  };
+  GC(const GC&) = delete;
+  GC(GC&&) = delete;
+  GC& operator=(const GC&) = delete;
+  GC& operator=(GC&&) = delete;
+
+  static GC& Instance();
+  void collectGarbage();
+  void RegisterMarker(MarkerFn fn, void* arg) { markers.Insert(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
+  void UnRegisterMarker(MarkerFn fn, void* arg) { markers.Delete(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
+  void markValue(Value value);
+  void markObject(Obj* pObj);
+  void markTable(HashMap<ObjInternedString*, Value, ObjInternedString::Hash>* pMap);
+
+  struct RegisterMarkerGuard {
+    RegisterMarkerGuard(MarkerFn fn, void* arg) : marker{fn, arg} {
+      GC::Instance().RegisterMarker(marker.marker_fn, marker.marker_fn_arg);
+    }
+    ~RegisterMarkerGuard() { GC::Instance().UnRegisterMarker(marker.marker_fn, marker.marker_fn_arg); }
+    Marker marker;
+  };
+
+  int gc_threashold = 1024;
+
+ private:
+  GC() = default;
+  void markRoots() {
+    auto node = markers.Head();
+    while (node) {
+      node->val.marker_fn(node->val.marker_fn_arg);
+      node = node->next;
+    }
+  }
+  void Sweep();
+  LinkList<Marker> markers;
+};
+
 }  // namespace vm
 }  // namespace lox
 #endif  // CLOX_SRCS_CLOX_CLOX_VALUE_H_
