@@ -72,8 +72,12 @@ void Obj::Print(bool print_to_debug) const {
         q_printf("<fn %s>", As<ObjRuntimeFunction>()->function->name.c_str());
       }
     }
+    case ObjType::OBJ_CLASS:
+      q_printf("<class %s>", As<ObjClass>()->name.c_str());
     case ObjType::OBJ_UPVALUE:
       q_printf("upvalue");
+    case ObjType::OBJ_INSTANCE:
+      q_printf("%s instance", As<ObjInstance>()->klass->name.c_str());
     default:
       q_printf("Unknown Obj type");
   }
@@ -159,6 +163,14 @@ void Obj::Destroy(Obj *obj) {
     case ObjType::OBJ_UPVALUE:
       delete obj->As<ObjUpvalue>();
       break;
+    case ObjType::OBJ_CLASS: {
+      delete obj->As<ObjClass>();
+      break;
+    }
+    case ObjType::OBJ_INSTANCE: {
+      delete obj->As<ObjInstance>();
+      break;
+    }
     default:
       printf("Destroying Unknown Type.\n");
   }
@@ -181,22 +193,28 @@ void Obj::MarkReference(Obj *obj) {
       int n = obj->As<ObjFunction>()->chunk->constants.size();
       auto p = obj->As<ObjFunction>()->chunk->constants.data();
       for (int i = 0; i < n; ++i) {
-        gc.markValue(p[i]);
+        gc.mark(p[i]);
       }
       break;
     }
     case ObjType::OBJ_NATIVE_FUNCTION:
       break;
     case ObjType::OBJ_RUNTIME_FUNCTION: {
-      gc.markObject(obj->As<ObjRuntimeFunction>()->function);
+      gc.mark(obj->As<ObjRuntimeFunction>()->function);
       for (int i = 0; i < obj->As<ObjRuntimeFunction>()->upvalueCount; ++i) {
-        gc.markObject(obj->As<ObjRuntimeFunction>()->upvalues[i]);
+        gc.mark(obj->As<ObjRuntimeFunction>()->upvalues[i]);
       }
       break;
     }
     case ObjType::OBJ_UPVALUE: {
       auto p = obj->As<ObjUpvalue>();
-      gc.markValue(*p->location);
+      gc.mark(*p->location);
+      break;
+    }
+    case ObjType::OBJ_INSTANCE: {
+      ObjInstance *instance = obj->As<ObjInstance>();
+      gc.mark(instance->klass);
+      gc.mark(instance->dict);
       break;
     }
     default:
@@ -231,21 +249,21 @@ void GC::collectGarbage() {
   Sweep();
   SPDLOG_DEBUG("-- gc end");
 }
-void GC::markValue(Value value) {
-  if (value.IsObj()) markObject(value.AsObj());
+void GC::mark(Value value) {
+  if (value.IsObj()) mark(value.AsObj());
 }
-void GC::markObject(Obj *object) {
+void GC::mark(Obj *object) {
   if (object == nullptr || object->isMarked) return;
   SPDLOG_DEBUG("%p mark ", (void *)object);
   printValue(Value(object), true);
   object->isMarked = true;
   Obj::MarkReference(object);
 }
-void GC::markTable(HashMap<ObjInternedString *, Value, ObjInternedString::Hash> *table) {
+void GC::mark(HashMap<ObjInternedString *, Value, ObjInternedString::Hash> *table) {
   auto iter = table->GetAllItem();
   while (auto entry = iter.next()) {
-    markObject(entry->key);
-    markValue(entry->value);
+    mark(entry->key);
+    mark(entry->value);
   }
 }
 void GC::Sweep() {
@@ -265,6 +283,13 @@ void GC::Sweep() {
     auto next = p->next;
     Obj::Destroy(p->val);
     p = next;
+  }
+}
+template <class KeyT, class ValueT>
+void GC::mark(const std::unordered_map<KeyT *, ValueT *> &map) {
+  for (const auto &pair : map) {
+    mark(pair.first);
+    mark(pair.second);
   }
 }
 }  // namespace vm

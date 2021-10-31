@@ -27,15 +27,15 @@ struct Parser {
 
 enum class OperatorType {
   NONE,
-  ASSIGNMENT,  // =
-  OR,          // or
-  AND,         // and
-  EQUALITY,    // == !=
-  COMPARISON,  // < > <= >=
-  TERM,        // + -
-  FACTOR,      // * /
-  UNARY,       // ! -
-  CALL,        // . ()
+  ASSIGNMENT,   // =
+  OR,           // or
+  AND,          // and
+  EQUALITY,     // == !=
+  COMPARISON,   // < > <= >=
+  TERM,         // + -
+  FACTOR,       // * /
+  UNARY,        // ! -
+  CALL_OR_DOT,  // . ()
   PRIMARY
 };
 using Precedence = OperatorType;  // OperatorType is intended to sorted by precedence
@@ -137,6 +137,7 @@ class Compiler {
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
   }
   void call();
+  void dot();
   void unary();
   void literal();
   friend std::vector<ParseRule> BuildRuleMap();
@@ -200,6 +201,7 @@ class Compiler {
   void cleanUpLocals(int scope_var_num);
   static void markRoots(void* compiler);
   GC::RegisterMarkerGuard marker_register_guard;
+  void classDeclaration();
 };
 
 }  // namespace vm

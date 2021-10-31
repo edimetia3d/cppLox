@@ -153,6 +153,9 @@ ErrCode VM::Run() {
         Push(Value(-Pop().AsNumber()));
         break;
       }
+      case OpCode::OP_CLASS:
+        Push(Value(new ObjClass(READ_STRING()->c_str())));
+        break;
       case OpCode::OP_PRINT: {
 #ifdef DEBUG_TRACE_EXECUTION
         printf("------------------------------------------------------------ ");
@@ -217,6 +220,38 @@ ErrCode VM::Run() {
           tryGC();
           break;
         }
+      }
+      case OpCode::OP_GET_ATTR: {
+        auto top_v = Peek(0);
+        if (!top_v.IsObj() || !top_v.AsObj()->IsType<ObjInstance>()) {
+          runtimeError("Only instances have attr.");
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
+        ObjInstance *instance = top_v.AsObj()->As<ObjInstance>();
+        ObjInternedString *name = READ_STRING();
+        Value value;
+        if (instance->dict.contains(name)) {
+          Pop();  // Instance.
+          Push(Value(instance->dict[name]));
+          break;
+        }
+        runtimeError("Undefined attr '%s'.", name->c_str());
+        return ErrCode::INTERPRET_RUNTIME_ERROR;
+      }
+      case OpCode::OP_SET_ATTR: {
+        auto top_v_1 = Peek(1);
+        if (!top_v_1.IsObj() || !top_v_1.AsObj()->IsType<ObjInstance>()) {
+          runtimeError("Only instances have attr.");
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
+        ObjInstance *instance = top_v_1.AsObj()->As<ObjInstance>();
+        ObjInternedString *name = READ_STRING();
+        instance->dict[name] = Peek().AsObj();
+        // stack need to be [... instance, attr_new_value] -> [...,attr_new_value]
+        Value value = Pop();  // expression value temporay discarded
+        Pop();                // pop instance
+        Push(value);          // push expression value back
+        break;
       }
     }
 #ifdef DEBUG_TRACE_EXECUTION
@@ -305,6 +340,14 @@ VM::~VM() {
 bool VM::callValue(Value callee, int count) {
   if (callee.IsObj()) {
     switch (callee.AsObj()->type) {
+      case ObjType::OBJ_CLASS: {
+        ObjClass *klass = callee.AsObj()->As<ObjClass>();
+        auto new_instance = new ObjInstance(klass);
+        // call init here later, now we just discard all things on stack
+        sp_ -= (count + 1);  // `count` argument + 1 function
+        Push(Value(new_instance));
+        return true;
+      }
       case ObjType::OBJ_RUNTIME_FUNCTION:
         return call(callee.AsObj()->As<ObjRuntimeFunction>(), count);
       case ObjType::OBJ_NATIVE_FUNCTION: {
@@ -388,19 +431,19 @@ void VM::markRoots(void *vm_p) {
   // mark stacks
   auto &gc = GC::Instance();
   for (Value *slot = vm->stack_; slot < vm->sp_; slot++) {
-    gc.markValue(*slot);
+    gc.mark(*slot);
   }
   // mark globals
-  gc.markTable(&vm->globals_);
+  gc.mark(&vm->globals_);
 
   // mark closures
   for (int i = 0; i < vm->frameCount; i++) {
-    gc.markObject(vm->frames[i].closure);
+    gc.mark(vm->frames[i].closure);
   }
 
   // mark openUpvalue
   for (ObjUpvalue *upvalue = vm->openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
-    gc.markObject((Obj *)upvalue);
+    gc.mark((Obj *)upvalue);
   }
 }
 

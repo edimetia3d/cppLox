@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "lox/backend/virtual_machine/common/buffer.h"
 #include "lox/backend/virtual_machine/common/hash_map.h"
@@ -57,7 +59,16 @@ struct Value {
   } as;
 };
 void printValue(const Value& value, bool print_to_debug = false);
-enum class ObjType { UNKNOWN, OBJ_STRING, OBJ_FUNCTION, OBJ_UPVALUE, OBJ_RUNTIME_FUNCTION, OBJ_NATIVE_FUNCTION };
+enum class ObjType {
+  UNKNOWN,
+  OBJ_STRING,
+  OBJ_FUNCTION,
+  OBJ_UPVALUE,
+  OBJ_RUNTIME_FUNCTION,
+  OBJ_NATIVE_FUNCTION,
+  OBJ_CLASS,
+  OBJ_INSTANCE,
+};
 
 struct Obj {
   ObjType type;
@@ -139,6 +150,7 @@ struct ObjNativeFunction : public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION> {
   NativeFn function = nullptr;
 };
 
+
 struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
   uint32_t hash;
 
@@ -178,6 +190,19 @@ struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
   void TryInternThis();
 };
 
+struct ObjClass : public ObjWithID<ObjType::OBJ_CLASS> {
+  std::string name;
+  std::vector<ObjInternedString*> slot_symbol_name;  // all attr defined in init method will be load into slot;
+  explicit ObjClass(std::string name) : name(std::move(name)) {}
+};
+
+struct ObjInstance : public ObjWithID<ObjType::OBJ_INSTANCE> {
+  explicit ObjInstance(ObjClass* klass) : klass(klass){};
+  ObjClass* klass;
+  std::unordered_map<ObjInternedString*, Obj*> dict;
+  std::vector<Obj*> slot;  // todo: use slot to get / set slot attr at compile time
+};
+
 struct GC {
   // singleton
   using MarkerFn = void (*)(void*);
@@ -198,9 +223,11 @@ struct GC {
   void collectGarbage();
   void RegisterMarker(MarkerFn fn, void* arg) { markers.Insert(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
   void UnRegisterMarker(MarkerFn fn, void* arg) { markers.Delete(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
-  void markValue(Value value);
-  void markObject(Obj* pObj);
-  void markTable(HashMap<ObjInternedString*, Value, ObjInternedString::Hash>* pMap);
+  void mark(Value value);
+  void mark(Obj* object);
+  void mark(HashMap<ObjInternedString*, Value, ObjInternedString::Hash>* table);
+  template <class KeyT, class ValueT>
+  void mark(const std::unordered_map<KeyT*, ValueT*>& map);
 
   struct RegisterMarkerGuard {
     RegisterMarkerGuard(MarkerFn fn, void* arg) : marker{fn, arg} {

@@ -97,12 +97,12 @@ std::vector<ParseRule> BuildRuleMap() {
   // clang-format off
     static std::map<TokenType,ParseRule> rules_map    = {
 /*     TokenType ,         PrefixEmitFn , InfixEmitFn, OperatorType */
-      RULE_ITEM(LEFT_PAREN   , M(grouping), M(call)  , CALL),
+      RULE_ITEM(LEFT_PAREN   , M(grouping), M(call)  , CALL_OR_DOT),
       RULE_ITEM(RIGHT_PAREN  , nullptr    , nullptr  , NONE),
       RULE_ITEM(LEFT_BRACE   , nullptr    , nullptr  , NONE),
       RULE_ITEM(RIGHT_BRACE  , nullptr    , nullptr  , NONE),
       RULE_ITEM(COMMA        , nullptr    , nullptr  , NONE),
-      RULE_ITEM(DOT          , nullptr    , nullptr  , NONE),
+      RULE_ITEM(DOT          , nullptr    , M(dot)  ,  CALL_OR_DOT),
       RULE_ITEM(MINUS        , M(unary)   , M(binary), TERM),
       RULE_ITEM(PLUS         , nullptr    , M(binary), TERM),
       RULE_ITEM(SEMICOLON    , nullptr    , nullptr  , NONE),
@@ -246,7 +246,9 @@ bool Compiler::MatchAndAdvance(TokenType type) {
   return true;
 }
 void Compiler::declaration() {
-  if (MatchAndAdvance(TokenType::FUN)) {
+  if (MatchAndAdvance(TokenType::CLASS)) {
+    classDeclaration();
+  } else if (MatchAndAdvance(TokenType::FUN)) {
     funDeclaration();
   } else if (MatchAndAdvance(TokenType::VAR)) {
     varDeclaration();
@@ -733,10 +735,32 @@ void Compiler::markRoots(void *compiler_p) {
   // mark functions
   auto cu = compiler->current_cu_;
   while (cu) {
-    gc.markObject(cu->func);
+    gc.mark(cu->func);
     cu = cu->enclosing_;
   }
 }
 Compiler::Compiler() : marker_register_guard(&markRoots, this) {}
+void Compiler::classDeclaration() {
+  Consume(TokenType::IDENTIFIER, "Expect class name.");
+  uint8_t nameConstant = identifierConstant(parser_.previous);
+  declareVariable();
+
+  emitBytes(OpCode::OP_CLASS, nameConstant);
+  defineVariable(nameConstant);
+
+  Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
+  Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
+}
+void Compiler::dot() {
+  Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
+  uint8_t name = identifierConstant(parser_.previous);
+
+  if (canAssign() && MatchAndAdvance(TokenType::EQUAL)) {
+    Expression();
+    emitBytes(OpCode::OP_SET_ATTR, name);
+  } else {
+    emitBytes(OpCode::OP_GET_ATTR, name);
+  }
+}
 }  // namespace vm
 }  // namespace lox

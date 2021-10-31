@@ -108,6 +108,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
       return byteInstruction("OP_GET_UPVALUE", chunk, offset);
     case OpCode::OP_SET_UPVALUE:
       return byteInstruction("OP_SET_UPVALUE", chunk, offset);
+    case OpCode::OP_CLASS:
+      return constantInstruction("OP_CLASS", chunk, offset);
+    case OpCode::OP_GET_ATTR:
+      return constantInstruction("OP_GET_ATTR", chunk, offset);
+    case OpCode::OP_SET_ATTR:
+      return constantInstruction("OP_SET_ATTR", chunk, offset);
     default:
       printf("Unknown opcode %d\n", (int)instruction);
       return offset + 1;

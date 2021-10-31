@@ -41,6 +41,9 @@ enum class OpCode : uint8_t {
   OP_CLOSURE,        // create closure
   OP_CLOSE_UPVALUE,  // move a stack value to heap
   OP_RETURN,
+  OP_CLASS,
+  OP_SET_ATTR,
+  OP_GET_ATTR,
 };
 
 struct Chunk {
