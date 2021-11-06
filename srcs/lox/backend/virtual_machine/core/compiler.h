@@ -87,6 +87,7 @@ struct FunctionCU {
 struct ClassScope {
   ClassScope(ClassScope* encolsing) : enclosing(encolsing) {}
   ClassScope* enclosing = nullptr;
+  bool hasSuperclass = false;
 };
 /**
  * Compiler is mainly a Pratt Parser, which could generate an bytecode IR that can work directly with stack machine.

@@ -390,6 +390,9 @@ void Compiler::beginScope(ScopeType type) {
   ++current_cu_->scopeDepth;
 }
 void Compiler::endScope(ScopeType type) {
+  if (type == ScopeType::FUNCTION) {
+    return;  // function scope is closed by endFunctionCompilation with a cu switch
+  }
   int scope_var_num = updateScopeCount();
   if (loop_nest_level != -1) {
     // we are in some loop, so there might be breaks, there will be a branch at runtime
@@ -661,6 +664,7 @@ void Compiler::func(FunctionType type) {
     emitByte(new_cu.upvalues[i].isLocal ? 1 : 0);
     emitByte(new_cu.upvalues[i].index);
   }
+  endScope(ScopeType::FUNCTION);
 }
 void Compiler::call() {
   uint8_t argCount = argumentList();
@@ -758,6 +762,18 @@ void Compiler::classDeclaration() {
 
   ClassScope new_scope(currentClass);
   currentClass = &new_scope;
+
+  if (MatchAndAdvance(TokenType::LESS)) {
+    Consume(TokenType::IDENTIFIER, "Expect superclass name.");
+    namedVariable(parser_.previous, false);
+    if (identifiersEqual(className->lexeme, parser_.previous->lexeme)) {
+      error("A class can't inherit from itself.");
+    }
+    currentClass->hasSuperclass = true;
+    namedVariable(className, false);
+    emitByte(OpCode::OP_INHERIT);
+  }
+
   namedVariable(className, false);  // load class object to stack
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
@@ -768,6 +784,7 @@ void Compiler::classDeclaration() {
   currentClass = currentClass->enclosing;
 }
 void Compiler::dot() {
+  // todo : check only method can use class method at compile time
   Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(parser_.previous);
 

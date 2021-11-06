@@ -63,7 +63,7 @@ class VM {
   GC::RegisterMarkerGuard marker_register_guard;
   void tryGC() const;
   void defineMethod(ObjInternedString *name);
-  bool bindMethod(ObjClass *klass, ObjInternedString *name);
+  bool tryGetBoundMethod(ObjClass *klass, ObjInternedString *name);
   bool invoke(ObjInternedString *method_name, int arg_count);
   bool invokeFromClass(ObjClass *klass, ObjInternedString *name, int argCount);
 };

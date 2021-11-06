@@ -223,24 +223,37 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_GET_ATTR: {
         auto top_v = Peek(0);
-        if (!top_v.IsObj() || !top_v.AsObj()->IsType<ObjInstance>()) {
-          runtimeError("Only instances have attr.");
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
-        }
-        ObjInstance *instance = top_v.AsObj()->As<ObjInstance>();
-        ObjInternedString *name = READ_STRING();
-        Value value;
-        if (instance->dict.contains(name)) {
-          Pop();  // Instance.
-          Push(Value(instance->dict[name]));
+        if (top_v.IsObj() && top_v.AsObj()->IsType<ObjInstance>()) {
+          ObjInstance *instance = top_v.AsObj()->As<ObjInstance>();
+          ObjInternedString *name = READ_STRING();
+          if (instance->dict.contains(name)) {
+            Pop();  // Instance.
+            Push(Value(instance->dict[name]));
+            break;
+          }
+          if (!tryGetBoundMethod(instance->klass, name)) {
+            runtimeError("Undefined attr '%s'.", name->c_str());
+            return ErrCode::INTERPRET_RUNTIME_ERROR;
+          }
           break;
         }
-        if (!bindMethod(instance->klass, name)) {
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
-          ;
+        if (top_v.IsObj() && top_v.AsObj()->IsType<ObjClass>()) {
+          ObjClass *klass = top_v.AsObj()->As<ObjClass>();
+          auto possible_instance = *currentFrame()->slots;
+          if (!possible_instance.IsObj() || !possible_instance.AsObj()->IsType<ObjInstance>() ||
+              !possible_instance.AsObj()->As<ObjInstance>()->IsInstance(klass)) {
+            runtimeError("class method cannot access", klass);
+            return ErrCode::INTERPRET_RUNTIME_ERROR;
+          }
+          sp_[-1] = possible_instance;  // a hack that replace class with instance
+          ObjInternedString *name = READ_STRING();
+          if (!tryGetBoundMethod(klass, name)) {
+            runtimeError("Undefined method '%s'.", name->c_str());
+            return ErrCode::INTERPRET_RUNTIME_ERROR;
+          }
+          break;
         }
-        break;
-        runtimeError("Undefined attr '%s'.", name->c_str());
+        runtimeError("Only instances have attrs. Only class have methods.");
         return ErrCode::INTERPRET_RUNTIME_ERROR;
       }
       case OpCode::OP_SET_ATTR: {
@@ -265,6 +278,19 @@ ErrCode VM::Run() {
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
         frame = &frames[frameCount - 1];
+        break;
+      }
+      case OpCode::OP_INHERIT: {
+        if (!Peek(1).AsObj()->IsType<ObjClass>()) {
+          runtimeError("Superclass must be a class.");
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
+        auto superclass = Peek(1).AsObj()->As<ObjClass>();
+        auto subclass = Peek(0).AsObj()->As<ObjClass>();
+        subclass->superclass = superclass;
+        subclass->methods.insert(superclass->methods.begin(), superclass->methods.end());
+        Pop();  // pop subclass.
+        Pop();  // pop superclass
         break;
       }
       case OpCode::OP_METHOD:
@@ -485,7 +511,7 @@ void VM::defineMethod(ObjInternedString *name) {
   klass->methods[name] = method.AsObj()->As<ObjRuntimeFunction>();
   Pop();
 }
-bool VM::bindMethod(ObjClass *klass, ObjInternedString *name) {
+bool VM::tryGetBoundMethod(ObjClass *klass, ObjInternedString *name) {
   Value method;
   if (!klass->methods.contains(name)) {
     runtimeError("Undefined property '%s'.", name->c_str());
@@ -499,18 +525,28 @@ bool VM::bindMethod(ObjClass *klass, ObjInternedString *name) {
 }
 bool VM::invoke(ObjInternedString *method_name, int arg_count) {
   Value receiver = Peek(arg_count);
-  if (!receiver.AsObj()->IsType<ObjInstance>()) {
-    runtimeError("Only instances have methods.");
-    return false;
+  if (receiver.AsObj()->IsType<ObjInstance>()) {
+    ObjInstance *instance = receiver.AsObj()->As<ObjInstance>();
+    if (instance->dict.contains(method_name)) {
+      sp_[-arg_count - 1] = instance->dict[method_name];
+      return callValue(instance->dict[method_name], arg_count);
+    }
+    return invokeFromClass(instance->klass, method_name, arg_count);
   }
-  ObjInstance *instance = receiver.AsObj()->As<ObjInstance>();
-  Value value;
-  if (instance->dict.contains(method_name)) {
-    sp_[-arg_count - 1] = instance->dict[method_name];
-    return callValue(value, arg_count);
+  if (receiver.AsObj()->IsType<ObjClass>()) {
+    ObjClass *klass = receiver.AsObj()->As<ObjClass>();
+    auto possible_instance = *currentFrame()->slots;
+    if (!possible_instance.IsObj() || !possible_instance.AsObj()->IsType<ObjInstance>() ||
+        !possible_instance.AsObj()->As<ObjInstance>()->IsInstance(klass)) {
+      runtimeError("class method cannot access", klass);
+      return false;
+    }
+    // a hack that change class to the instance
+    sp_[-arg_count - 1] = possible_instance;
+    return invokeFromClass(klass, method_name, arg_count);
   }
-
-  return invokeFromClass(instance->klass, method_name, arg_count);
+  runtimeError("Only instances / class have methods.");
+  return false;
 }
 
 bool VM::invokeFromClass(ObjClass *klass, ObjInternedString *name, int argCount) {

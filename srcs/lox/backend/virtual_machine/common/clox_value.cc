@@ -219,6 +219,9 @@ void Obj::MarkReference(Obj *obj) {
     case ObjType::OBJ_CLASS: {
       ObjClass *klass = obj->As<ObjClass>();
       gc.mark(klass->methods);
+      if (klass->superclass) {
+        gc.mark(klass->superclass);
+      }
       break;
     }
     case ObjType::OBJ_INSTANCE: {

@@ -196,17 +196,23 @@ struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
 };
 
 struct ObjClass : public ObjWithID<ObjType::OBJ_CLASS> {
-  std::string name;
-  std::vector<ObjInternedString*> slot_symbol_name;  // all attr defined in init method will be load into slot;
-  std::unordered_map<ObjInternedString*, ObjRuntimeFunction*> methods;
   explicit ObjClass(std::string name) : name(std::move(name)) {}
+  std::string name;
+  ObjClass* superclass = nullptr;
+  std::unordered_map<ObjInternedString*, ObjRuntimeFunction*> methods;
 };
 
 struct ObjInstance : public ObjWithID<ObjType::OBJ_INSTANCE> {
   explicit ObjInstance(ObjClass* klass) : klass(klass){};
   ObjClass* klass;
+  bool IsInstance(ObjClass* target) {
+    auto check = klass;
+    while (check && check != target) {
+      check = check->superclass;
+    }
+    return check == target;
+  }
   std::unordered_map<ObjInternedString*, Value> dict;
-  std::vector<Value> slot;  // todo: use slot to get / set slot attr at compile time
 };
 
 struct GC {

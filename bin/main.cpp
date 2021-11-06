@@ -20,7 +20,7 @@ struct CLIArgs {
 void ArgsDef(CLI::App& app, CLIArgs& args) {
   app.add_option("--backend", GlobalSetting().backend,
                  "Specify the backend, "
-                 "could be one of{\"TreeWalker\",\"VirtualMachine\"}, default is \"TreeWalker\"");
+                 "could be one of{\"TreeWalker\",\"VirtualMachine\"}, default is \"VirtualMachine\"");
 
   app.add_option("--file", args.input_file, "Input file path, if not provided, interactive mode will be used.");
 
