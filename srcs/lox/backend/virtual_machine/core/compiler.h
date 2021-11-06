@@ -59,8 +59,12 @@ struct FunctionCU {
     func->name = name;
     // the function object will be pushed to stack at runtime, so locals[0] is occupied here
     auto& local = locals[localCount++];
+    if (type == FunctionType::METHOD || type == FunctionType::INITIALIZER) {
+      local.name = "this";
+    } else {
+      local.name = name;
+    }
     local.depth = 0;
-    local.name = name;
   }
   struct Local {
     std::string name;
@@ -80,6 +84,10 @@ struct FunctionCU {
   int scopeDepth = 0;
 };
 
+struct ClassScope {
+  ClassScope(ClassScope* encolsing) : enclosing(encolsing) {}
+  ClassScope* enclosing = nullptr;
+};
 /**
  * Compiler is mainly a Pratt Parser, which could generate an bytecode IR that can work directly with stack machine.
  *
@@ -116,7 +124,7 @@ class Compiler {
   void emitBytes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
   Chunk* CurrentChunk();
   void endFunctionCompilation();
-  void emitReturn();
+  void emitDefaultReturn();
   uint8_t makeConstant(Value value);
   void emitConstant(Value value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
   void number() {
@@ -160,9 +168,10 @@ class Compiler {
   uint8_t parseVariable(const char* string);
   uint8_t identifierConstant(Token token);
   void defineVariable(uint8_t global);
-  void namedVariable(Token varaible_token);
+  void namedVariable(Token varaible_token, bool can_assign);
 
   FunctionCU* current_cu_;
+  ClassScope* currentClass = nullptr;
   Parser parser_;
   Scanner* scanner_;
   Precedence last_expression_precedence = Precedence::NONE;
@@ -202,6 +211,8 @@ class Compiler {
   static void markRoots(void* compiler);
   GC::RegisterMarkerGuard marker_register_guard;
   void classDeclaration();
+  void method();
+  void this_();
 };
 
 }  // namespace vm

@@ -44,6 +44,8 @@ enum class OpCode : uint8_t {
   OP_CLASS,
   OP_SET_ATTR,
   OP_GET_ATTR,
+  OP_METHOD,
+  OP_INVOKE,
 };
 
 struct Chunk {

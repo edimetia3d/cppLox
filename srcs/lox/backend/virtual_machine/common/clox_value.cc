@@ -78,6 +78,8 @@ void Obj::Print(bool print_to_debug) const {
       q_printf("upvalue");
     case ObjType::OBJ_INSTANCE:
       q_printf("%s instance", As<ObjInstance>()->klass->name.c_str());
+    case ObjType::OBJ_BOUND_METHOD:
+      q_printf("<bound method %s>", As<ObjBoundMethod>()->method->function->name.c_str());
     default:
       q_printf("Unknown Obj type");
   }
@@ -171,6 +173,9 @@ void Obj::Destroy(Obj *obj) {
       delete obj->As<ObjInstance>();
       break;
     }
+    case ObjType::OBJ_BOUND_METHOD:
+      delete obj->As<ObjBoundMethod>();
+      break;
     default:
       printf("Destroying Unknown Type.\n");
   }
@@ -211,10 +216,21 @@ void Obj::MarkReference(Obj *obj) {
       gc.mark(*p->location);
       break;
     }
+    case ObjType::OBJ_CLASS: {
+      ObjClass *klass = obj->As<ObjClass>();
+      gc.mark(klass->methods);
+      break;
+    }
     case ObjType::OBJ_INSTANCE: {
       ObjInstance *instance = obj->As<ObjInstance>();
       gc.mark(instance->klass);
       gc.mark(instance->dict);
+      break;
+    }
+    case ObjType::OBJ_BOUND_METHOD: {
+      ObjBoundMethod *bound = obj->As<ObjBoundMethod>();
+      gc.mark(bound->receiver);
+      gc.mark(bound->method);
       break;
     }
     default:
@@ -283,13 +299,6 @@ void GC::Sweep() {
     auto next = p->next;
     Obj::Destroy(p->val);
     p = next;
-  }
-}
-template <class KeyT, class ValueT>
-void GC::mark(const std::unordered_map<KeyT *, ValueT *> &map) {
-  for (const auto &pair : map) {
-    mark(pair.first);
-    mark(pair.second);
   }
 }
 }  // namespace vm

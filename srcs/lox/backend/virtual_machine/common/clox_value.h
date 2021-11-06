@@ -65,6 +65,7 @@ enum class ObjType {
   OBJ_FUNCTION,
   OBJ_UPVALUE,
   OBJ_RUNTIME_FUNCTION,
+  OBJ_BOUND_METHOD,
   OBJ_NATIVE_FUNCTION,
   OBJ_CLASS,
   OBJ_INSTANCE,
@@ -144,12 +145,16 @@ struct ObjRuntimeFunction : public ObjWithID<ObjType::OBJ_RUNTIME_FUNCTION> {
   ~ObjRuntimeFunction() { delete[] upvalues; }
 };
 
+struct ObjBoundMethod : public ObjWithID<ObjType::OBJ_BOUND_METHOD> {
+  ObjBoundMethod(Value val, ObjRuntimeFunction* method) : receiver(val), method(method) {}
+  Value receiver;
+  ObjRuntimeFunction* method;
+};
 struct ObjNativeFunction : public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION> {
   using NativeFn = Value (*)(int argCount, Value* args);
   explicit ObjNativeFunction(NativeFn fn) : function(fn) {}
   NativeFn function = nullptr;
 };
-
 
 struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
   uint32_t hash;
@@ -193,14 +198,15 @@ struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
 struct ObjClass : public ObjWithID<ObjType::OBJ_CLASS> {
   std::string name;
   std::vector<ObjInternedString*> slot_symbol_name;  // all attr defined in init method will be load into slot;
+  std::unordered_map<ObjInternedString*, ObjRuntimeFunction*> methods;
   explicit ObjClass(std::string name) : name(std::move(name)) {}
 };
 
 struct ObjInstance : public ObjWithID<ObjType::OBJ_INSTANCE> {
   explicit ObjInstance(ObjClass* klass) : klass(klass){};
   ObjClass* klass;
-  std::unordered_map<ObjInternedString*, Obj*> dict;
-  std::vector<Obj*> slot;  // todo: use slot to get / set slot attr at compile time
+  std::unordered_map<ObjInternedString*, Value> dict;
+  std::vector<Value> slot;  // todo: use slot to get / set slot attr at compile time
 };
 
 struct GC {
@@ -226,8 +232,14 @@ struct GC {
   void mark(Value value);
   void mark(Obj* object);
   void mark(HashMap<ObjInternedString*, Value, ObjInternedString::Hash>* table);
+
   template <class KeyT, class ValueT>
-  void mark(const std::unordered_map<KeyT*, ValueT*>& map);
+  void mark(const std::unordered_map<KeyT*, ValueT>& map) {
+    for (const auto& pair : map) {
+      mark(pair.first);
+      mark(pair.second);
+    }
+  }
 
   struct RegisterMarkerGuard {
     RegisterMarkerGuard(MarkerFn fn, void* arg) : marker{fn, arg} {

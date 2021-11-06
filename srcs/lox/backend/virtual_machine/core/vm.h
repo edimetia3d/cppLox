@@ -49,6 +49,7 @@ class VM {
   ObjUpvalue *openUpvalues;
   HashMap<ObjInternedString *, Value, ObjInternedString::Hash> globals_;
   Value *sp_ = nullptr;  // stack pointer
+  ObjInternedString *const SYMBOL_THIS{ObjInternedString::Make("init", 4)};
   void DumpStack() const;
   void DumpGlobals();
   void runtimeError(const char *format, ...);
@@ -61,6 +62,10 @@ class VM {
   static void markRoots(void *vm);
   GC::RegisterMarkerGuard marker_register_guard;
   void tryGC() const;
+  void defineMethod(ObjInternedString *name);
+  bool bindMethod(ObjClass *klass, ObjInternedString *name);
+  bool invoke(ObjInternedString *method_name, int arg_count);
+  bool invokeFromClass(ObjClass *klass, ObjInternedString *name, int argCount);
 };
 }  // namespace vm
 }  // namespace lox

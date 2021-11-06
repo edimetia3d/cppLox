@@ -53,7 +53,7 @@ void Compiler::Consume(TokenType type, const char *message) {
 }
 Chunk *Compiler::CurrentChunk() { return current_cu_->func->chunk; }
 void Compiler::endFunctionCompilation() {
-  emitReturn();
+  emitDefaultReturn();  // when no return at end ,we always inject a default return
 #ifndef NDEBUG
   if (!parser_.hadError) {
     CurrentChunk()->DumpCode(current_cu_->func->name.c_str());
@@ -62,8 +62,12 @@ void Compiler::endFunctionCompilation() {
 #endif
   current_cu_ = current_cu_->enclosing_;
 }
-void Compiler::emitReturn() {
-  emitByte(OpCode::OP_NIL);
+void Compiler::emitDefaultReturn() {
+  if (current_cu_->type == FunctionType::INITIALIZER) {
+    emitBytes(OpCode::OP_GET_LOCAL, 0);
+  } else {
+    emitByte(OpCode::OP_NIL);
+  }
   emitByte(OpCode::OP_RETURN);
 }
 void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
@@ -130,7 +134,7 @@ std::vector<ParseRule> BuildRuleMap() {
       RULE_ITEM(OR           , nullptr    , M(or_)  , OR),
       RULE_ITEM(PRINT        , nullptr    , nullptr  , NONE),
       RULE_ITEM(RETURN       , nullptr    , nullptr  , NONE),
-      RULE_ITEM(THIS         , nullptr    , nullptr  , NONE),
+      RULE_ITEM(THIS         , M(this_)    , nullptr  , NONE),
       RULE_ITEM(TRUE         , M(literal)    , nullptr  , NONE),
       RULE_ITEM(VAR          , nullptr    , nullptr  , NONE),
       RULE_ITEM(WHILE        , nullptr    , nullptr  , NONE),
@@ -345,8 +349,8 @@ void Compiler::defineVariable(uint8_t global) {
   }
   emitBytes(OpCode::OP_DEFINE_GLOBAL, global);
 }
-void Compiler::variable() { namedVariable(parser_.previous); }
-void Compiler::namedVariable(Token varaible_token) {
+void Compiler::variable() { namedVariable(parser_.previous, canAssign()); }
+void Compiler::namedVariable(Token varaible_token, bool can_assign) {
   OpCode getOp, setOp;
   int arg = resolveLocal(current_cu_, varaible_token);
   if (arg != -1) {
@@ -361,7 +365,7 @@ void Compiler::namedVariable(Token varaible_token) {
     setOp = OpCode::OP_SET_GLOBAL;
   }
   if (MatchAndAdvance(TokenType::EQUAL)) {
-    if (canAssign()) {
+    if (can_assign) {
       Expression();
       emitBytes(setOp, arg);
     } else {
@@ -632,7 +636,7 @@ void Compiler::funDeclaration() {
   defineVariable(global);
 }
 void Compiler::func(FunctionType type) {
-  FunctionCU new_cu(current_cu_, type, parser_.previous->lexeme);
+  FunctionCU new_cu(current_cu_, type, "");
   current_cu_ = &new_cu;
   beginScope(ScopeType::FUNCTION);
 
@@ -681,8 +685,11 @@ void Compiler::returnStatement() {
     error("Can't return from top-level code.");
   }
   if (MatchAndAdvance(TokenType::SEMICOLON)) {
-    emitReturn();
+    emitDefaultReturn();
   } else {
+    if (current_cu_->type == FunctionType::INITIALIZER) {
+      error("Can't return a value from an initializer.");
+    }
     Expression();
     Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
     emitByte(OpCode::OP_RETURN);
@@ -742,14 +749,23 @@ void Compiler::markRoots(void *compiler_p) {
 Compiler::Compiler() : marker_register_guard(&markRoots, this) {}
 void Compiler::classDeclaration() {
   Consume(TokenType::IDENTIFIER, "Expect class name.");
+  Token className = parser_.previous;
   uint8_t nameConstant = identifierConstant(parser_.previous);
   declareVariable();
 
   emitBytes(OpCode::OP_CLASS, nameConstant);
   defineVariable(nameConstant);
 
+  ClassScope new_scope(currentClass);
+  currentClass = &new_scope;
+  namedVariable(className, false);  // load class object to stack
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
+  while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
+    method();
+  }
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
+  emitByte(OpCode::OP_POP);  // pop the class object
+  currentClass = currentClass->enclosing;
 }
 void Compiler::dot() {
   Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
@@ -758,9 +774,30 @@ void Compiler::dot() {
   if (canAssign() && MatchAndAdvance(TokenType::EQUAL)) {
     Expression();
     emitBytes(OpCode::OP_SET_ATTR, name);
+  } else if (MatchAndAdvance(TokenType::LEFT_PAREN)) {
+    uint8_t argCount = argumentList();
+    emitBytes(OpCode::OP_INVOKE, name);
+    emitByte(argCount);
   } else {
     emitBytes(OpCode::OP_GET_ATTR, name);
   }
+}
+void Compiler::method() {
+  Consume(TokenType::IDENTIFIER, "Expect method name.");
+  uint8_t constant = identifierConstant(parser_.previous);
+  FunctionType type = FunctionType::METHOD;
+  if (parser_.previous->lexeme == "init") {
+    type = FunctionType::INITIALIZER;
+  }
+  func(type);
+  emitBytes(OpCode::OP_METHOD, constant);
+}
+void Compiler::this_() {
+  if (currentClass == nullptr) {
+    error("Can't use 'this' outside of a class.");
+    return;
+  }
+  namedVariable(parser_.previous, false);
 }
 }  // namespace vm
 }  // namespace lox

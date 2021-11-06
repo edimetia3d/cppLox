@@ -235,6 +235,11 @@ ErrCode VM::Run() {
           Push(Value(instance->dict[name]));
           break;
         }
+        if (!bindMethod(instance->klass, name)) {
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+          ;
+        }
+        break;
         runtimeError("Undefined attr '%s'.", name->c_str());
         return ErrCode::INTERPRET_RUNTIME_ERROR;
       }
@@ -246,13 +251,25 @@ ErrCode VM::Run() {
         }
         ObjInstance *instance = top_v_1.AsObj()->As<ObjInstance>();
         ObjInternedString *name = READ_STRING();
-        instance->dict[name] = Peek().AsObj();
+        instance->dict[name] = Peek();
         // stack need to be [... instance, attr_new_value] -> [...,attr_new_value]
         Value value = Pop();  // expression value temporay discarded
         Pop();                // pop instance
         Push(value);          // push expression value back
         break;
       }
+      case OpCode::OP_INVOKE: {
+        auto *method = READ_STRING();
+        int argCount = READ_BYTE();
+        if (!invoke(method, argCount)) {
+          return ErrCode::INTERPRET_RUNTIME_ERROR;
+        }
+        frame = &frames[frameCount - 1];
+        break;
+      }
+      case OpCode::OP_METHOD:
+        defineMethod(READ_STRING());
+        break;
     }
 #ifdef DEBUG_TRACE_EXECUTION
     DumpStack();
@@ -343,10 +360,21 @@ bool VM::callValue(Value callee, int count) {
       case ObjType::OBJ_CLASS: {
         ObjClass *klass = callee.AsObj()->As<ObjClass>();
         auto new_instance = new ObjInstance(klass);
-        // call init here later, now we just discard all things on stack
-        sp_ -= (count + 1);  // `count` argument + 1 function
-        Push(Value(new_instance));
+        Value instance_value(new_instance);
+        sp_[-count - 1] = instance_value;  // a hack replace the class object with self
+        if (klass->methods.contains(SYMBOL_THIS)) {
+          return call(klass->methods[SYMBOL_THIS]->As<ObjRuntimeFunction>(), count);
+        } else if (count != 0) {
+          runtimeError("Expected 0 arguments but got %d.", count);
+          return false;
+        }
+        // if codes goes here, no init is called , we just leave the instance on stack
         return true;
+      }
+      case ObjType::OBJ_BOUND_METHOD: {
+        ObjBoundMethod *bound = callee.AsObj()->As<ObjBoundMethod>();
+        sp_[-count - 1] = bound->receiver;  // a hack that replace bounded method with self
+        return call(bound->method, count);
       }
       case ObjType::OBJ_RUNTIME_FUNCTION:
         return call(callee.AsObj()->As<ObjRuntimeFunction>(), count);
@@ -428,8 +456,13 @@ void VM::closeUpvalues(Value *last) {
 }
 void VM::markRoots(void *vm_p) {
   VM *vm = static_cast<VM *>(vm_p);
-  // mark stacks
+
   auto &gc = GC::Instance();
+
+  // mark data
+  gc.mark(vm->SYMBOL_THIS);
+
+  // mark stacks
   for (Value *slot = vm->stack_; slot < vm->sp_; slot++) {
     gc.mark(*slot);
   }
@@ -445,6 +478,48 @@ void VM::markRoots(void *vm_p) {
   for (ObjUpvalue *upvalue = vm->openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
     gc.mark((Obj *)upvalue);
   }
+}
+void VM::defineMethod(ObjInternedString *name) {
+  Value method = Peek(0);
+  ObjClass *klass = Peek(1).AsObj()->As<ObjClass>();
+  klass->methods[name] = method.AsObj()->As<ObjRuntimeFunction>();
+  Pop();
+}
+bool VM::bindMethod(ObjClass *klass, ObjInternedString *name) {
+  Value method;
+  if (!klass->methods.contains(name)) {
+    runtimeError("Undefined property '%s'.", name->c_str());
+    return false;
+  }
+
+  ObjBoundMethod *bound = new ObjBoundMethod(Peek(0), klass->methods[name]->As<ObjRuntimeFunction>());
+  Pop();               // Pop instance
+  Push(Value(bound));  // replace with new attr value
+  return true;
+}
+bool VM::invoke(ObjInternedString *method_name, int arg_count) {
+  Value receiver = Peek(arg_count);
+  if (!receiver.AsObj()->IsType<ObjInstance>()) {
+    runtimeError("Only instances have methods.");
+    return false;
+  }
+  ObjInstance *instance = receiver.AsObj()->As<ObjInstance>();
+  Value value;
+  if (instance->dict.contains(method_name)) {
+    sp_[-arg_count - 1] = instance->dict[method_name];
+    return callValue(value, arg_count);
+  }
+
+  return invokeFromClass(instance->klass, method_name, arg_count);
+}
+
+bool VM::invokeFromClass(ObjClass *klass, ObjInternedString *name, int argCount) {
+  Value method;
+  if (!klass->methods.contains(name)) {
+    runtimeError("Undefined property '%s'.", name->c_str());
+    return false;
+  }
+  return call(klass->methods[name], argCount);
 }
 
 }  // namespace vm
