@@ -13,8 +13,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "lox/backend/virtual_machine/common/buffer.h"
-
 namespace lox {
 namespace vm {
 enum class ObjectType { NIL, NUMBER, BOOL, OBJ_HANDLE };
