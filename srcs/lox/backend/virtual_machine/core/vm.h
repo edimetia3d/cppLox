@@ -47,9 +47,9 @@ class VM {
   int frameCount = 0;
   Object stack_[STACK_LOOKUP_OFFSET_MAX];
   ObjUpvalue *openUpvalues;
-  HashMap<ObjInternedString *, Object, ObjInternedString::Hash> globals_;
+  std::unordered_map<ObjInternedString *, Object> globals_;
   Object *sp_ = nullptr;  // stack pointer
-  ObjInternedString *const SYMBOL_THIS{ObjInternedString::Make("init", 4)};
+  ObjInternedString *const SYMBOL_THIS{ObjInternedString::Intern("init")};
   void DumpStack() const;
   void DumpGlobals();
   void runtimeError(const char *format, ...);

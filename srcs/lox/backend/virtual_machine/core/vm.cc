@@ -75,28 +75,26 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_GET_GLOBAL: {
         ObjInternedString *name = READ_STRING();
-        auto entry = globals_.Get(name);
-        if (!entry) {
+        if (!globals_.contains(name)) {
           runtimeError("Undefined variable '%s'.", name->c_str());
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        Push(entry->value);
+        Push(globals_[name]);
         break;
       }
       case OpCode::OP_DEFINE_GLOBAL: {
         ObjInternedString *name = READ_STRING();
-        globals_.Set(name, Peek(0));
+        globals_[name] = Peek(0);
         Pop();
         break;
       }
       case OpCode::OP_SET_GLOBAL: {
         ObjInternedString *name = READ_STRING();
-        ;
-        if (globals_.Set(name, Peek(0))) {
-          globals_.Del(name);
+        if (!globals_.contains(name)) {
           runtimeError("Undefined variable '%s'.", name->c_str());
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
+        globals_[name] = Peek(0);
         break;
       }
       case OpCode::OP_GET_UPVALUE: {
@@ -129,8 +127,8 @@ ErrCode VM::Run() {
         } else if (Peek().IsHandle() && Peek(1).IsHandle()) {
           Object b = Pop();
           Object a = Pop();
-          Push(Object(
-              ObjInternedString::Concat(a.AsHandle()->As<ObjInternedString>(), b.AsHandle()->As<ObjInternedString>())));
+          Push(Object(ObjInternedString::Intern(a.AsHandle()->As<ObjInternedString>()->str() +
+                                                b.AsHandle()->As<ObjInternedString>()->str())));
         } else {
           runtimeError("Add only support string and number.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
@@ -330,13 +328,14 @@ void VM::DumpStack() const {
 }
 void VM::DumpGlobals() {
   printf("Globals:");
-  auto iter = globals_.GetAllItem();
-  while (auto entry = iter.next()) {
+  auto iter = globals_.begin();
+  while (iter != globals_.end()) {
     printf("{ ");
-    printf("%s", entry->key->c_str());
+    printf("%s", iter->first->c_str());
     printf(" : ");
-    lox::printValue(entry->value);
+    lox::printValue(iter->second);
     printf(" }");
+    ++iter;
   }
   printf("\n");
 }
@@ -440,10 +439,11 @@ VM::VM() : marker_register_guard(&markRoots, this) {
 }
 void VM::defineBultins() { defineNativeFunction("clock", &clockNative); }
 void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function) {
-  Push(Object(ObjInternedString::Make(name.c_str(), name.size())));
+  Push(Object(ObjInternedString::Intern(name)));
   Push(Object(new ObjNativeFunction(function)));
-  assert(globals_.Get(Peek(1).AsHandle()->As<ObjInternedString>()) == nullptr);
-  globals_.Set(Peek(1).AsHandle()->As<ObjInternedString>(), Peek(0));
+  auto key = Peek(1).AsHandle()->As<ObjInternedString>();
+  assert(!globals_.contains(key));
+  globals_[key] = Peek(0);
   Pop();
   Pop();
 }
@@ -493,7 +493,7 @@ void VM::markRoots(void *vm_p) {
     gc.mark(*slot);
   }
   // mark globals
-  gc.mark(&vm->globals_);
+  gc.mark(vm->globals_);
 
   // mark closures
   for (int i = 0; i < vm->frameCount; i++) {

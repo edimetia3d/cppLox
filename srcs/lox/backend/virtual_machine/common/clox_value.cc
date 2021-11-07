@@ -93,59 +93,6 @@ int &ObjHandle::ObjCount() {
   static int value;
   return value;
 }
-uint32_t ObjInternedString::UpdateHash() {
-  hash = fnv_1a((uint8_t *)c_str(), size());
-  return hash;
-}
-ObjInternedString *ObjInternedString::Concat(const ObjInternedString *lhs, const ObjInternedString *rhs) {
-  Buffer<char> buf;
-  buf.reserve(lhs->size() + rhs->size() + 1);
-  buf.push_buffer(lhs->c_str(), lhs->size());
-  buf.push_buffer(rhs->c_str(), rhs->size());
-  buf.push_back('\0');
-  InternView view{.data = buf.data(), .hash = fnv_1a((uint8_t *)buf.data(), buf.size() - 1), .size = (buf.size() - 1)};
-  auto entry = GetInternMap().Get(view);
-  if (entry) {
-    return entry->value;
-  } else {
-    return new ObjInternedString(std::move(buf));
-  }
-}
-int ObjInternedString::size() const {
-  return data.size() - 1;  // this is a c style str
-}
-ObjInternedString::ObjInternedString(const char *buf, int size) {
-  data.push_buffer(buf, size);
-  data.push_back('\0');
-  UpdateHash();
-  TryInternThis();
-}
-void ObjInternedString::TryInternThis() {
-  if (!GetInternMap().Get(GetInternView())) {
-    GetInternMap().Set(GetInternView(), this);
-  } else {
-    printf("Warning: Get repeated intern string\n");
-  }
-}
-ObjInternedString::ObjInternedString(Buffer<char> &&buffer) {
-  data = std::move(buffer);
-  UpdateHash();
-  TryInternThis();
-}
-ObjInternedString::InternMap &ObjInternedString::GetInternMap() {
-  static InternMap interning_map(32);
-  return interning_map;
-}
-ObjInternedString *ObjInternedString::Make(const char *data, int size) {
-  InternView view{.data = data, .hash = fnv_1a((uint8_t *)data, size), .size = size};
-  auto entry = GetInternMap().Get(view);
-  if (entry) {
-    return entry->value;
-  } else {
-    return new ObjInternedString(data, size);
-  }
-}
-ObjInternedString::~ObjInternedString() { GetInternMap().Del(GetInternView()); }
 
 void ObjHandle::Destroy(ObjHandle *obj) {
   SPDLOG_DEBUG("Object [%p] with type [%d] deleted.", obj, obj->type);
@@ -278,13 +225,6 @@ void GC::mark(ObjHandle *object) {
   object->isMarked = true;
   ObjHandle::MarkReference(object);
 }
-void GC::mark(HashMap<ObjInternedString *, Object, ObjInternedString::Hash> *table) {
-  auto iter = table->GetAllItem();
-  while (auto entry = iter.next()) {
-    mark(entry->key);
-    mark(entry->value);
-  }
-}
 void GC::Sweep() {
   auto &list = ObjHandle::AllCreatedObj();
   auto iter = list.begin();
@@ -302,6 +242,10 @@ void GC::Sweep() {
     ObjHandle::Destroy((*iter));
     ++iter;
   }
+}
+std::unordered_map<std::string, ObjInternedString *> &ObjInternedString::GetInternMap() {
+  static std::unordered_map<std::string, ObjInternedString *> map;
+  return map;
 }
 }  // namespace vm
 }  // namespace lox

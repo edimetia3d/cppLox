@@ -241,8 +241,9 @@ void Compiler::literal() {
   }
 }
 void Compiler::string() {
-  emitConstant(
-      Object(ObjInternedString::Make(parser_.previous->lexeme.c_str() + 1, parser_.previous->lexeme.size() - 2)));
+  std::string tmp = parser_.previous->lexeme;
+  *tmp.rbegin() = '\0';
+  emitConstant(Object(ObjInternedString::Intern(tmp.c_str() + 1)));
 }
 bool Compiler::MatchAndAdvance(TokenType type) {
   if (!Check(type)) return false;
@@ -340,7 +341,7 @@ uint8_t Compiler::parseVariable(const char *errorMessage) {
   return identifierConstant(parser_.previous);
 }
 uint8_t Compiler::identifierConstant(Token token) {
-  return makeConstant(Object(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
+  return makeConstant(Object(ObjInternedString::Intern(token->lexeme)));
 }
 void Compiler::defineVariable(uint8_t global) {
   if (current_cu_->scopeDepth > 0) {

@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "lox/backend/virtual_machine/common/buffer.h"
-#include "lox/backend/virtual_machine/common/hash_map.h"
 
 namespace lox {
 namespace vm {
@@ -155,42 +154,23 @@ struct ObjNativeFunction : public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION> {
 };
 
 struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
-  uint32_t hash;
+  static ObjInternedString* Intern(const std::string& str) {
+    if (!GetInternMap().contains(str)) {
+      GetInternMap()[str] = new ObjInternedString(str);
+    }
+    return GetInternMap()[str];
+  }
 
-  uint32_t static Hash(ObjInternedString* obj_str) { return obj_str->hash; }
+  operator const std::string&() const { return data; }
 
-  static ObjInternedString* Make(const char* data, int size);
+  const char* c_str() const { return data.c_str(); }
 
-  static ObjInternedString* Concat(const ObjInternedString* lhs, const ObjInternedString* rhs);
-
-  Buffer<char> data;
-  char* c_str() { return data.data(); }
-  [[nodiscard]] const char* c_str() const { return data.data(); }
-  int size() const;
-  ~ObjInternedString();
+  const std::string& str() const { return data; }
 
  protected:
-  struct InternView {
-    const char* data;
-    uint32_t hash;
-    int size;
-    bool operator==(const InternView& rhs) const {
-      return size == rhs.size && hash == rhs.hash && strncmp(data, rhs.data, size) == 0;
-      ;
-    }
-    bool operator!=(const InternView& rhs) const { return !(*this == rhs); }
-  };
-  InternView GetInternView() { return {.data = c_str(), .hash = hash, .size = size()}; }
-  static uint32_t CachedStringHash(InternView string) { return string.hash; }
-
-  using InternMap = HashMap<InternView, ObjInternedString*, CachedStringHash>;
-  friend class GC;
-  static InternMap& GetInternMap();
-  uint32_t UpdateHash();
-  ObjInternedString(const char* buf, int size);
-  explicit ObjInternedString(Buffer<char>&& buffer);
-  ObjInternedString() = delete;
-  void TryInternThis();
+  explicit ObjInternedString(std::string d) : data(std::move(d)) {}
+  static std::unordered_map<std::string, ObjInternedString*>& GetInternMap();
+  std::string data;
 };
 
 struct ObjClass : public ObjWithID<ObjType::OBJ_CLASS> {
@@ -232,8 +212,6 @@ struct GC {
   void UnRegisterMarker(MarkerFn fn, void* arg) { markers.erase(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
   void mark(Object value);
   void mark(ObjHandle* object);
-  void mark(HashMap<ObjInternedString*, Object, ObjInternedString::Hash>* table);
-
   template <class KeyT, class ValueT>
   void mark(const std::unordered_map<KeyT*, ValueT>& map) {
     for (const auto& pair : map) {

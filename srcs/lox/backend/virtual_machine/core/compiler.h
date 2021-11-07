@@ -10,7 +10,6 @@
 #include "lox/backend/virtual_machine/bytecode/chunk.h"
 #include "lox/backend/virtual_machine/common/clox_value.h"
 #include "lox/backend/virtual_machine/common/err_code.h"
-#include "lox/backend/virtual_machine/common/hash_map.h"
 #include "lox/frontend/scanner.h"
 
 #define STACK_LOOKUP_OFFSET_MAX (UINT8_MAX + 1)  // we only use one byte to store the local lookup offset
