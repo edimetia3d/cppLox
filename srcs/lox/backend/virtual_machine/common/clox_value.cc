@@ -12,7 +12,7 @@
 
 namespace lox {
 
-void printValue(const vm::Object &value, bool print_to_debug) {
+void printValue(const Object &value, bool print_to_debug) {
 #define q_printf(...)          \
   if (print_to_debug) {        \
     SPDLOG_DEBUG(__VA_ARGS__); \
@@ -21,19 +21,35 @@ void printValue(const vm::Object &value, bool print_to_debug) {
   };                           \
   break
   switch (value.Type()) {
-    case vm::ObjectType::BOOL:
+    case ObjectType::BOOL:
       q_printf((value.AsBool() ? "true" : "false"));
-    case vm::ObjectType::NUMBER:
+    case ObjectType::NUMBER:
       q_printf("%f", value.AsNumber());
-    case vm::ObjectType::NIL:
+    case ObjectType::NIL:
       q_printf("nil");
-    case vm::ObjectType::OBJ_HANDLE:
+    case ObjectType::OBJ_HANDLE:
       value.AsHandle()->Print(print_to_debug);
       break;
     default:
       q_printf("Unkown types");
   }
 #undef q_printf
+}
+
+bool Object::Equal(Object rhs) {
+  if (type != rhs.type) return false;
+  switch (type) {
+    case ObjectType::BOOL:
+      return AsBool() == rhs.AsBool();
+    case ObjectType::NIL:
+      return true;
+    case ObjectType::NUMBER:
+      return AsNumber() == rhs.AsNumber();
+    case ObjectType::OBJ_HANDLE:
+      return rhs.IsHandle() && AsHandle()->Equal(rhs.AsHandle());
+    default:
+      return false;  // Unreachable.
+  }
 }
 
 namespace vm {
@@ -190,21 +206,6 @@ void ObjHandle::MarkReference(ObjHandle *obj) {
 
 ObjFunction::ObjFunction() { chunk = new Chunk(); }
 ObjFunction::~ObjFunction() { delete chunk; }
-bool Object::Equal(Object rhs) {
-  if (type != rhs.type) return false;
-  switch (type) {
-    case ObjectType::BOOL:
-      return AsBool() == rhs.AsBool();
-    case ObjectType::NIL:
-      return true;
-    case ObjectType::NUMBER:
-      return AsNumber() == rhs.AsNumber();
-    case ObjectType::OBJ_HANDLE:
-      return rhs.IsHandle() && AsHandle()->Equal(rhs.AsHandle());
-    default:
-      return false;  // Unreachable.
-  }
-}
 GC &GC::Instance() {
   static GC obj;
   return obj;

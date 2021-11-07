@@ -14,8 +14,7 @@
 #include <vector>
 
 namespace lox {
-namespace vm {
-enum class ObjectType { NIL, NUMBER, BOOL, OBJ_HANDLE };
+
 enum class ObjType {
   UNKNOWN,
   OBJ_SYMBOL,
@@ -27,6 +26,61 @@ enum class ObjType {
   OBJ_CLASS,
   OBJ_INSTANCE,
 };
+
+enum class ObjectType { NIL, NUMBER, BOOL, OBJ_HANDLE };
+namespace vm {
+struct ObjHandle;
+}
+struct Object {
+  Object() : type(ObjectType::NIL), as{.number = 0} {};
+  explicit Object(double number) : type(ObjectType::NUMBER), as{.number = number} {}
+  explicit Object(bool boolean) : type(ObjectType::BOOL), as{.boolean = boolean} {}
+  explicit Object(vm::ObjHandle* handle) : type(ObjectType::OBJ_HANDLE), as{.handle = handle} {}
+  [[nodiscard]] bool AsBool() const {
+    assert(IsBool());
+    return as.boolean;
+  };
+  [[nodiscard]] double AsNumber() const {
+    assert(IsNumber());
+    return as.number;
+  };
+  [[nodiscard]] const vm::ObjHandle* AsHandle() const {
+    assert(IsHandle());
+    return as.handle;
+  }
+  vm::ObjHandle* AsHandle() {
+    assert(IsHandle());
+    return as.handle;
+  }
+
+  template <class T>
+  T As() {
+    static_assert(std::is_pointer_v<T> || std::is_reference_v<T>);
+    if constexpr (std::is_pointer_v<T>) {
+      return static_cast<T>(AsHandle());
+    } else {
+      return *static_cast<std::remove_reference_t<T>*>(AsHandle());
+    }
+  }
+  [[nodiscard]] bool IsNil() const { return type == ObjectType::NIL; }
+  [[nodiscard]] bool IsBool() const { return type == ObjectType::BOOL; }
+  [[nodiscard]] bool IsNumber() const { return type == ObjectType::NUMBER; }
+  [[nodiscard]] bool IsHandle() const { return type == ObjectType::OBJ_HANDLE; }
+  [[nodiscard]] ObjectType Type() const { return type; }
+  bool Equal(Object rhs);
+
+  [[nodiscard]] bool IsTrue() const { return !IsNil() && IsBool() && AsBool(); }
+
+ private:
+  ObjectType type;
+  union {
+    bool boolean;
+    double number;
+    vm::ObjHandle* handle;
+  } as;
+};
+
+namespace vm {
 
 struct ObjHandle {
   ObjType type;
@@ -59,46 +113,6 @@ struct ObjHandle {
   explicit ObjHandle(ObjType type);
   ~ObjHandle();
 };
-
-struct Object {
-  Object() : type(ObjectType::NIL), as{.number = 0} {};
-  explicit Object(double number) : type(ObjectType::NUMBER), as{.number = number} {}
-  explicit Object(bool boolean) : type(ObjectType::BOOL), as{.boolean = boolean} {}
-  explicit Object(ObjHandle* handle) : type(ObjectType::OBJ_HANDLE), as{.handle = handle} {}
-  bool AsBool() const {
-    assert(IsBool());
-    return as.boolean;
-  };
-  double AsNumber() const {
-    assert(IsNumber());
-    return as.number;
-  };
-  const ObjHandle* AsHandle() const {
-    assert(IsHandle());
-    return as.handle;
-  }
-  ObjHandle* AsHandle() {
-    assert(IsHandle());
-    return as.handle;
-  }
-  bool IsNil() const { return type == ObjectType::NIL; }
-  bool IsBool() const { return type == ObjectType::BOOL; }
-  bool IsNumber() const { return type == ObjectType::NUMBER; }
-  bool IsHandle() const { return type == ObjectType::OBJ_HANDLE; }
-  ObjectType Type() const { return type; }
-  bool Equal(Object rhs);
-
-  bool IsTrue() { return !IsNil() && IsBool() && AsBool(); }
-
- private:
-  ObjectType type;
-  union {
-    bool boolean;
-    double number;
-    ObjHandle* handle;
-  } as;
-};
-
 template <ObjType TYPE>
 struct ObjWithID : public ObjHandle {
   constexpr static ObjType TYPE_ID = TYPE;
@@ -242,6 +256,6 @@ struct GC {
 };
 
 }  // namespace vm
-void printValue(const vm::Object& value, bool print_to_debug = false);
+void printValue(const Object& value, bool print_to_debug = false);
 }  // namespace lox
 #endif  // CLOX_SRCS_CLOX_CLOX_VALUE_H_
