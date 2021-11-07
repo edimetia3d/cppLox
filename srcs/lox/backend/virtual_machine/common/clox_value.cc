@@ -85,8 +85,8 @@ void ObjHandle::Print(bool print_to_debug) const {
   }
 #undef q_printf
 }
-LinkList<ObjHandle *> &ObjHandle::AllCreatedObj() {
-  static LinkList<ObjHandle *> ret;
+std::set<ObjHandle *> &ObjHandle::AllCreatedObj() {
+  static std::set<ObjHandle *> ret;
   return ret;
 }
 int &ObjHandle::ObjCount() {
@@ -182,12 +182,12 @@ void ObjHandle::Destroy(ObjHandle *obj) {
 }
 ObjHandle::ObjHandle(ObjType type) : type(type), isMarked(false) {
   SPDLOG_DEBUG("Object [%p] with type [%d] created", this, type);
-  AllCreatedObj().Insert(this);
+  AllCreatedObj().insert(this);
   ++ObjCount();
 }
 ObjHandle::~ObjHandle() {
   --ObjCount();
-  AllCreatedObj().Delete(this);
+  AllCreatedObj().erase(this);
 }
 void ObjHandle::MarkReference(ObjHandle *obj) {
   auto &gc = GC::Instance();
@@ -287,21 +287,20 @@ void GC::mark(HashMap<ObjInternedString *, Object, ObjInternedString::Hash> *tab
 }
 void GC::Sweep() {
   auto &list = ObjHandle::AllCreatedObj();
-  auto p = list.Head();
-  LinkList<ObjHandle *> to_del;
-  while (p) {
-    if (p->val->isMarked) {
-      p->val->isMarked = false;
+  auto iter = list.begin();
+  std::set<ObjHandle *> to_del;
+  while (iter != list.end()) {
+    if ((*iter)->isMarked) {
+      (*iter)->isMarked = false;
     } else {
-      to_del.Insert(p->val);
+      to_del.insert((*iter));
     }
-    p = p->next;
+    ++iter;
   }
-  p = to_del.Head();
-  while (p) {
-    auto next = p->next;
-    ObjHandle::Destroy(p->val);
-    p = next;
+  iter = to_del.begin();
+  while (iter != to_del.end()) {
+    ObjHandle::Destroy((*iter));
+    ++iter;
   }
 }
 }  // namespace vm

@@ -372,9 +372,9 @@ Object VM::Peek(int distance) {
 }
 VM::~VM() {
   int count = 0;
-  while (auto p = ObjHandle::AllCreatedObj().Head()) {
+  while (!ObjHandle::AllCreatedObj().empty()) {
     ++count;
-    ObjHandle::Destroy(p->val);
+    ObjHandle::Destroy(*ObjHandle::AllCreatedObj().begin());
   }
   if (count) {
     printf("VM destroyed %d CLoxObject at exit.\n", count);

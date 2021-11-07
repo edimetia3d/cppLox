@@ -8,13 +8,13 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "lox/backend/virtual_machine/common/buffer.h"
 #include "lox/backend/virtual_machine/common/hash_map.h"
-#include "lox/backend/virtual_machine/common/link_list.h"
 
 namespace lox {
 namespace vm {
@@ -53,7 +53,7 @@ struct ObjHandle {
   void Print(bool print_to_debug = false) const;
   static void Destroy(ObjHandle* obj);
 
-  static LinkList<ObjHandle*>& AllCreatedObj();
+  static std::set<ObjHandle*>& AllCreatedObj();
   static int& ObjCount();
 
   static void MarkReference(ObjHandle*);
@@ -219,10 +219,7 @@ struct GC {
   struct Marker {
     MarkerFn marker_fn;
     void* marker_fn_arg;
-    bool operator==(const Marker& rhs) const {
-      return rhs.marker_fn_arg == marker_fn_arg && rhs.marker_fn == marker_fn;
-    }
-    bool operator!=(const Marker& rhs) const { return !(*this == rhs); }
+    bool operator<(const Marker& rhs) const { return rhs.marker_fn_arg < marker_fn_arg && rhs.marker_fn < marker_fn; }
   };
   GC(const GC&) = delete;
   GC(GC&&) = delete;
@@ -231,8 +228,8 @@ struct GC {
 
   static GC& Instance();
   void collectGarbage();
-  void RegisterMarker(MarkerFn fn, void* arg) { markers.Insert(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
-  void UnRegisterMarker(MarkerFn fn, void* arg) { markers.Delete(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
+  void RegisterMarker(MarkerFn fn, void* arg) { markers.insert(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
+  void UnRegisterMarker(MarkerFn fn, void* arg) { markers.erase(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
   void mark(Object value);
   void mark(ObjHandle* object);
   void mark(HashMap<ObjInternedString*, Object, ObjInternedString::Hash>* table);
@@ -258,14 +255,14 @@ struct GC {
  private:
   GC() = default;
   void markRoots() {
-    auto node = markers.Head();
-    while (node) {
-      node->val.marker_fn(node->val.marker_fn_arg);
-      node = node->next;
+    auto node = markers.begin();
+    while (node != markers.end()) {
+      node->marker_fn(node->marker_fn_arg);
+      ++node;
     }
   }
   void Sweep();
-  LinkList<Marker> markers;
+  std::set<Marker> markers;
 };
 
 }  // namespace vm
