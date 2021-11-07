@@ -64,7 +64,7 @@ struct Object {
   Object() : type(ObjectType::NIL), as{.number = 0} {};
   explicit Object(double number) : type(ObjectType::NUMBER), as{.number = number} {}
   explicit Object(bool boolean) : type(ObjectType::BOOL), as{.boolean = boolean} {}
-  explicit Object(ObjHandle* obj) : type(ObjectType::OBJ_HANDLE), as{.obj = obj} {}
+  explicit Object(ObjHandle* handle) : type(ObjectType::OBJ_HANDLE), as{.handle = handle} {}
   bool AsBool() const {
     assert(IsBool());
     return as.boolean;
@@ -75,11 +75,11 @@ struct Object {
   };
   const ObjHandle* AsHandle() const {
     assert(IsHandle());
-    return as.obj;
+    return as.handle;
   }
   ObjHandle* AsHandle() {
     assert(IsHandle());
-    return as.obj;
+    return as.handle;
   }
   bool IsNil() const { return type == ObjectType::NIL; }
   bool IsBool() const { return type == ObjectType::BOOL; }
@@ -95,7 +95,7 @@ struct Object {
   union {
     bool boolean;
     double number;
-    ObjHandle* obj;
+    ObjHandle* handle;
   } as;
 };
 

@@ -54,7 +54,7 @@ struct ParseRule {
 struct FunctionCU {
   FunctionCU(FunctionCU* enclosing, FunctionType type, const std::string& name) : type(type) {
     enclosing_ = enclosing;
-    func = new ObjFunction();  // obj function will get gc cleaned, so we only new , not delete
+    func = new ObjFunction();  // handle function will get gc cleaned, so we only new , not delete
     func->name = name;
     // the function object will be pushed to stack at runtime, so locals[0] is occupied here
     auto& local = locals[localCount++];
