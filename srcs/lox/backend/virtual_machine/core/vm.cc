@@ -26,14 +26,14 @@ ErrCode VM::Run() {
     }                                               \
   } while (0)
 #define READ_CONSTANT() (frame->closure->function->chunk->constants[READ_BYTE()])
-#define READ_STRING() ((READ_CONSTANT()).AsObj()->As<ObjInternedString>())
-#define BINARY_OP(OutputT, op)                                       \
-  do {                                                               \
-    CHEK_STACK_TOP_TYPE(Number);                                     \
-    Value b = Pop();                                                 \
-    CHEK_STACK_TOP_TYPE(Number);                                     \
-    Value a = Pop();                                                 \
-    Push(Value(static_cast<OutputT>(a.AsNumber() op b.AsNumber()))); \
+#define READ_STRING() ((READ_CONSTANT()).AsHandle()->As<ObjInternedString>())
+#define BINARY_OP(OutputT, op)                                        \
+  do {                                                                \
+    CHEK_STACK_TOP_TYPE(Number);                                      \
+    Object b = Pop();                                                 \
+    CHEK_STACK_TOP_TYPE(Number);                                      \
+    Object a = Pop();                                                 \
+    Push(Object(static_cast<OutputT>(a.AsNumber() op b.AsNumber()))); \
   } while (false)
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -160,7 +160,7 @@ ErrCode VM::Run() {
 #ifdef DEBUG_TRACE_EXECUTION
         printf("------------------------------------------------------------ ");
 #endif
-        printValue(Pop());
+        lox::printValue(Pop());
         printf("\n");
         break;
       }
@@ -323,7 +323,7 @@ void VM::DumpStack() const {
   printf("Stack:");
   for (const Object *slot = stack_; slot != sp_; ++slot) {
     printf("[ ");
-    printValue(*slot);
+    lox::printValue(*slot);
     printf(" ]");
   }
   printf("\n");
@@ -335,7 +335,7 @@ void VM::DumpGlobals() {
     printf("{ ");
     printf("%s", entry->key->c_str());
     printf(" : ");
-    printValue(entry->value);
+    lox::printValue(entry->value);
     printf(" }");
   }
   printf("\n");

@@ -19,46 +19,6 @@
 namespace lox {
 namespace vm {
 enum class ObjectType { NIL, NUMBER, BOOL, OBJ_HANDLE };
-class ObjHandle;
-struct Object {
-  Object() : type(ObjectType::NIL), as{.number = 0} {};
-  explicit Object(double number) : type(ObjectType::NUMBER), as{.number = number} {}
-  explicit Object(bool boolean) : type(ObjectType::BOOL), as{.boolean = boolean} {}
-  explicit Object(ObjHandle* obj) : type(ObjectType::OBJ_HANDLE), as{.obj = obj} {}
-  bool AsBool() const {
-    assert(IsBool());
-    return as.boolean;
-  };
-  double AsNumber() const {
-    assert(IsNumber());
-    return as.number;
-  };
-  const ObjHandle* AsHandle() const {
-    assert(IsHandle());
-    return as.obj;
-  }
-  ObjHandle* AsHandle() {
-    assert(IsHandle());
-    return as.obj;
-  }
-  bool IsNil() const { return type == ObjectType::NIL; }
-  bool IsBool() const { return type == ObjectType::BOOL; }
-  bool IsNumber() const { return type == ObjectType::NUMBER; }
-  bool IsHandle() const { return type == ObjectType::OBJ_HANDLE; }
-  ObjectType Type() const { return type; }
-  bool Equal(Object rhs);
-
-  bool IsTrue() { return !IsNil() && IsBool() && AsBool(); }
-
- private:
-  ObjectType type;
-  union {
-    bool boolean;
-    double number;
-    ObjHandle* obj;
-  } as;
-};
-void printValue(const Object& value, bool print_to_debug = false);
 enum class ObjType {
   UNKNOWN,
   OBJ_STRING,
@@ -103,6 +63,45 @@ struct ObjHandle {
   ~ObjHandle();
 };
 
+struct Object {
+  Object() : type(ObjectType::NIL), as{.number = 0} {};
+  explicit Object(double number) : type(ObjectType::NUMBER), as{.number = number} {}
+  explicit Object(bool boolean) : type(ObjectType::BOOL), as{.boolean = boolean} {}
+  explicit Object(ObjHandle* obj) : type(ObjectType::OBJ_HANDLE), as{.obj = obj} {}
+  bool AsBool() const {
+    assert(IsBool());
+    return as.boolean;
+  };
+  double AsNumber() const {
+    assert(IsNumber());
+    return as.number;
+  };
+  const ObjHandle* AsHandle() const {
+    assert(IsHandle());
+    return as.obj;
+  }
+  ObjHandle* AsHandle() {
+    assert(IsHandle());
+    return as.obj;
+  }
+  bool IsNil() const { return type == ObjectType::NIL; }
+  bool IsBool() const { return type == ObjectType::BOOL; }
+  bool IsNumber() const { return type == ObjectType::NUMBER; }
+  bool IsHandle() const { return type == ObjectType::OBJ_HANDLE; }
+  ObjectType Type() const { return type; }
+  bool Equal(Object rhs);
+
+  bool IsTrue() { return !IsNil() && IsBool() && AsBool(); }
+
+ private:
+  ObjectType type;
+  union {
+    bool boolean;
+    double number;
+    ObjHandle* obj;
+  } as;
+};
+
 template <ObjType TYPE>
 struct ObjWithID : public ObjHandle {
   constexpr static ObjType TYPE_ID = TYPE;
@@ -120,7 +119,6 @@ struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
   ~ObjFunction();
 };
 
-class Object;
 struct ObjUpvalue : public ObjWithID<ObjType::OBJ_UPVALUE> {
   explicit ObjUpvalue(Object* location) : location(location) {}
   Object* location;
@@ -271,5 +269,6 @@ struct GC {
 };
 
 }  // namespace vm
+void printValue(const vm::Object& value, bool print_to_debug = false);
 }  // namespace lox
 #endif  // CLOX_SRCS_CLOX_CLOX_VALUE_H_

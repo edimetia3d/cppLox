@@ -25,7 +25,7 @@ void Chunk::DumpConstant() {
   printf("== Constant ==\n");
   for (Object *p = constants.data(); p != constants.data() + constants.size(); ++p) {
     printf("[ ");
-    printValue(*p);
+    lox::printValue(*p);
     printf(" ]");
   }
   printf("\n");

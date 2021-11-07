@@ -12,9 +12,7 @@
 
 namespace lox {
 
-namespace vm {
-
-void printValue(const Object &value, bool print_to_debug) {
+void printValue(const vm::Object &value, bool print_to_debug) {
 #define q_printf(...)          \
   if (print_to_debug) {        \
     SPDLOG_DEBUG(__VA_ARGS__); \
@@ -23,13 +21,13 @@ void printValue(const Object &value, bool print_to_debug) {
   };                           \
   break
   switch (value.Type()) {
-    case ObjectType::BOOL:
+    case vm::ObjectType::BOOL:
       q_printf((value.AsBool() ? "true" : "false"));
-    case ObjectType::NUMBER:
+    case vm::ObjectType::NUMBER:
       q_printf("%f", value.AsNumber());
-    case ObjectType::NIL:
+    case vm::ObjectType::NIL:
       q_printf("nil");
-    case ObjectType::OBJ_HANDLE:
+    case vm::ObjectType::OBJ_HANDLE:
       value.AsHandle()->Print(print_to_debug);
       break;
     default:
@@ -37,6 +35,8 @@ void printValue(const Object &value, bool print_to_debug) {
   }
 #undef q_printf
 }
+
+namespace vm {
 
 static uint32_t fnv_1a(uint8_t *data, int size) {
   uint32_t new_hash = 2166136261u;
@@ -274,7 +274,7 @@ void GC::mark(Object value) {
 void GC::mark(ObjHandle *object) {
   if (object == nullptr || object->isMarked) return;
   SPDLOG_DEBUG("%p mark ", (void *)object);
-  printValue(Object(object), true);
+  lox::printValue(Object(object), true);
   object->isMarked = true;
   ObjHandle::MarkReference(object);
 }

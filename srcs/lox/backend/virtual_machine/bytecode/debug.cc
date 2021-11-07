@@ -15,7 +15,7 @@ static int simpleInstruction(const char *name, int offset) {
 static int constantInstruction(const char *name, Chunk *chunk, int offset) {
   uint8_t const_index = chunk->code[offset + 1];
   printf("%-16s %4d '", name, const_index);
-  printValue(chunk->constants[const_index]);
+  lox::printValue(chunk->constants[const_index]);
   printf("'\n");
   return offset + 2;
 }
@@ -35,7 +35,7 @@ int invokeInstruction(const char *op_name, Chunk *chunk, int offset) {
   uint8_t constant = chunk->code[offset + 1];
   uint8_t argCount = chunk->code[offset + 2];
   printf("%-16s (%d args) %4d '", op_name, argCount, constant);
-  printValue(chunk->constants[constant]);
+  lox::printValue(chunk->constants[constant]);
   printf("'\n");
   return offset + 3;
 }
@@ -103,7 +103,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
       offset++;
       uint8_t constant = chunk->code[offset++];
       printf("%-16s %4d ", "OP_CLOSURE", constant);
-      printValue(chunk->constants[constant]);
+      lox::printValue(chunk->constants[constant]);
       printf("\n");
       auto function = chunk->constants[constant].AsHandle()->As<ObjFunction>();
       for (int j = 0; j < function->upvalueCount; j++) {
