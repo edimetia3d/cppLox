@@ -20,7 +20,7 @@ namespace vm {
 struct CallFrame {
   ObjRuntimeFunction *closure;  // the callee function
   uint8_t *ip;                  // pointer to somewhere in function->chunk
-  Value *slots;                 // pointer to somewhere in VM::stack_
+  Object *slots;                // pointer to somewhere in VM::stack_
 };
 
 /**
@@ -36,29 +36,29 @@ class VM {
   VM();
   void defineBultins();
   ErrCode Run();
-  void Push(Value value);
-  Value Peek(int distance = 0);
-  Value Pop();
+  void Push(Object value);
+  Object Peek(int distance = 0);
+  Object Pop();
   CallFrame frames[VM_FRAMES_MAX];
   CallFrame *currentFrame() {
     assert(frameCount > 0);
     return &frames[frameCount - 1];
   }
   int frameCount = 0;
-  Value stack_[STACK_LOOKUP_OFFSET_MAX];
+  Object stack_[STACK_LOOKUP_OFFSET_MAX];
   ObjUpvalue *openUpvalues;
-  HashMap<ObjInternedString *, Value, ObjInternedString::Hash> globals_;
-  Value *sp_ = nullptr;  // stack pointer
+  HashMap<ObjInternedString *, Object, ObjInternedString::Hash> globals_;
+  Object *sp_ = nullptr;  // stack pointer
   ObjInternedString *const SYMBOL_THIS{ObjInternedString::Make("init", 4)};
   void DumpStack() const;
   void DumpGlobals();
   void runtimeError(const char *format, ...);
   ~VM();
-  bool callValue(Value callee, int count);
+  bool callValue(Object callee, int count);
   bool call(ObjRuntimeFunction *closure, int arg_count);
   void defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function);
-  ObjUpvalue *captureUpvalue(Value *pValue);
-  void closeUpvalues(Value *PValue);
+  ObjUpvalue *captureUpvalue(Object *pValue);
+  void closeUpvalues(Object *PValue);
   static void markRoots(void *vm);
   GC::RegisterMarkerGuard marker_register_guard;
   void tryGC() const;

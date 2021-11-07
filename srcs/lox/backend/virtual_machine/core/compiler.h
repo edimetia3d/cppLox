@@ -126,11 +126,11 @@ class Compiler {
   Chunk* CurrentChunk();
   void endFunctionCompilation();
   void emitDefaultReturn();
-  uint8_t makeConstant(Value value);
-  void emitConstant(Value value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
+  uint8_t makeConstant(Object value);
+  void emitConstant(Object value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
   void number() {
     double value = std::stod(parser_.previous->lexeme);
-    emitConstant(Value(value));
+    emitConstant(Object(value));
   }
   /**
    * The input operator_type is a mark to say that: we are parsing a expression that will be part of operand of

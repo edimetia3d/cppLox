@@ -18,13 +18,13 @@
 
 namespace lox {
 namespace vm {
-enum class ValueType { NIL, NUMBER, BOOL, OBJ };
-class Obj;
-struct Value {
-  Value() : type(ValueType::NIL), as{.number = 0} {};
-  explicit Value(double number) : type(ValueType::NUMBER), as{.number = number} {}
-  explicit Value(bool boolean) : type(ValueType::BOOL), as{.boolean = boolean} {}
-  explicit Value(Obj* obj) : type(ValueType::OBJ), as{.obj = obj} {}
+enum class ObjectType { NIL, NUMBER, BOOL, OBJ_HANDLE };
+class ObjHandle;
+struct Object {
+  Object() : type(ObjectType::NIL), as{.number = 0} {};
+  explicit Object(double number) : type(ObjectType::NUMBER), as{.number = number} {}
+  explicit Object(bool boolean) : type(ObjectType::BOOL), as{.boolean = boolean} {}
+  explicit Object(ObjHandle* obj) : type(ObjectType::OBJ_HANDLE), as{.obj = obj} {}
   bool AsBool() const {
     assert(IsBool());
     return as.boolean;
@@ -33,32 +33,32 @@ struct Value {
     assert(IsNumber());
     return as.number;
   };
-  const Obj *AsObj() const {
-    assert(IsObj());
+  const ObjHandle* AsHandle() const {
+    assert(IsHandle());
     return as.obj;
   }
-  Obj *AsObj() {
-    assert(IsObj());
+  ObjHandle* AsHandle() {
+    assert(IsHandle());
     return as.obj;
   }
-  bool IsNil() const { return type == ValueType::NIL; }
-  bool IsBool() const { return type == ValueType::BOOL; }
-  bool IsNumber() const { return type == ValueType::NUMBER; }
-  bool IsObj() const { return type == ValueType::OBJ; }
-  ValueType Type() const { return type; }
-  bool Equal(Value rhs);
+  bool IsNil() const { return type == ObjectType::NIL; }
+  bool IsBool() const { return type == ObjectType::BOOL; }
+  bool IsNumber() const { return type == ObjectType::NUMBER; }
+  bool IsHandle() const { return type == ObjectType::OBJ_HANDLE; }
+  ObjectType Type() const { return type; }
+  bool Equal(Object rhs);
 
   bool IsTrue() { return !IsNil() && IsBool() && AsBool(); }
 
  private:
-  ValueType type;
+  ObjectType type;
   union {
     bool boolean;
     double number;
-    Obj* obj;
+    ObjHandle* obj;
   } as;
 };
-void printValue(const Value& value, bool print_to_debug = false);
+void printValue(const Object& value, bool print_to_debug = false);
 enum class ObjType {
   UNKNOWN,
   OBJ_STRING,
@@ -71,7 +71,7 @@ enum class ObjType {
   OBJ_INSTANCE,
 };
 
-struct Obj {
+struct ObjHandle {
   ObjType type;
   bool isMarked = false;  // gc mark
 
@@ -89,26 +89,26 @@ struct Obj {
   bool IsType() const {
     return type == T::TYPE_ID;
   }
-  bool Equal(const Obj* rhs) const;
+  bool Equal(const ObjHandle* rhs) const;
   void Print(bool print_to_debug = false) const;
-  static void Destroy(Obj* obj);
+  static void Destroy(ObjHandle* obj);
 
-  static LinkList<Obj*>& AllCreatedObj();
+  static LinkList<ObjHandle*>& AllCreatedObj();
   static int& ObjCount();
 
-  static void MarkReference(Obj*);
+  static void MarkReference(ObjHandle*);
 
  protected:
-  explicit Obj(ObjType type);
-  ~Obj();
+  explicit ObjHandle(ObjType type);
+  ~ObjHandle();
 };
 
 template <ObjType TYPE>
-struct ObjWithID : public Obj {
+struct ObjWithID : public ObjHandle {
   constexpr static ObjType TYPE_ID = TYPE;
 
  protected:
-  ObjWithID() : Obj(TYPE) {}
+  ObjWithID() : ObjHandle(TYPE) {}
 };
 class Chunk;
 struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
@@ -120,11 +120,11 @@ struct ObjFunction : public ObjWithID<ObjType::OBJ_FUNCTION> {
   ~ObjFunction();
 };
 
-class Value;
+class Object;
 struct ObjUpvalue : public ObjWithID<ObjType::OBJ_UPVALUE> {
-  explicit ObjUpvalue(Value* location) : location(location) {}
-  Value* location;
-  Value closed;
+  explicit ObjUpvalue(Object* location) : location(location) {}
+  Object* location;
+  Object closed;
   struct ObjUpvalue* next = nullptr;
 };
 
@@ -146,12 +146,12 @@ struct ObjRuntimeFunction : public ObjWithID<ObjType::OBJ_RUNTIME_FUNCTION> {
 };
 
 struct ObjBoundMethod : public ObjWithID<ObjType::OBJ_BOUND_METHOD> {
-  ObjBoundMethod(Value val, ObjRuntimeFunction* method) : receiver(val), method(method) {}
-  Value receiver;
+  ObjBoundMethod(Object val, ObjRuntimeFunction* method) : receiver(val), method(method) {}
+  Object receiver;
   ObjRuntimeFunction* method;
 };
 struct ObjNativeFunction : public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION> {
-  using NativeFn = Value (*)(int argCount, Value* args);
+  using NativeFn = Object (*)(int argCount, Object* args);
   explicit ObjNativeFunction(NativeFn fn) : function(fn) {}
   NativeFn function = nullptr;
 };
@@ -212,7 +212,7 @@ struct ObjInstance : public ObjWithID<ObjType::OBJ_INSTANCE> {
     }
     return check == target;
   }
-  std::unordered_map<ObjInternedString*, Value> dict;
+  std::unordered_map<ObjInternedString*, Object> dict;
 };
 
 struct GC {
@@ -235,9 +235,9 @@ struct GC {
   void collectGarbage();
   void RegisterMarker(MarkerFn fn, void* arg) { markers.Insert(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
   void UnRegisterMarker(MarkerFn fn, void* arg) { markers.Delete(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
-  void mark(Value value);
-  void mark(Obj* object);
-  void mark(HashMap<ObjInternedString*, Value, ObjInternedString::Hash>* table);
+  void mark(Object value);
+  void mark(ObjHandle* object);
+  void mark(HashMap<ObjInternedString*, Object, ObjInternedString::Hash>* table);
 
   template <class KeyT, class ValueT>
   void mark(const std::unordered_map<KeyT*, ValueT>& map) {

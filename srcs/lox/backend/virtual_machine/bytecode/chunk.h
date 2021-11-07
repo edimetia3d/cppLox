@@ -51,13 +51,13 @@ enum class OpCode : uint8_t {
 
 struct Chunk {
   Buffer<uint8_t, 0> code;
-  Buffer<Value, 0> constants;
+  Buffer<Object, 0> constants;
   Buffer<int, 0> lines;
 
   void WriteOpCode(OpCode opcode, int line_number);
   void WriteUInt8(uint8_t data, int line_number);
   int ChunkSize();
-  int addConstant(Value value);
+  int addConstant(Object value);
   void DumpCode(const char* name = "Dump");
   void DumpByOffset(int offset);
   void DumpConstant();

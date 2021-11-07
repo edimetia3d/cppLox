@@ -14,7 +14,7 @@ namespace lox {
 
 namespace vm {
 
-void printValue(const Value &value, bool print_to_debug) {
+void printValue(const Object &value, bool print_to_debug) {
 #define q_printf(...)          \
   if (print_to_debug) {        \
     SPDLOG_DEBUG(__VA_ARGS__); \
@@ -23,14 +23,14 @@ void printValue(const Value &value, bool print_to_debug) {
   };                           \
   break
   switch (value.Type()) {
-    case ValueType::BOOL:
+    case ObjectType::BOOL:
       q_printf((value.AsBool() ? "true" : "false"));
-    case ValueType::NUMBER:
+    case ObjectType::NUMBER:
       q_printf("%f", value.AsNumber());
-    case ValueType::NIL:
+    case ObjectType::NIL:
       q_printf("nil");
-    case ValueType::OBJ:
-      value.AsObj()->Print(print_to_debug);
+    case ObjectType::OBJ_HANDLE:
+      value.AsHandle()->Print(print_to_debug);
       break;
     default:
       q_printf("Unkown types");
@@ -46,10 +46,10 @@ static uint32_t fnv_1a(uint8_t *data, int size) {
   }
   return new_hash;
 }
-bool lox::vm::Obj::Equal(const lox::vm::Obj *rhs) const {
+bool lox::vm::ObjHandle::Equal(const lox::vm::ObjHandle *rhs) const {
   return this == rhs;  // all string are interned, so we can compare directly
 }
-void Obj::Print(bool print_to_debug) const {
+void ObjHandle::Print(bool print_to_debug) const {
 #define q_printf(...)          \
   if (print_to_debug) {        \
     SPDLOG_DEBUG(__VA_ARGS__); \
@@ -81,15 +81,15 @@ void Obj::Print(bool print_to_debug) const {
     case ObjType::OBJ_BOUND_METHOD:
       q_printf("<bound method %s>", As<ObjBoundMethod>()->method->function->name.c_str());
     default:
-      q_printf("Unknown Obj type");
+      q_printf("Unknown ObjHandle type");
   }
 #undef q_printf
 }
-LinkList<Obj *> &Obj::AllCreatedObj() {
-  static LinkList<Obj *> ret;
+LinkList<ObjHandle *> &ObjHandle::AllCreatedObj() {
+  static LinkList<ObjHandle *> ret;
   return ret;
 }
-int &Obj::ObjCount() {
+int &ObjHandle::ObjCount() {
   static int value;
   return value;
 }
@@ -147,7 +147,7 @@ ObjInternedString *ObjInternedString::Make(const char *data, int size) {
 }
 ObjInternedString::~ObjInternedString() { GetInternMap().Del(GetInternView()); }
 
-void Obj::Destroy(Obj *obj) {
+void ObjHandle::Destroy(ObjHandle *obj) {
   SPDLOG_DEBUG("Object [%p] with type [%d] deleted.", obj, obj->type);
   switch (obj->type) {
     case ObjType::OBJ_STRING:
@@ -180,16 +180,16 @@ void Obj::Destroy(Obj *obj) {
       printf("Destroying Unknown Type.\n");
   }
 }
-Obj::Obj(ObjType type) : type(type), isMarked(false) {
+ObjHandle::ObjHandle(ObjType type) : type(type), isMarked(false) {
   SPDLOG_DEBUG("Object [%p] with type [%d] created", this, type);
   AllCreatedObj().Insert(this);
   ++ObjCount();
 }
-Obj::~Obj() {
+ObjHandle::~ObjHandle() {
   --ObjCount();
   AllCreatedObj().Delete(this);
 }
-void Obj::MarkReference(Obj *obj) {
+void ObjHandle::MarkReference(ObjHandle *obj) {
   auto &gc = GC::Instance();
   switch (obj->type) {
     case ObjType::OBJ_STRING:
@@ -243,17 +243,17 @@ void Obj::MarkReference(Obj *obj) {
 
 ObjFunction::ObjFunction() { chunk = new Chunk(); }
 ObjFunction::~ObjFunction() { delete chunk; }
-bool Value::Equal(Value rhs) {
+bool Object::Equal(Object rhs) {
   if (type != rhs.type) return false;
   switch (type) {
-    case ValueType::BOOL:
+    case ObjectType::BOOL:
       return AsBool() == rhs.AsBool();
-    case ValueType::NIL:
+    case ObjectType::NIL:
       return true;
-    case ValueType::NUMBER:
+    case ObjectType::NUMBER:
       return AsNumber() == rhs.AsNumber();
-    case ValueType::OBJ:
-      return rhs.IsObj() && AsObj()->Equal(rhs.AsObj());
+    case ObjectType::OBJ_HANDLE:
+      return rhs.IsHandle() && AsHandle()->Equal(rhs.AsHandle());
     default:
       return false;  // Unreachable.
   }
@@ -268,17 +268,17 @@ void GC::collectGarbage() {
   Sweep();
   SPDLOG_DEBUG("-- gc end");
 }
-void GC::mark(Value value) {
-  if (value.IsObj()) mark(value.AsObj());
+void GC::mark(Object value) {
+  if (value.IsHandle()) mark(value.AsHandle());
 }
-void GC::mark(Obj *object) {
+void GC::mark(ObjHandle *object) {
   if (object == nullptr || object->isMarked) return;
   SPDLOG_DEBUG("%p mark ", (void *)object);
-  printValue(Value(object), true);
+  printValue(Object(object), true);
   object->isMarked = true;
-  Obj::MarkReference(object);
+  ObjHandle::MarkReference(object);
 }
-void GC::mark(HashMap<ObjInternedString *, Value, ObjInternedString::Hash> *table) {
+void GC::mark(HashMap<ObjInternedString *, Object, ObjInternedString::Hash> *table) {
   auto iter = table->GetAllItem();
   while (auto entry = iter.next()) {
     mark(entry->key);
@@ -286,9 +286,9 @@ void GC::mark(HashMap<ObjInternedString *, Value, ObjInternedString::Hash> *tabl
   }
 }
 void GC::Sweep() {
-  auto &list = Obj::AllCreatedObj();
+  auto &list = ObjHandle::AllCreatedObj();
   auto p = list.Head();
-  LinkList<Obj *> to_del;
+  LinkList<ObjHandle *> to_del;
   while (p) {
     if (p->val->isMarked) {
       p->val->isMarked = false;
@@ -300,7 +300,7 @@ void GC::Sweep() {
   p = to_del.Head();
   while (p) {
     auto next = p->next;
-    Obj::Destroy(p->val);
+    ObjHandle::Destroy(p->val);
     p = next;
   }
 }

@@ -9,9 +9,10 @@
 namespace lox {
 namespace vm {
 
-Value clockNative(int argCount, Value *args) {
+Object clockNative(int argCount, Object *args) {
   assert(argCount == 0);
-  return Value((double)clock() / CLOCKS_PER_SEC); }
+  return Object((double)clock() / CLOCKS_PER_SEC);
+}
 
 }  // namespace vm
 }  // namespace lox

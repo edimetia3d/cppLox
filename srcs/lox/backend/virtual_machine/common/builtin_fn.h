@@ -9,7 +9,7 @@
 
 namespace lox {
 namespace vm {
-Value clockNative(int argCount, Value* args);
+Object clockNative(int argCount, Object* args);
 }
 }  // namespace lox
 #endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_BUILTIN_FN_H

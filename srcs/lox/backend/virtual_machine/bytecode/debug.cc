@@ -105,7 +105,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
       printf("%-16s %4d ", "OP_CLOSURE", constant);
       printValue(chunk->constants[constant]);
       printf("\n");
-      auto function = chunk->constants[constant].AsObj()->As<ObjFunction>();
+      auto function = chunk->constants[constant].AsHandle()->As<ObjFunction>();
       for (int j = 0; j < function->upvalueCount; j++) {
         int isLocal = chunk->code[offset++];
         int index = chunk->code[offset++];

@@ -12,7 +12,7 @@ void Chunk::WriteUInt8(uint8_t data, int line_number) {
   code.push_back(data);
   lines.push_back(line_number);
 }
-int Chunk::addConstant(Value value) {
+int Chunk::addConstant(Object value) {
   int index = constants.size();
   constants.push_back(value);
   return index;
@@ -23,7 +23,7 @@ void Chunk::DumpCode(const char *name) { disassembleChunk(this, name); }
 void Chunk::DumpByOffset(int offset) { disassembleInstruction(this, offset); }
 void Chunk::DumpConstant() {
   printf("== Constant ==\n");
-  for (Value *p = constants.data(); p != constants.data() + constants.size(); ++p) {
+  for (Object *p = constants.data(); p != constants.data() + constants.size(); ++p) {
     printf("[ ");
     printValue(*p);
     printf(" ]");

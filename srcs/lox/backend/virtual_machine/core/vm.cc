@@ -47,18 +47,18 @@ ErrCode VM::Run() {
     OpCode instruction;
     switch (instruction = static_cast<OpCode>(READ_BYTE())) {
       case OpCode::OP_CONSTANT: {
-        Value constant = READ_CONSTANT();
+        Object constant = READ_CONSTANT();
         Push(constant);
         break;
       }
       case OpCode::OP_NIL:
-        Push(Value());
+        Push(Object());
         break;
       case OpCode::OP_TRUE:
-        Push(Value(true));
+        Push(Object(true));
         break;
       case OpCode::OP_FALSE:
-        Push(Value(false));
+        Push(Object(false));
         break;
       case OpCode::OP_POP:
         Pop();
@@ -110,9 +110,9 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_EQUAL: {
-        Value b = Pop();
-        Value a = Pop();
-        Push(Value(a.Equal(b)));
+        Object b = Pop();
+        Object a = Pop();
+        Push(Object(a.Equal(b)));
         break;
       }
       case OpCode::OP_GREATER:
@@ -123,14 +123,14 @@ ErrCode VM::Run() {
         break;
       case OpCode::OP_ADD:
         if (Peek().IsNumber() && Peek(1).IsNumber()) {
-          Value b = Pop();
-          Value a = Pop();
-          Push(Value(static_cast<double>(a.AsNumber() + b.AsNumber())));
-        } else if (Peek().IsObj() && Peek(1).IsObj()) {
-          Value b = Pop();
-          Value a = Pop();
-          Push(
-              Value(ObjInternedString::Concat(a.AsObj()->As<ObjInternedString>(), b.AsObj()->As<ObjInternedString>())));
+          Object b = Pop();
+          Object a = Pop();
+          Push(Object(static_cast<double>(a.AsNumber() + b.AsNumber())));
+        } else if (Peek().IsHandle() && Peek(1).IsHandle()) {
+          Object b = Pop();
+          Object a = Pop();
+          Push(Object(
+              ObjInternedString::Concat(a.AsHandle()->As<ObjInternedString>(), b.AsHandle()->As<ObjInternedString>())));
         } else {
           runtimeError("Add only support string and number.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
@@ -146,15 +146,15 @@ ErrCode VM::Run() {
         BINARY_OP(double, /);
         break;
       case OpCode::OP_NOT:
-        Push(Value(!Pop().IsTrue()));
+        Push(Object(!Pop().IsTrue()));
         break;
       case OpCode::OP_NEGATE: {
         CHEK_STACK_TOP_TYPE(Number);
-        Push(Value(-Pop().AsNumber()));
+        Push(Object(-Pop().AsNumber()));
         break;
       }
       case OpCode::OP_CLASS:
-        Push(Value(new ObjClass(READ_STRING()->c_str())));
+        Push(Object(new ObjClass(READ_STRING()->c_str())));
         break;
       case OpCode::OP_PRINT: {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -188,8 +188,8 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_CLOSURE: {
-        auto closure = new ObjRuntimeFunction(READ_CONSTANT().AsObj()->As<ObjFunction>());
-        Push(Value(closure));
+        auto closure = new ObjRuntimeFunction(READ_CONSTANT().AsHandle()->As<ObjFunction>());
+        Push(Object(closure));
         for (int i = 0; i < closure->upvalueCount; i++) {
           uint8_t isLocal = READ_BYTE();
           uint8_t index = READ_BYTE();
@@ -206,7 +206,7 @@ ErrCode VM::Run() {
         Pop();
         break;
       case OpCode::OP_RETURN: {
-        Value result = Pop();         // retrive return first
+        Object result = Pop();        // retrive return first
         closeUpvalues(frame->slots);  // discard parameter ,if some parameter is closed ,close them
         frameCount--;
         if (frameCount == 0) {
@@ -223,12 +223,12 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_GET_ATTR: {
         auto top_v = Peek(0);
-        if (top_v.IsObj() && top_v.AsObj()->IsType<ObjInstance>()) {
-          ObjInstance *instance = top_v.AsObj()->As<ObjInstance>();
+        if (top_v.IsHandle() && top_v.AsHandle()->IsType<ObjInstance>()) {
+          ObjInstance *instance = top_v.AsHandle()->As<ObjInstance>();
           ObjInternedString *name = READ_STRING();
           if (instance->dict.contains(name)) {
             Pop();  // Instance.
-            Push(Value(instance->dict[name]));
+            Push(Object(instance->dict[name]));
             break;
           }
           if (!tryGetBoundMethod(instance->klass, name)) {
@@ -237,11 +237,11 @@ ErrCode VM::Run() {
           }
           break;
         }
-        if (top_v.IsObj() && top_v.AsObj()->IsType<ObjClass>()) {
-          ObjClass *klass = top_v.AsObj()->As<ObjClass>();
+        if (top_v.IsHandle() && top_v.AsHandle()->IsType<ObjClass>()) {
+          ObjClass *klass = top_v.AsHandle()->As<ObjClass>();
           auto possible_instance = *currentFrame()->slots;
-          if (!possible_instance.IsObj() || !possible_instance.AsObj()->IsType<ObjInstance>() ||
-              !possible_instance.AsObj()->As<ObjInstance>()->IsInstance(klass)) {
+          if (!possible_instance.IsHandle() || !possible_instance.AsHandle()->IsType<ObjInstance>() ||
+              !possible_instance.AsHandle()->As<ObjInstance>()->IsInstance(klass)) {
             runtimeError("class method cannot access", klass);
             return ErrCode::INTERPRET_RUNTIME_ERROR;
           }
@@ -258,17 +258,17 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_SET_ATTR: {
         auto top_v_1 = Peek(1);
-        if (!top_v_1.IsObj() || !top_v_1.AsObj()->IsType<ObjInstance>()) {
+        if (!top_v_1.IsHandle() || !top_v_1.AsHandle()->IsType<ObjInstance>()) {
           runtimeError("Only instances have attr.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        ObjInstance *instance = top_v_1.AsObj()->As<ObjInstance>();
+        ObjInstance *instance = top_v_1.AsHandle()->As<ObjInstance>();
         ObjInternedString *name = READ_STRING();
         instance->dict[name] = Peek();
         // stack need to be [... instance, attr_new_value] -> [...,attr_new_value]
-        Value value = Pop();  // expression value temporay discarded
-        Pop();                // pop instance
-        Push(value);          // push expression value back
+        Object value = Pop();  // expression value temporay discarded
+        Pop();                 // pop instance
+        Push(value);           // push expression value back
         break;
       }
       case OpCode::OP_INVOKE: {
@@ -281,12 +281,12 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_INHERIT: {
-        if (!Peek(1).AsObj()->IsType<ObjClass>()) {
+        if (!Peek(1).AsHandle()->IsType<ObjClass>()) {
           runtimeError("Superclass must be a class.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        auto superclass = Peek(1).AsObj()->As<ObjClass>();
-        auto subclass = Peek(0).AsObj()->As<ObjClass>();
+        auto superclass = Peek(1).AsHandle()->As<ObjClass>();
+        auto subclass = Peek(0).AsHandle()->As<ObjClass>();
         subclass->superclass = superclass;
         subclass->methods.insert(superclass->methods.begin(), superclass->methods.end());
         Pop();  // pop subclass.
@@ -313,15 +313,15 @@ void VM::tryGC() const {
 #ifdef DEBUG_STRESS_GC
   GC::Instance().collectGarbage();
 #else
-  if (Obj::ObjCount() > GC::Instance().gc_threashold) {
+  if (ObjHandle::ObjCount() > GC::Instance().gc_threashold) {
     GC::Instance().collectGarbage();
-    GC::Instance().gc_threashold = Obj::ObjCount() * 1.2;
+    GC::Instance().gc_threashold = ObjHandle::ObjCount() * 1.2;
   }
 #endif
 }
 void VM::DumpStack() const {
   printf("Stack:");
-  for (const Value *slot = stack_; slot != sp_; ++slot) {
+  for (const Object *slot = stack_; slot != sp_; ++slot) {
     printf("[ ");
     printValue(*slot);
     printf(" ]");
@@ -341,13 +341,13 @@ void VM::DumpGlobals() {
   printf("\n");
 }
 void VM::ResetStack() { sp_ = stack_; }
-void VM::Push(Value value) { *sp_++ = value; }
-Value VM::Pop() { return *(--sp_); }
+void VM::Push(Object value) { *sp_++ = value; }
+Object VM::Pop() { return *(--sp_); }
 ErrCode VM::Interpret(ObjFunction *function) {
-  Push(Value(function));
+  Push(Object(function));
   auto rt_fn = new ObjRuntimeFunction(function);
   Pop();
-  Push(Value(rt_fn));
+  Push(Object(rt_fn));
   call(rt_fn, 0);
   return Run();
 }
@@ -366,27 +366,27 @@ void VM::runtimeError(const char *format, ...) {
   }
   ResetStack();
 }
-Value VM::Peek(int distance) {
+Object VM::Peek(int distance) {
   assert(distance >= 0);
   return *(sp_ - distance - 1);
 }
 VM::~VM() {
   int count = 0;
-  while (auto p = Obj::AllCreatedObj().Head()) {
+  while (auto p = ObjHandle::AllCreatedObj().Head()) {
     ++count;
-    Obj::Destroy(p->val);
+    ObjHandle::Destroy(p->val);
   }
   if (count) {
     printf("VM destroyed %d CLoxObject at exit.\n", count);
   }
 }
-bool VM::callValue(Value callee, int count) {
-  if (callee.IsObj()) {
-    switch (callee.AsObj()->type) {
+bool VM::callValue(Object callee, int count) {
+  if (callee.IsHandle()) {
+    switch (callee.AsHandle()->type) {
       case ObjType::OBJ_CLASS: {
-        ObjClass *klass = callee.AsObj()->As<ObjClass>();
+        ObjClass *klass = callee.AsHandle()->As<ObjClass>();
         auto new_instance = new ObjInstance(klass);
-        Value instance_value(new_instance);
+        Object instance_value(new_instance);
         sp_[-count - 1] = instance_value;  // a hack replace the class object with self
         if (klass->methods.contains(SYMBOL_THIS)) {
           return call(klass->methods[SYMBOL_THIS]->As<ObjRuntimeFunction>(), count);
@@ -398,15 +398,15 @@ bool VM::callValue(Value callee, int count) {
         return true;
       }
       case ObjType::OBJ_BOUND_METHOD: {
-        ObjBoundMethod *bound = callee.AsObj()->As<ObjBoundMethod>();
+        ObjBoundMethod *bound = callee.AsHandle()->As<ObjBoundMethod>();
         sp_[-count - 1] = bound->receiver;  // a hack that replace bounded method with self
         return call(bound->method, count);
       }
       case ObjType::OBJ_RUNTIME_FUNCTION:
-        return call(callee.AsObj()->As<ObjRuntimeFunction>(), count);
+        return call(callee.AsHandle()->As<ObjRuntimeFunction>(), count);
       case ObjType::OBJ_NATIVE_FUNCTION: {
-        auto native = callee.AsObj()->As<ObjNativeFunction>()->function;
-        Value result = native(count, sp_ - count);
+        auto native = callee.AsHandle()->As<ObjNativeFunction>()->function;
+        Object result = native(count, sp_ - count);
         sp_ -= (count + 1);
         Push(result);
         return true;
@@ -440,14 +440,14 @@ VM::VM() : marker_register_guard(&markRoots, this) {
 }
 void VM::defineBultins() { defineNativeFunction("clock", &clockNative); }
 void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function) {
-  Push(Value(ObjInternedString::Make(name.c_str(), name.size())));
-  Push(Value(new ObjNativeFunction(function)));
-  assert(globals_.Get(Peek(1).AsObj()->As<ObjInternedString>()) == nullptr);
-  globals_.Set(Peek(1).AsObj()->As<ObjInternedString>(), Peek(0));
+  Push(Object(ObjInternedString::Make(name.c_str(), name.size())));
+  Push(Object(new ObjNativeFunction(function)));
+  assert(globals_.Get(Peek(1).AsHandle()->As<ObjInternedString>()) == nullptr);
+  globals_.Set(Peek(1).AsHandle()->As<ObjInternedString>(), Peek(0));
   Pop();
   Pop();
 }
-ObjUpvalue *VM::captureUpvalue(Value *pValue) {
+ObjUpvalue *VM::captureUpvalue(Object *pValue) {
   // we insert pValue into a sorted link-list
   // so `p->location` > `p->next->location` is always true
   ObjUpvalue *prevUpvalue = nullptr;
@@ -470,7 +470,7 @@ ObjUpvalue *VM::captureUpvalue(Value *pValue) {
   }
   return createdUpvalue;
 }
-void VM::closeUpvalues(Value *last) {
+void VM::closeUpvalues(Object *last) {
   // for `p->location` > `p->next->location` is always true
   // we could just delete all directly one by one
   while (openUpvalues != nullptr && openUpvalues->location >= last) {
@@ -489,7 +489,7 @@ void VM::markRoots(void *vm_p) {
   gc.mark(vm->SYMBOL_THIS);
 
   // mark stacks
-  for (Value *slot = vm->stack_; slot < vm->sp_; slot++) {
+  for (Object *slot = vm->stack_; slot < vm->sp_; slot++) {
     gc.mark(*slot);
   }
   // mark globals
@@ -502,42 +502,42 @@ void VM::markRoots(void *vm_p) {
 
   // mark openUpvalue
   for (ObjUpvalue *upvalue = vm->openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
-    gc.mark((Obj *)upvalue);
+    gc.mark((ObjHandle *)upvalue);
   }
 }
 void VM::defineMethod(ObjInternedString *name) {
-  Value method = Peek(0);
-  ObjClass *klass = Peek(1).AsObj()->As<ObjClass>();
-  klass->methods[name] = method.AsObj()->As<ObjRuntimeFunction>();
+  Object method = Peek(0);
+  ObjClass *klass = Peek(1).AsHandle()->As<ObjClass>();
+  klass->methods[name] = method.AsHandle()->As<ObjRuntimeFunction>();
   Pop();
 }
 bool VM::tryGetBoundMethod(ObjClass *klass, ObjInternedString *name) {
-  Value method;
+  Object method;
   if (!klass->methods.contains(name)) {
     runtimeError("Undefined property '%s'.", name->c_str());
     return false;
   }
 
   ObjBoundMethod *bound = new ObjBoundMethod(Peek(0), klass->methods[name]->As<ObjRuntimeFunction>());
-  Pop();               // Pop instance
-  Push(Value(bound));  // replace with new attr value
+  Pop();                // Pop instance
+  Push(Object(bound));  // replace with new attr value
   return true;
 }
 bool VM::invoke(ObjInternedString *method_name, int arg_count) {
-  Value receiver = Peek(arg_count);
-  if (receiver.AsObj()->IsType<ObjInstance>()) {
-    ObjInstance *instance = receiver.AsObj()->As<ObjInstance>();
+  Object receiver = Peek(arg_count);
+  if (receiver.AsHandle()->IsType<ObjInstance>()) {
+    ObjInstance *instance = receiver.AsHandle()->As<ObjInstance>();
     if (instance->dict.contains(method_name)) {
       sp_[-arg_count - 1] = instance->dict[method_name];
       return callValue(instance->dict[method_name], arg_count);
     }
     return invokeFromClass(instance->klass, method_name, arg_count);
   }
-  if (receiver.AsObj()->IsType<ObjClass>()) {
-    ObjClass *klass = receiver.AsObj()->As<ObjClass>();
+  if (receiver.AsHandle()->IsType<ObjClass>()) {
+    ObjClass *klass = receiver.AsHandle()->As<ObjClass>();
     auto possible_instance = *currentFrame()->slots;
-    if (!possible_instance.IsObj() || !possible_instance.AsObj()->IsType<ObjInstance>() ||
-        !possible_instance.AsObj()->As<ObjInstance>()->IsInstance(klass)) {
+    if (!possible_instance.IsHandle() || !possible_instance.AsHandle()->IsType<ObjInstance>() ||
+        !possible_instance.AsHandle()->As<ObjInstance>()->IsInstance(klass)) {
       runtimeError("class method cannot access", klass);
       return false;
     }
@@ -550,7 +550,7 @@ bool VM::invoke(ObjInternedString *method_name, int arg_count) {
 }
 
 bool VM::invokeFromClass(ObjClass *klass, ObjInternedString *name, int argCount) {
-  Value method;
+  Object method;
   if (!klass->methods.contains(name)) {
     runtimeError("Undefined property '%s'.", name->c_str());
     return false;

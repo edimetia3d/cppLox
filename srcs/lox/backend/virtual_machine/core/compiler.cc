@@ -157,7 +157,7 @@ void Compiler::emitBytes(OpCode byte1, uint8_t byte2) {
   emitByte(byte1);
   emitByte(byte2);
 }
-uint8_t Compiler::makeConstant(Value value) {
+uint8_t Compiler::makeConstant(Object value) {
   int constant = CurrentChunk()->addConstant(value);
   if (constant > UINT8_MAX) {
     error("Too many constants in one chunk.");
@@ -242,7 +242,7 @@ void Compiler::literal() {
 }
 void Compiler::string() {
   emitConstant(
-      Value(ObjInternedString::Make(parser_.previous->lexeme.c_str() + 1, parser_.previous->lexeme.size() - 2)));
+      Object(ObjInternedString::Make(parser_.previous->lexeme.c_str() + 1, parser_.previous->lexeme.size() - 2)));
 }
 bool Compiler::MatchAndAdvance(TokenType type) {
   if (!Check(type)) return false;
@@ -340,7 +340,7 @@ uint8_t Compiler::parseVariable(const char *errorMessage) {
   return identifierConstant(parser_.previous);
 }
 uint8_t Compiler::identifierConstant(Token token) {
-  return makeConstant(Value(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
+  return makeConstant(Object(ObjInternedString::Make(token->lexeme.c_str(), token->lexeme.size())));
 }
 void Compiler::defineVariable(uint8_t global) {
   if (current_cu_->scopeDepth > 0) {
@@ -659,7 +659,7 @@ void Compiler::func(FunctionType type) {
   block();
 
   endFunctionCompilation();
-  emitBytes(OpCode::OP_CLOSURE, makeConstant(Value(new_cu.func)));
+  emitBytes(OpCode::OP_CLOSURE, makeConstant(Object(new_cu.func)));
   for (int i = 0; i < new_cu.func->upvalueCount; i++) {
     emitByte(new_cu.upvalues[i].isLocal ? 1 : 0);
     emitByte(new_cu.upvalues[i].index);
