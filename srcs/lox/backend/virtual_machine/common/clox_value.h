@@ -18,7 +18,7 @@ namespace vm {
 enum class ObjectType { NIL, NUMBER, BOOL, OBJ_HANDLE };
 enum class ObjType {
   UNKNOWN,
-  OBJ_STRING,
+  OBJ_SYMBOL,
   OBJ_FUNCTION,
   OBJ_UPVALUE,
   OBJ_RUNTIME_FUNCTION,
@@ -151,10 +151,10 @@ struct ObjNativeFunction : public ObjWithID<ObjType::OBJ_NATIVE_FUNCTION> {
   NativeFn function = nullptr;
 };
 
-struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
-  static ObjInternedString* Intern(const std::string& str) {
+struct Symbol : public ObjWithID<ObjType::OBJ_SYMBOL> {
+  static Symbol* Intern(const std::string& str) {
     if (!GetInternMap().contains(str)) {
-      GetInternMap()[str] = new ObjInternedString(str);
+      GetInternMap()[str] = new Symbol(str);
     }
     return GetInternMap()[str];
   }
@@ -166,8 +166,8 @@ struct ObjInternedString : public ObjWithID<ObjType::OBJ_STRING> {
   const std::string& str() const { return data; }
 
  protected:
-  explicit ObjInternedString(std::string d) : data(std::move(d)) {}
-  static std::unordered_map<std::string, ObjInternedString*>& GetInternMap();
+  explicit Symbol(std::string d) : data(std::move(d)) {}
+  static std::unordered_map<std::string, Symbol*>& GetInternMap();
   std::string data;
 };
 
@@ -175,7 +175,7 @@ struct ObjClass : public ObjWithID<ObjType::OBJ_CLASS> {
   explicit ObjClass(std::string name) : name(std::move(name)) {}
   std::string name;
   ObjClass* superclass = nullptr;
-  std::unordered_map<ObjInternedString*, ObjRuntimeFunction*> methods;
+  std::unordered_map<Symbol*, ObjRuntimeFunction*> methods;
 };
 
 struct ObjInstance : public ObjWithID<ObjType::OBJ_INSTANCE> {
@@ -188,7 +188,7 @@ struct ObjInstance : public ObjWithID<ObjType::OBJ_INSTANCE> {
     }
     return check == target;
   }
-  std::unordered_map<ObjInternedString*, Object> dict;
+  std::unordered_map<Symbol*, Object> dict;
 };
 
 struct GC {

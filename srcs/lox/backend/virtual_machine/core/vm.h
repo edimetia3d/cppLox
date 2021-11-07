@@ -47,9 +47,9 @@ class VM {
   int frameCount = 0;
   Object stack_[STACK_LOOKUP_OFFSET_MAX];
   ObjUpvalue *openUpvalues;
-  std::unordered_map<ObjInternedString *, Object> globals_;
+  std::unordered_map<Symbol *, Object> globals_;
   Object *sp_ = nullptr;  // stack pointer
-  ObjInternedString *const SYMBOL_THIS{ObjInternedString::Intern("init")};
+  Symbol *const SYMBOL_THIS{Symbol::Intern("init")};
   void DumpStack() const;
   void DumpGlobals();
   void runtimeError(const char *format, ...);
@@ -62,10 +62,10 @@ class VM {
   static void markRoots(void *vm);
   GC::RegisterMarkerGuard marker_register_guard;
   void tryGC() const;
-  void defineMethod(ObjInternedString *name);
-  bool tryGetBoundMethod(ObjClass *klass, ObjInternedString *name);
-  bool invoke(ObjInternedString *method_name, int arg_count);
-  bool invokeFromClass(ObjClass *klass, ObjInternedString *name, int argCount);
+  void defineMethod(Symbol *name);
+  bool tryGetBoundMethod(ObjClass *klass, Symbol *name);
+  bool invoke(Symbol *method_name, int arg_count);
+  bool invokeFromClass(ObjClass *klass, Symbol *name, int argCount);
 };
 }  // namespace vm
 }  // namespace lox

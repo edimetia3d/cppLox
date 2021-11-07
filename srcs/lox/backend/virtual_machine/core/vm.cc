@@ -26,7 +26,7 @@ ErrCode VM::Run() {
     }                                               \
   } while (0)
 #define READ_CONSTANT() (frame->closure->function->chunk->constants[READ_BYTE()])
-#define READ_STRING() ((READ_CONSTANT()).AsHandle()->As<ObjInternedString>())
+#define READ_STRING() ((READ_CONSTANT()).AsHandle()->As<Symbol>())
 #define BINARY_OP(OutputT, op)                                        \
   do {                                                                \
     CHEK_STACK_TOP_TYPE(Number);                                      \
@@ -74,7 +74,7 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_GET_GLOBAL: {
-        ObjInternedString *name = READ_STRING();
+        Symbol *name = READ_STRING();
         if (!globals_.contains(name)) {
           runtimeError("Undefined variable '%s'.", name->c_str());
           return ErrCode::INTERPRET_RUNTIME_ERROR;
@@ -83,13 +83,13 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_DEFINE_GLOBAL: {
-        ObjInternedString *name = READ_STRING();
+        Symbol *name = READ_STRING();
         globals_[name] = Peek(0);
         Pop();
         break;
       }
       case OpCode::OP_SET_GLOBAL: {
-        ObjInternedString *name = READ_STRING();
+        Symbol *name = READ_STRING();
         if (!globals_.contains(name)) {
           runtimeError("Undefined variable '%s'.", name->c_str());
           return ErrCode::INTERPRET_RUNTIME_ERROR;
@@ -127,8 +127,7 @@ ErrCode VM::Run() {
         } else if (Peek().IsHandle() && Peek(1).IsHandle()) {
           Object b = Pop();
           Object a = Pop();
-          Push(Object(ObjInternedString::Intern(a.AsHandle()->As<ObjInternedString>()->str() +
-                                                b.AsHandle()->As<ObjInternedString>()->str())));
+          Push(Object(Symbol::Intern(a.AsHandle()->As<Symbol>()->str() + b.AsHandle()->As<Symbol>()->str())));
         } else {
           runtimeError("Add only support string and number.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
@@ -223,7 +222,7 @@ ErrCode VM::Run() {
         auto top_v = Peek(0);
         if (top_v.IsHandle() && top_v.AsHandle()->IsType<ObjInstance>()) {
           ObjInstance *instance = top_v.AsHandle()->As<ObjInstance>();
-          ObjInternedString *name = READ_STRING();
+          Symbol *name = READ_STRING();
           if (instance->dict.contains(name)) {
             Pop();  // Instance.
             Push(Object(instance->dict[name]));
@@ -244,7 +243,7 @@ ErrCode VM::Run() {
             return ErrCode::INTERPRET_RUNTIME_ERROR;
           }
           sp_[-1] = possible_instance;  // a hack that replace class with instance
-          ObjInternedString *name = READ_STRING();
+          Symbol *name = READ_STRING();
           if (!tryGetBoundMethod(klass, name)) {
             runtimeError("Undefined method '%s'.", name->c_str());
             return ErrCode::INTERPRET_RUNTIME_ERROR;
@@ -261,7 +260,7 @@ ErrCode VM::Run() {
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
         ObjInstance *instance = top_v_1.AsHandle()->As<ObjInstance>();
-        ObjInternedString *name = READ_STRING();
+        Symbol *name = READ_STRING();
         instance->dict[name] = Peek();
         // stack need to be [... instance, attr_new_value] -> [...,attr_new_value]
         Object value = Pop();  // expression value temporay discarded
@@ -439,9 +438,9 @@ VM::VM() : marker_register_guard(&markRoots, this) {
 }
 void VM::defineBultins() { defineNativeFunction("clock", &clockNative); }
 void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function) {
-  Push(Object(ObjInternedString::Intern(name)));
+  Push(Object(Symbol::Intern(name)));
   Push(Object(new ObjNativeFunction(function)));
-  auto key = Peek(1).AsHandle()->As<ObjInternedString>();
+  auto key = Peek(1).AsHandle()->As<Symbol>();
   assert(!globals_.contains(key));
   globals_[key] = Peek(0);
   Pop();
@@ -505,13 +504,13 @@ void VM::markRoots(void *vm_p) {
     gc.mark((ObjHandle *)upvalue);
   }
 }
-void VM::defineMethod(ObjInternedString *name) {
+void VM::defineMethod(Symbol *name) {
   Object method = Peek(0);
   ObjClass *klass = Peek(1).AsHandle()->As<ObjClass>();
   klass->methods[name] = method.AsHandle()->As<ObjRuntimeFunction>();
   Pop();
 }
-bool VM::tryGetBoundMethod(ObjClass *klass, ObjInternedString *name) {
+bool VM::tryGetBoundMethod(ObjClass *klass, Symbol *name) {
   Object method;
   if (!klass->methods.contains(name)) {
     runtimeError("Undefined property '%s'.", name->c_str());
@@ -523,7 +522,7 @@ bool VM::tryGetBoundMethod(ObjClass *klass, ObjInternedString *name) {
   Push(Object(bound));  // replace with new attr value
   return true;
 }
-bool VM::invoke(ObjInternedString *method_name, int arg_count) {
+bool VM::invoke(Symbol *method_name, int arg_count) {
   Object receiver = Peek(arg_count);
   if (receiver.AsHandle()->IsType<ObjInstance>()) {
     ObjInstance *instance = receiver.AsHandle()->As<ObjInstance>();
@@ -549,7 +548,7 @@ bool VM::invoke(ObjInternedString *method_name, int arg_count) {
   return false;
 }
 
-bool VM::invokeFromClass(ObjClass *klass, ObjInternedString *name, int argCount) {
+bool VM::invokeFromClass(ObjClass *klass, Symbol *name, int argCount) {
   Object method;
   if (!klass->methods.contains(name)) {
     runtimeError("Undefined property '%s'.", name->c_str());

@@ -58,8 +58,8 @@ void ObjHandle::Print(bool print_to_debug) const {
   };                           \
   break
   switch (type) {
-    case ObjType::OBJ_STRING:
-      q_printf("%s", As<ObjInternedString>()->c_str());
+    case ObjType::OBJ_SYMBOL:
+      q_printf("%s", As<Symbol>()->c_str());
     case ObjType::OBJ_FUNCTION:
       q_printf("<fn %s>", As<ObjFunction>()->name.c_str());
     case ObjType::OBJ_NATIVE_FUNCTION:
@@ -97,8 +97,8 @@ int &ObjHandle::ObjCount() {
 void ObjHandle::Destroy(ObjHandle *obj) {
   SPDLOG_DEBUG("Object [%p] with type [%d] deleted.", obj, obj->type);
   switch (obj->type) {
-    case ObjType::OBJ_STRING:
-      delete obj->As<ObjInternedString>();
+    case ObjType::OBJ_SYMBOL:
+      delete obj->As<Symbol>();
       break;
     case ObjType::OBJ_FUNCTION:
       delete obj->As<ObjFunction>();
@@ -139,7 +139,7 @@ ObjHandle::~ObjHandle() {
 void ObjHandle::MarkReference(ObjHandle *obj) {
   auto &gc = GC::Instance();
   switch (obj->type) {
-    case ObjType::OBJ_STRING:
+    case ObjType::OBJ_SYMBOL:
       break;
     case ObjType::OBJ_FUNCTION: {
       int n = obj->As<ObjFunction>()->chunk->constants.size();
@@ -243,8 +243,8 @@ void GC::Sweep() {
     ++iter;
   }
 }
-std::unordered_map<std::string, ObjInternedString *> &ObjInternedString::GetInternMap() {
-  static std::unordered_map<std::string, ObjInternedString *> map;
+std::unordered_map<std::string, Symbol *> &Symbol::GetInternMap() {
+  static std::unordered_map<std::string, Symbol *> map;
   return map;
 }
 }  // namespace vm

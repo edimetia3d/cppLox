@@ -243,7 +243,7 @@ void Compiler::literal() {
 void Compiler::string() {
   std::string tmp = parser_.previous->lexeme;
   *tmp.rbegin() = '\0';
-  emitConstant(Object(ObjInternedString::Intern(tmp.c_str() + 1)));
+  emitConstant(Object(Symbol::Intern(tmp.c_str() + 1)));
 }
 bool Compiler::MatchAndAdvance(TokenType type) {
   if (!Check(type)) return false;
@@ -340,9 +340,7 @@ uint8_t Compiler::parseVariable(const char *errorMessage) {
   if (current_cu_->scopeDepth > 0) return 0;
   return identifierConstant(parser_.previous);
 }
-uint8_t Compiler::identifierConstant(Token token) {
-  return makeConstant(Object(ObjInternedString::Intern(token->lexeme)));
-}
+uint8_t Compiler::identifierConstant(Token token) { return makeConstant(Object(Symbol::Intern(token->lexeme))); }
 void Compiler::defineVariable(uint8_t global) {
   if (current_cu_->scopeDepth > 0) {
     markInitialized();
