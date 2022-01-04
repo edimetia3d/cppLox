@@ -6,306 +6,264 @@
 
 #include <map>
 
-namespace lox {
+#include "lox/backend/virtual_machine/debug/debug.h"
 
-namespace vm {
-ObjFunction *Compiler::Compile(Scanner *scanner) {
-  FunctionCU top_level_cu(nullptr, FunctionType::SCRIPT, "<script>");
+namespace lox::vm {
 
-  current_cu_ = &top_level_cu;
-  scanner_ = scanner;
-  Advance();
-  while (!MatchAndAdvance(TokenType::EOF_TOKEN)) {
-    declaration();
-  }
-  endFunctionCompilation();
-  if (parser_.hadError) {
-    return nullptr;
-  }
-  return top_level_cu.func;
-}
-void Compiler::Advance() {
-  parser_.previous = parser_.current;
+struct ParseRule {
+  std::function<void(Compiler *)> EmitPrefixFn;
+  std::function<void(Compiler *)> EmitInfixFn;
+  OperatorType operator_type;
+};
 
-  for (;;) {
-    auto err = scanner_->ScanOne(&parser_.current);
-    if (err.NoError()) break;
-
-    errorAtCurrent(parser_.current->lexeme.c_str());
-  }
-}
-void Compiler::errorAtCurrent(const char *message) { errorAt(parser_.current, message); }
-void Compiler::errorAt(Token token, const char *message) {
-  if (parser_.panicMode) return;
-  parser_.panicMode = true;
-  fprintf(stderr, "[line %d] Error", token->line);
-  fprintf(stderr, " at '%.*s'", (int)token->lexeme.size(), token->lexeme.c_str());
-  fprintf(stderr, ": %s\n", message);
-  parser_.hadError = true;
-}
-void Compiler::Consume(TokenType type, const char *message) {
-  if (parser_.current->type == type) {
-    Advance();
-    return;
-  }
-
-  errorAtCurrent(message);
-}
-Chunk *Compiler::CurrentChunk() { return current_cu_->func->chunk; }
-void Compiler::endFunctionCompilation() {
-  emitDefaultReturn();  // when no return at end ,we always inject a default return
-#ifndef NDEBUG
-  if (!parser_.hadError) {
-    CurrentChunk()->DumpCode(current_cu_->func->name.c_str());
-    CurrentChunk()->DumpConstant();
-  }
-#endif
-  current_cu_ = current_cu_->enclosing_;
-}
-void Compiler::emitDefaultReturn() {
-  if (current_cu_->type == FunctionType::INITIALIZER) {
-    emitBytes(OpCode::OP_GET_LOCAL, 0);
-  } else {
-    emitByte(OpCode::OP_NIL);
-  }
-  emitByte(OpCode::OP_RETURN);
-}
-void Compiler::error(const char *message) { errorAt(parser_.previous, message); }
-void Compiler::Expression(OperatorType operator_type) {
-  auto bak_last_expression_precedence = last_expression_precedence;
-  last_expression_precedence = operator_type;
-  Precedence precedence = operator_type;
-  Advance();
-  auto EmitPrefixFn = getRule(parser_.previous)->EmitPrefixFn;
-  if (EmitPrefixFn == nullptr) {
-    error("Expect expression.");
-    return;
-  }
-
-  EmitPrefixFn(this);
-
-  while (precedence <= getRule(parser_.current)->operator_type) {
-    Advance();
-    auto EmitInfixFn = getRule(parser_.previous)->EmitInfixFn;
-    EmitInfixFn(this);
-  }
-  last_expression_precedence = bak_last_expression_precedence;
-}
-
-std::vector<ParseRule> BuildRuleMap() {
+static std::vector<ParseRule> &RuleMap();
+int BuildRuleMap() {
 #define RULE_ITEM(TOKEN_T, MEMBER_FN0, MEMBER_FN1, PRECEDENCE_V)                         \
   {                                                                                      \
     TokenType::TOKEN_T, ParseRule { MEMBER_FN0, MEMBER_FN1, OperatorType::PRECEDENCE_V } \
   }
 #define M(MEMBER_FN) &Compiler::MEMBER_FN
   // clang-format off
-    static std::map<TokenType,ParseRule> rules_map    = {
+    auto map_tmp = std::map<TokenType,ParseRule> {
 /*     TokenType ,         PrefixEmitFn , InfixEmitFn, OperatorType */
-      RULE_ITEM(LEFT_PAREN   , M(grouping), M(call)  , CALL_OR_DOT),
-      RULE_ITEM(RIGHT_PAREN  , nullptr    , nullptr  , NONE),
-      RULE_ITEM(LEFT_BRACE   , nullptr    , nullptr  , NONE),
-      RULE_ITEM(RIGHT_BRACE  , nullptr    , nullptr  , NONE),
-      RULE_ITEM(COMMA        , nullptr    , nullptr  , NONE),
-      RULE_ITEM(DOT          , nullptr    , M(dot)  ,  CALL_OR_DOT),
-      RULE_ITEM(MINUS        , M(unary)   , M(binary), TERM),
-      RULE_ITEM(PLUS         , nullptr    , M(binary), TERM),
-      RULE_ITEM(SEMICOLON    , nullptr    , nullptr  , NONE),
-      RULE_ITEM(SLASH        , nullptr    , M(binary), FACTOR),
-      RULE_ITEM(STAR         , nullptr    , M(binary), FACTOR),
-      RULE_ITEM(BANG         , M(unary)    , nullptr  , NONE),
-      RULE_ITEM(BANG_EQUAL   , nullptr    , M(binary)  , EQUALITY),
-      RULE_ITEM(EQUAL        , nullptr    , nullptr  , NONE),
-      RULE_ITEM(EQUAL_EQUAL  , nullptr    , M(binary)  , EQUALITY),
-      RULE_ITEM(GREATER      , nullptr    , M(binary)  , COMPARISON),
-      RULE_ITEM(GREATER_EQUAL, nullptr    , M(binary)  , COMPARISON),
-      RULE_ITEM(LESS         , nullptr    , M(binary)  , COMPARISON),
-      RULE_ITEM(LESS_EQUAL   , nullptr    , M(binary)  , COMPARISON),
-      RULE_ITEM(IDENTIFIER   , M(variable)    , nullptr  , NONE),
-      RULE_ITEM(STRING       , M(string)    , nullptr  , NONE),
-      RULE_ITEM(NUMBER       , M(number)  , nullptr  , NONE),
-      RULE_ITEM(AND          , nullptr    , M(and_)  , AND),
-      RULE_ITEM(CLASS        , nullptr    , nullptr  , NONE),
-      RULE_ITEM(ELSE         , nullptr    , nullptr  , NONE),
-      RULE_ITEM(FALSE        , M(literal)    , nullptr  , NONE),
-      RULE_ITEM(FOR          , nullptr    , nullptr  , NONE),
-      RULE_ITEM(FUN          , nullptr    , nullptr  , NONE),
-      RULE_ITEM(IF           , nullptr    , nullptr  , NONE),
-      RULE_ITEM(NIL          , M(literal)    , nullptr  , NONE),
-      RULE_ITEM(OR           , nullptr    , M(or_)  , OR),
-      RULE_ITEM(PRINT        , nullptr    , nullptr  , NONE),
-      RULE_ITEM(RETURN       , nullptr    , nullptr  , NONE),
-      RULE_ITEM(THIS         , M(this_)    , nullptr  , NONE),
-      RULE_ITEM(TRUE         , M(literal)    , nullptr  , NONE),
-      RULE_ITEM(VAR          , nullptr    , nullptr  , NONE),
-      RULE_ITEM(WHILE        , nullptr    , nullptr  , NONE),
-      RULE_ITEM(EOF_TOKEN    , nullptr    , nullptr  , NONE),
+      RULE_ITEM(LEFT_PAREN   , M(GroupingExpr), M(CallExpr)  , CALL_OR_DOT),
+      RULE_ITEM(RIGHT_PAREN  , nullptr        , nullptr      , NONE),
+      RULE_ITEM(LEFT_BRACE   , nullptr        , nullptr      , NONE),
+      RULE_ITEM(RIGHT_BRACE  , nullptr        , nullptr      , NONE),
+      RULE_ITEM(COMMA        , nullptr        , nullptr      , NONE),
+      RULE_ITEM(DOT          , nullptr        , M(DotExpr)   , CALL_OR_DOT),
+      RULE_ITEM(MINUS        , M(UnaryExpr)   , M(BinaryExpr), TERM),
+      RULE_ITEM(PLUS         , nullptr        , M(BinaryExpr), TERM),
+      RULE_ITEM(SEMICOLON    , nullptr        , nullptr      , NONE),
+      RULE_ITEM(SLASH        , nullptr        , M(BinaryExpr), FACTOR),
+      RULE_ITEM(STAR         , nullptr        , M(BinaryExpr), FACTOR),
+      RULE_ITEM(BANG         , M(UnaryExpr)   , nullptr      , NONE),
+      RULE_ITEM(BANG_EQUAL   , nullptr        , M(BinaryExpr), EQUALITY),
+      RULE_ITEM(EQUAL        , nullptr        , nullptr      , NONE),
+      RULE_ITEM(EQUAL_EQUAL  , nullptr        , M(BinaryExpr), EQUALITY),
+      RULE_ITEM(GREATER      , nullptr        , M(BinaryExpr), COMPARISON),
+      RULE_ITEM(GREATER_EQUAL, nullptr        , M(BinaryExpr), COMPARISON),
+      RULE_ITEM(LESS         , nullptr        , M(BinaryExpr), COMPARISON),
+      RULE_ITEM(LESS_EQUAL   , nullptr        , M(BinaryExpr), COMPARISON),
+      RULE_ITEM(IDENTIFIER   , M(VariableExpr), nullptr      , NONE),
+      RULE_ITEM(STRING       , M(StringExpr)  , nullptr      , NONE),
+      RULE_ITEM(NUMBER       , M(NumberExpr)  , nullptr      , NONE),
+      RULE_ITEM(AND          , nullptr        , M(AndExpr)   , AND),
+      RULE_ITEM(CLASS        , nullptr        , nullptr      , NONE),
+      RULE_ITEM(ELSE         , nullptr        , nullptr      , NONE),
+      RULE_ITEM(FALSE        , M(LiteralExpr) , nullptr      , NONE),
+      RULE_ITEM(FOR          , nullptr        , nullptr      , NONE),
+      RULE_ITEM(FUN          , nullptr        , nullptr      , NONE),
+      RULE_ITEM(IF           , nullptr        , nullptr      , NONE),
+      RULE_ITEM(NIL          , M(LiteralExpr) , nullptr      , NONE),
+      RULE_ITEM(OR           , nullptr        , M(OrExpr)    , OR),
+      RULE_ITEM(PRINT        , nullptr        , nullptr      , NONE),
+      RULE_ITEM(RETURN       , nullptr        , nullptr      , NONE),
+      RULE_ITEM(THIS         , M(ThisExpr)    , nullptr      , NONE),
+      RULE_ITEM(TRUE         , M(LiteralExpr) , nullptr      , NONE),
+      RULE_ITEM(VAR          , nullptr        , nullptr      , NONE),
+      RULE_ITEM(WHILE        , nullptr        , nullptr      , NONE),
+      RULE_ITEM(EOF_TOKEN    , nullptr        , nullptr      , NONE),
     };
   // clang-format on
 #undef RULE_ITEM
 #undef M
+
   std::vector<ParseRule> ret((int)TokenType::_TOKEN_COUNT_NUMBER);
-  for (auto &pair : rules_map) {
+  for (auto &pair : map_tmp) {
     ret[(int)pair.first] = pair.second;
   }
-  return ret;
+  RuleMap() = std::move(ret);
+  return 1;
 };
-ParseRule *Compiler::getRule(TokenType type) {
-  static std::vector<ParseRule> rules = BuildRuleMap();
-  return &rules[(int)type];
+
+static int call_once = BuildRuleMap();
+
+static std::vector<ParseRule> &RuleMap() {
+  static std::vector<ParseRule> ret;
+  static int unused = call_once;
+  return ret;
 }
-void Compiler::emitBytes(OpCode byte1, uint8_t byte2) {
-  emitByte(byte1);
-  emitByte(byte2);
+static ParseRule *GetRule(TokenType type) { return &RuleMap()[(int)type]; }
+static ParseRule *GetRule(Token token) { return GetRule(token->type); }
+
+enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION };
+
+/**
+ * ScopeGuard is a helper to emit code that will be executed when scope ends
+ */
+struct ScopeGuard {
+  ScopeGuard(Compiler *compiler, ScopeType type) : compiler(compiler), type(type) {
+    auto cu = compiler->cu_;
+    if (type == ScopeType::FOR || type == ScopeType::WHILE) {
+      cu->loop_infos.push_back(
+          FunctionUnit::LoopInfo{.initial_stack_size = static_cast<int>(compiler->cu_->locals.size())});
+    }
+    ++cu->semantic_scope_depth;
+  }
+  int OutOfScopeVar() {
+    auto cu = compiler->cu_;
+    int scope_var_count = 0;
+    uint64_t N = cu->locals.size();
+    while (cu->locals[N - scope_var_count - 1].semantic_scope_depth >= cu->semantic_scope_depth) {
+      ++scope_var_count;
+    }
+    return scope_var_count;
+  }
+  ~ScopeGuard() {
+    auto cu = compiler->cu_;
+    if (type == ScopeType::FUNCTION) {
+      return;  // function scope is cleared by a frame switch at runtime, all stack variables in the frame will be
+               // discarded.
+    }
+
+    int var_num_of_just_out_of_scope = OutOfScopeVar();
+    cu->CleanUpLocals(var_num_of_just_out_of_scope);
+
+    if (type == ScopeType::FOR || type == ScopeType::WHILE) {
+      for (auto &jmp : cu->loop_infos.back().breaks) {
+        cu->JumpHerePatch(jmp);
+      }  // before jumping here ,the locals had been cleared.
+      cu->loop_infos.pop_back();
+    }
+    --cu->semantic_scope_depth;
+  }
+  Compiler *compiler;
+  ScopeType type;
+};
+
+ObjFunction *Compiler::Compile(Scanner *scanner) {
+  PushCU(FunctionType::SCRIPT, "<script>");
+
+  scanner_ = scanner;
+  Advance();
+  while (!MatchAndAdvance(TokenType::EOF_TOKEN)) {
+    AnyStatement();
+  }
+  auto top_level_cu = PopCU();
+  if (had_error) {
+    return nullptr;
+  }
+  return top_level_cu->func;
 }
-uint8_t Compiler::makeConstant(Object value) {
-  int constant = CurrentChunk()->addConstant(value);
-  if (constant > UINT8_MAX) {
-    error("Too many constants in one chunk.");
-    return 0;
+void Compiler::Advance() {
+  previous = current;
+
+  for (;;) {
+    auto err = scanner_->ScanOne(&current);
+    if (err.NoError()) break;
+
+    ErrorAt(current, current->lexeme.c_str());
+  }
+}
+void Compiler::ErrorAt(Token token, const char *message) {
+  if (panic_mode) return;
+  panic_mode = true;
+  fprintf(stderr, "[line %d] Error", token->line);
+  fprintf(stderr, " at '%.*s'", (int)token->lexeme.size(), token->lexeme.c_str());
+  fprintf(stderr, ": %s\n", message);
+  had_error = true;
+}
+void Compiler::Consume(TokenType type, const char *message) {
+  if (current->type == type) {
+    Advance();
+    return;
+  }
+  ErrorAt(current, message);
+}
+
+void Compiler::AnyExpression(OperatorType operator_type) {
+  auto bak_last_expression_precedence = last_expression_precedence;
+  last_expression_precedence = operator_type;
+  Precedence precedence = operator_type;
+  Advance();
+  auto EmitPrefixFn = GetRule(previous)->EmitPrefixFn;
+  if (EmitPrefixFn == nullptr) {
+    ErrorAt(previous, "Expect expression.");
+    return;
   }
 
-  return (uint8_t)constant;
-}
-void Compiler::unary() {
-  TokenType token_type = parser_.previous->type;
+  EmitPrefixFn(this);
 
+  while (precedence <= GetRule(current)->operator_type) {
+    Advance();
+    auto EmitInfixFn = GetRule(previous)->EmitInfixFn;
+    EmitInfixFn(this);
+  }
+  last_expression_precedence = bak_last_expression_precedence;
+}
+
+void Compiler::UnaryExpr() {
+  TokenType token_type = previous->type;
   // Compile the operand.
-  Expression(OperatorType::UNARY);
-
+  AnyExpression(OperatorType::UNARY);
   // Emit the operator instruction.
-  switch (token_type) {
-    case TokenType::MINUS:
-      emitByte(OpCode::OP_NEGATE);
-      break;
-    case TokenType::BANG:
-      emitByte(OpCode::OP_NOT);
-      break;
-    default:
-      return;  // Unreachable.
-  }
+  cu_->EmitUnary(token_type);
 }
-void Compiler::binary() {
-  TokenType token_type = parser_.previous->type;
-  ParseRule *rule = getRule(token_type);
-  Expression((OperatorType)((int)(rule->operator_type) + 1));
 
-  switch (token_type) {
-    case TokenType::BANG_EQUAL:
-      emitBytes(OpCode::OP_EQUAL, OpCode::OP_NOT);
-      break;
-    case TokenType::EQUAL_EQUAL:
-      emitByte(OpCode::OP_EQUAL);
-      break;
-    case TokenType::GREATER:
-      emitByte(OpCode::OP_GREATER);
-      break;
-    case TokenType::GREATER_EQUAL:
-      emitBytes(OpCode::OP_LESS, OpCode::OP_NOT);
-      break;
-    case TokenType::LESS:
-      emitByte(OpCode::OP_LESS);
-      break;
-    case TokenType::LESS_EQUAL:
-      emitBytes(OpCode::OP_GREATER, OpCode::OP_NOT);
-      break;
-    case TokenType::PLUS:
-      emitByte(OpCode::OP_ADD);
-      break;
-    case TokenType::MINUS:
-      emitByte(OpCode::OP_SUBTRACT);
-      break;
-    case TokenType::STAR:
-      emitByte(OpCode::OP_MULTIPLY);
-      break;
-    case TokenType::SLASH:
-      emitByte(OpCode::OP_DIVIDE);
-      break;
-    default:
-      return;  // Unreachable.
-  }
+void Compiler::BinaryExpr() {
+  TokenType token_type = previous->type;
+  ParseRule *rule = GetRule(token_type);
+  AnyExpression((OperatorType)((int)(rule->operator_type) + 1));
+
+  cu_->EmitBinary(token_type);
 }
-ParseRule *Compiler::getRule(Token token) { return getRule(token->type); }
-void Compiler::literal() {
-  switch (parser_.previous->type) {
-    case TokenType::FALSE:
-      emitByte(OpCode::OP_FALSE);
-      break;
-    case TokenType::NIL:
-      emitByte(OpCode::OP_NIL);
-      break;
-    case TokenType::TRUE:
-      emitByte(OpCode::OP_TRUE);
-      break;
-    default:
-      return;  // Unreachable.
-  }
-}
-void Compiler::string() {
-  std::string tmp = parser_.previous->lexeme;
+
+void Compiler::LiteralExpr() { cu_->EmitLiteral(previous->type); }
+
+void Compiler::StringExpr() {
+  std::string tmp = previous->lexeme;
   *tmp.rbegin() = '\0';
-  emitConstant(Object(Symbol::Intern(tmp.c_str() + 1)));
+  cu_->EmitConstant(Value(Symbol::Intern(tmp.c_str() + 1)));
 }
 bool Compiler::MatchAndAdvance(TokenType type) {
   if (!Check(type)) return false;
   Advance();
   return true;
 }
-void Compiler::declaration() {
+void Compiler::AnyStatement() {
   if (MatchAndAdvance(TokenType::CLASS)) {
-    classDeclaration();
+    ClassDefStmt();
   } else if (MatchAndAdvance(TokenType::FUN)) {
-    funDeclaration();
+    FunStmt();
   } else if (MatchAndAdvance(TokenType::VAR)) {
-    varDeclaration();
-  } else {
-    statement();
-  }
-  if (parser_.panicMode) synchronize();
-}
-void Compiler::statement() {
-  if (MatchAndAdvance(TokenType::PRINT)) {
-    printStatement();
-  } else if (MatchAndAdvance(TokenType::BREAK)) {
-    breakStatement();
+    VarDefStmt();
   } else if (MatchAndAdvance(TokenType::IF)) {
-    beginScope(ScopeType::IF_ELSE);
-    ifStatement();
-    endScope(ScopeType::IF_ELSE);
-  } else if (MatchAndAdvance(TokenType::RETURN)) {
-    returnStatement();
+    IfStmt();
   } else if (MatchAndAdvance(TokenType::WHILE)) {
-    beginScope(ScopeType::WHILE);
-    whileStatement();
-    endScope(ScopeType::WHILE);
+    WhileStmt();
+  } else if (MatchAndAdvance(TokenType::BREAK) || MatchAndAdvance(TokenType::CONTINUE)) {
+    BreakOrContinueStmt();
   } else if (MatchAndAdvance(TokenType::FOR)) {
-    beginScope(ScopeType::FOR);
-    forStatement();
-    endScope(ScopeType::FOR);
+    ForStmt();
+  } else if (MatchAndAdvance(TokenType::PRINT)) {
+    PrintStmt();
+  } else if (MatchAndAdvance(TokenType::RETURN)) {
+    ReturnStmt();
   } else if (MatchAndAdvance(TokenType::LEFT_BRACE)) {
-    beginScope(ScopeType::BLOCK);
-    block();
-    endScope(ScopeType::BLOCK);
+    BlockStmt();
   } else {
-    expressionStatement();
+    ExpressionStmt();
   }
+  if (panic_mode) Synchronize();
 }
-void Compiler::printStatement() {
-  Expression();
+void Compiler::PrintStmt() {
+  AnyExpression();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  emitByte(OpCode::OP_PRINT);
+  cu_->EmitByte(OpCode::OP_PRINT);
 }
-bool Compiler::Check(TokenType type) { return parser_.current->type == type; }
-void Compiler::expressionStatement() {
-  Expression();
+bool Compiler::Check(TokenType type) { return current->type == type; }
+void Compiler::ExpressionStmt() {
+  AnyExpression();
   Consume(TokenType::SEMICOLON, "Expect ';' after expression.");
-  emitByte(OpCode::OP_POP);
+  cu_->EmitByte(OpCode::OP_POP);
 }
-void Compiler::synchronize() {
-  parser_.panicMode = false;
+void Compiler::Synchronize() {
+  panic_mode = false;
 
-  while (parser_.current->type != TokenType::EOF_TOKEN) {
-    if (parser_.previous->type == TokenType::SEMICOLON) return;
-    switch (parser_.current->type) {
+  while (current->type != TokenType::EOF_TOKEN) {
+    if (previous->type == TokenType::SEMICOLON) return;
+    switch (current->type) {
       case TokenType::CLASS:
       case TokenType::FUN:
       case TokenType::VAR:
@@ -322,360 +280,289 @@ void Compiler::synchronize() {
     Advance();
   }
 }
-void Compiler::varDeclaration() {
-  uint8_t global = parseVariable("Expect variable name.");
+void Compiler::VarDefStmt() {
+  Consume(TokenType::IDENTIFIER, "Expect variable name.");
+  Token var_name = previous;
+  auto new_var = cu_->DeclNamedValue(var_name);
 
   if (MatchAndAdvance(TokenType::EQUAL)) {
-    Expression();
+    AnyExpression();
   } else {
-    emitByte(OpCode::OP_NIL);
+    cu_->EmitByte(OpCode::OP_NIL);
   }
-  Consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
+  Consume(TokenType::SEMICOLON, "Expect ';' after VariableExpr declaration.");
 
-  defineVariable(global);
+  cu_->DefineNamedValue(new_var);
 }
-uint8_t Compiler::parseVariable(const char *errorMessage) {
-  Consume(TokenType::IDENTIFIER, errorMessage);
-  declareVariable();
-  if (current_cu_->scopeDepth > 0) return 0;
-  return identifierConstant(parser_.previous);
-}
-uint8_t Compiler::identifierConstant(Token token) { return makeConstant(Object(Symbol::Intern(token->lexeme))); }
-void Compiler::defineVariable(uint8_t global) {
-  if (current_cu_->scopeDepth > 0) {
-    markInitialized();
-    return;
-  }
-  emitBytes(OpCode::OP_DEFINE_GLOBAL, global);
-}
-void Compiler::variable() { namedVariable(parser_.previous, canAssign()); }
-void Compiler::namedVariable(Token varaible_token, bool can_assign) {
+
+void Compiler::VariableExpr() { GetOrSetNamedValue(previous, CanAssign()); }
+void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
+  /**
+   * About UpValue:
+   *
+   * At runtime, If the closed value we want to access is still on the stack, we should access the value on stack. If
+   * the closed value is not on stack, we should access the copied one. e.g. we define a closure, and then call it
+   * immediately, we should access the raw value that is still on stack.
+   *
+   * To support this feature:
+   *    1. compiler and virtual machine will have to work together.
+   *    2. The closed value at runtime will be a pointer point to stack initially, and it will point to a new location
+   *       when the stack position it points to is popped.
+   *
+   * Note that the global level function will not have any upvalue, all unresolved symbol in global level will go to
+   * global directly. That is , the global level function is a closure that closes nothing.
+   *
+   * To a normal closure:
+   *    1. The ObjFunction of closure is already created by compiler at compilation time, and we can do nothing to it.
+   *       (It may contains some GET_UPVALUE, SET_UPVALUE op, but not very important.)
+   *    2. There will always be a "outer function", act as the runtime creator of the closure.
+   *
+   * The ClosureCreator will do all the magic things at runtime to make the inner defined ObjFunction a real closure.
+   *    1. At compile time, just after the inner function is defined (a `PopCU()` is executed), a `OP_CLOUSRE` will be
+   * emitted. At runtime, `OP_CLOUSRE` will create a ObjClosure, and update the upvalues of it to make the upvalues
+   * point to correct position, and for the upvalues that point to stack, we will track them as `opened-upvalues`, they
+   * will get updated later.
+   *    2. At compile time, normally, when a var out of scope, a OP_POP will be emit, but if it is needed by some inner
+   * function, a `OP_CLOSE_UPVALUE` will be emitted, this OP will not only do the pop, but also do some upvalue updating
+   *       job at runtime. At runtime, `OP_CLOSE_UPVALUE` will try to close all opened-upvalues that point to a invalid
+   *       stack position. Normally, a `out of scope` will move the sp to correct place, and all value on stack after
+   *       the correct place will be treated as `poped`, thus, it is very easy to determine whether a opened-upvalue
+   * point to a invalid place. And also, OP_CLOSE_UPVALUE just do the `close`, it doesnt care which function the upvalue
+   *       belongs to.
+   *
+   * Note that:
+   *    1. the truth that closed values are get "copied" (or captured, closed) when they went out of scope, it may cause
+   * some logical misleading, e.g. creating closure in loops will make every closure closed to the same value.
+   *    2. we will also support the chain style upvalue, if a nested closure is created, and they need to access same
+   *    variable, then same value will always be used at runtime.
+   *
+   *
+   * To support the code gen of `OP_CLOUSRE` and `OP_CLOSE_UPVALUE`, we need to track the upvalue at compile time. And
+   * all these tracking will be done by the TryResolveUpValue, obviously, upvalue is only known by compiler, user code
+   * will not decl/define upvalue.
+   */
   OpCode getOp, setOp;
-  int arg = resolveLocal(current_cu_, varaible_token);
-  if (arg != -1) {
+  FunctionUnit::NamedValue *reslove = nullptr;
+  if ((reslove = cu_->TryResolveLocal(varaible_token))) {
     getOp = OpCode::OP_GET_LOCAL;
     setOp = OpCode::OP_SET_LOCAL;
-  } else if ((arg = resolveUpvalue(current_cu_, varaible_token)) != -1) {
+    assert(reslove->position < STACK_LOOKUP_MAX);
+  } else if ((reslove = cu_->TryResolveUpValue(varaible_token))) {
     getOp = OpCode::OP_GET_UPVALUE;
     setOp = OpCode::OP_SET_UPVALUE;
+    assert(reslove->position < UPVALUE_LOOKUP_MAX);
   } else {
-    arg = identifierConstant(varaible_token);
+    reslove = cu_->TryResolveGlobal(varaible_token);
     getOp = OpCode::OP_GET_GLOBAL;
     setOp = OpCode::OP_SET_GLOBAL;
+    assert(reslove->position < GLOBAL_LOOKUP_MAX);
+  }
+  if (!reslove) {
+    ErrorAt(varaible_token, "Undefined variable.");
+  }
+  if (!reslove->is_inited) {
+    ErrorAt(previous, "Can not use uninitialized variable here.");
   }
   if (MatchAndAdvance(TokenType::EQUAL)) {
     if (can_assign) {
-      Expression();
-      emitBytes(setOp, arg);
+      AnyExpression();
+      cu_->EmitBytes(setOp, reslove->position);
     } else {
-      error("Invalid assignment target.");
+      ErrorAt(previous, "Invalid assignment target.");
     }
   } else {
-    emitBytes(getOp, arg);
+    cu_->EmitBytes(getOp, reslove->position);
   }
 }
-bool Compiler::canAssign() { return last_expression_precedence <= Precedence::ASSIGNMENT; }
-void Compiler::block() {
+bool Compiler::CanAssign() { return last_expression_precedence <= Precedence::ASSIGNMENT; }
+void Compiler::BlockStmt() {
+  ScopeGuard guard(this, ScopeType::BLOCK);
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
-    declaration();
+    AnyStatement();
   }
 
-  Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+  Consume(TokenType::RIGHT_BRACE, "Expect '}' after BlockStmt.");
 }
-void Compiler::beginScope(ScopeType type) {
-  if (type == ScopeType::FOR || type == ScopeType::WHILE) {
-    openBreak();
-  }
-  ++current_cu_->scopeDepth;
-}
-void Compiler::endScope(ScopeType type) {
-  if (type == ScopeType::FUNCTION) {
-    return;  // function scope is closed by endFunctionCompilation with a cu switch
-  }
-  int scope_var_num = updateScopeCount();
-  if (loop_nest_level != -1) {
-    // we are in some loop, so there might be breaks, there will be a branch at runtime
 
-    // if vm goes here directly, that means scope ended normally, we just clear scope and go on
-    cleanUpLocals(scope_var_num);
-    auto offset = emitJumpDown(OpCode::OP_JUMP);
-    // if vm goes here, it means vm jumped to here by some break, we clear scope, and tries to jump to next endScope
-    patchBreaks(loop_nest_level);
-    cleanUpLocals(scope_var_num);
-    if (type == ScopeType::FOR || type == ScopeType::WHILE) {
-      // if the scope is an end of for loop, we just close it and go on
-      closeBreak();
-    } else {
-      // else, we jump to next endScope
-      createBreakJump(loop_nest_level);
-    }
-    patchJumpDown(offset);
-  } else {
-    cleanUpLocals(scope_var_num);
-  }
-  --current_cu_->scopeDepth;
-}
-void Compiler::cleanUpLocals(int scope_var_num) {
-  for (int i = 0; i < scope_var_num; ++i) {
-    if (current_cu_->locals[current_cu_->localCount + i].isCaptured) {
-      emitByte(OpCode::OP_CLOSE_UPVALUE);
-    } else {
-      emitByte(OpCode::OP_POP);
-    }
-  }
-}
-int Compiler::updateScopeCount() {
-  int scope_var_count = 0;
-  while (current_cu_->localCount > 0 &&
-         current_cu_->locals[current_cu_->localCount - 1].depth > current_cu_->scopeDepth) {
-    current_cu_->localCount--;
-    ++scope_var_count;
-  }
-  return scope_var_count;
-}
-void Compiler::declareVariable() {
-  if (current_cu_->scopeDepth == 0) return;
-
-  Token name = parser_.previous;
-  for (int i = current_cu_->localCount - 1; i >= 0; i--) {
-    auto local = &current_cu_->locals[i];
-    if (local->depth != -1 && local->depth < current_cu_->scopeDepth) {
-      break;
-    }
-
-    if (identifiersEqual(name->lexeme, local->name)) {
-      error("Already a variable with this name in this scope.");
-    }
-  }
-  addLocal(name);
-}
-void Compiler::addLocal(Token token) {
-  if (current_cu_->localCount == STACK_LOOKUP_OFFSET_MAX) {
-    error("Too many local variables in function.");
-    return;
-  }
-  FunctionCU::Local *local = &current_cu_->locals[current_cu_->localCount++];
-  local->name = token->lexeme;
-  local->depth = -1;
-}
-bool Compiler::identifiersEqual(const std::string &t0, const std::string &t1) { return t0 == t1; }
-int Compiler::resolveLocal(FunctionCU *cu, Token token) {
-  for (int i = cu->localCount - 1; i >= 0; i--) {
-    FunctionCU::Local *local = &cu->locals[i];
-    if (identifiersEqual(token->lexeme, local->name)) {
-      if (local->depth == -1) {
-        error("Can't read local variable in its own initializer.");
-      }
-      return i;
-    }
-  }
-
-  return -1;
-}
-void Compiler::markInitialized() {
-  if (current_cu_->scopeDepth == 0) return;
-  current_cu_->locals[current_cu_->localCount - 1].depth = current_cu_->scopeDepth;
-}
-void Compiler::ifStatement() {
+void Compiler::IfStmt() {
+  ScopeGuard guard(this, ScopeType::IF_ELSE);
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
-  Expression();
+  AnyExpression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
 
-  int thenJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
-  emitByte(OpCode::OP_POP);
-  statement();
-  int elseJump = emitJumpDown(OpCode::OP_JUMP);
-  patchJumpDown(thenJump);
-  emitByte(OpCode::OP_POP);
+  auto jump_to_else = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
+  AnyStatement();
+  auto jump_to_exit = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
+  cu_->JumpHerePatch(jump_to_else);
+  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
   if (MatchAndAdvance(TokenType::ELSE)) {
-    statement();
+    AnyStatement();
   }
-  patchJumpDown(elseJump);
+  cu_->JumpHerePatch(jump_to_exit);
 }
-int Compiler::emitJumpDown(OpCode jump_cmd) {
-  emitByte(jump_cmd);
-  // reserve two bytes to store jmp diff
-  emitByte(0xff);
-  emitByte(0xff);
-  return CurrentChunk()->ChunkSize() - 2;
+
+void Compiler::AndExpr() {
+  auto endJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+
+  cu_->EmitByte(OpCode::OP_POP);
+  AnyExpression(Precedence::AND);
+
+  cu_->JumpHerePatch(endJump);
 }
-void Compiler::patchJumpDown(int offset) {
-  int ip_from = offset + 2;
-  // at runtime, jump will load 1 byte of OPCode and 2 byte of position, so ip will pointer to `BASE + offset + 2`
-  int ip_target = CurrentChunk()->ChunkSize();
-  int jump_diff = ip_target - ip_from;
+void Compiler::OrExpr() {
+  auto elseJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+  auto endJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
 
-  if (jump_diff > UINT16_MAX) {
-    error("Too much code to jump_diff over.");
-  }
+  cu_->JumpHerePatch(elseJump);
+  cu_->EmitByte(OpCode::OP_POP);
 
-  CurrentChunk()->code[offset] = (jump_diff >> 8) & 0xff;
-  CurrentChunk()->code[offset + 1] = jump_diff & 0xff;
+  AnyExpression(Precedence::OR);
+  cu_->JumpHerePatch(endJump);
 }
-void Compiler::and_() {
-  int endJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
-
-  emitByte(OpCode::OP_POP);
-  Expression(Precedence::AND);
-
-  patchJumpDown(endJump);
-}
-void Compiler::or_() {
-  int elseJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
-  int endJump = emitJumpDown(OpCode::OP_JUMP);
-
-  patchJumpDown(elseJump);
-  emitByte(OpCode::OP_POP);
-
-  Expression(Precedence::OR);
-  patchJumpDown(endJump);
-}
-void Compiler::whileStatement() {
-  int loopStart = CurrentChunk()->ChunkSize();
+void Compiler::WhileStmt() {
+  ScopeGuard guard(this, ScopeType::WHILE);
+  int loop_begin_offset = cu_->Chunk()->ChunkSize();
+  cu_->loop_infos.back().beg_offset =
+      loop_begin_offset;  // save the loop begin offset, so we can `continue` to here later
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
-  Expression();
+  AnyExpression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
 
-  int exitJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
-  emitByte(OpCode::OP_POP);
-  statement();
-  emitJumpBack(loopStart);
-  patchJumpDown(exitJump);
-  emitByte(OpCode::OP_POP);
+  auto exitJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
+  AnyStatement();
+  cu_->EmitJumpBack(loop_begin_offset);
+  cu_->JumpHerePatch(exitJump);
+  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
 }
-void Compiler::emitJumpBack(int start) {
-  int ip_target = start;
-  int ip_from = CurrentChunk()->ChunkSize() + 3;  // after OP_JUMP_BACK is executed, ip will pointer to this pos
 
-  emitByte(OpCode::OP_JUMP_BACK);
-  int offset = -1 * (ip_target - ip_from);  // always use a positive number, for we store offset into a uint16
-  if (offset > UINT16_MAX) error("Loop body too large.");
-
-  emitByte((offset >> 8) & 0xff);
-  emitByte(offset & 0xff);
-}
-void Compiler::forStatement() {
+void Compiler::ForStmt() {
+  ScopeGuard guard(this, ScopeType::FOR);
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
   if (MatchAndAdvance(TokenType::SEMICOLON)) {
     // No initializer.
   } else if (MatchAndAdvance(TokenType::VAR)) {
-    varDeclaration();
+    VarDefStmt();
+    cu_->loop_infos.back().contains_init_value = true;
   } else {
-    expressionStatement();
+    ExpressionStmt();
   }
 
-  int loopStart = CurrentChunk()->ChunkSize();
-  int exitJump = -1;
+  int loop_begin_offset = cu_->Chunk()->ChunkSize();
+  cu_->loop_infos.back().beg_offset =
+      loop_begin_offset;  // save the loop begin offset, so we can `continue` to here later
+  FunctionUnit::JumpDownHole exitJump;
   if (!MatchAndAdvance(TokenType::SEMICOLON)) {
-    Expression();
+    AnyExpression();
     Consume(TokenType::SEMICOLON, "Expect ';' after loop condition.");
 
     // Jump out of the loop if the condition is false.
-    exitJump = emitJumpDown(OpCode::OP_JUMP_IF_FALSE);
-    emitByte(OpCode::OP_POP);  // Condition.
+    exitJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+    cu_->EmitByte(OpCode::OP_POP);  // Condition.
   }
 
   if (!MatchAndAdvance(TokenType::RIGHT_PAREN)) {
-    int bodyJump = emitJumpDown(OpCode::OP_JUMP);
-    int incrementStart = CurrentChunk()->ChunkSize();
-    Expression();              // this will leave a value on top of stack
-    emitByte(OpCode::OP_POP);  // discard stack top
+    auto bodyJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
+    int incrementStart = cu_->Chunk()->ChunkSize();
+    AnyExpression();                // this will leave a value on top of stack
+    cu_->EmitByte(OpCode::OP_POP);  // discard stack top
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
 
-    emitJumpBack(loopStart);
-    loopStart = incrementStart;
-    patchJumpDown(bodyJump);
+    cu_->EmitJumpBack(loop_begin_offset);
+    loop_begin_offset = incrementStart;
+    cu_->JumpHerePatch(bodyJump);
   }
-  statement();
-  emitJumpBack(loopStart);
-  if (exitJump != -1) {
-    patchJumpDown(exitJump);
-    emitByte(OpCode::OP_POP);  // Condition.
+  AnyStatement();
+  cu_->EmitJumpBack(loop_begin_offset);
+  if (exitJump.beg_offset != -1) {
+    cu_->JumpHerePatch(exitJump);
+    cu_->EmitByte(OpCode::OP_POP);  // Condition.
   }
 }
-void Compiler::breakStatement() {
+void Compiler::BreakOrContinueStmt() {
+  /**
+   * To support `break`, there are two things to consider:
+   * 1. break a nested loop correctly, that is, we only break the innermost loop.
+   * 2. break will clean up the local variables correctly, before we jump to the loop-end, stack should be cleared.
+   * up.
+   *
+   * To support these: We will:
+   *  a. log stack size when a loop scope started, so we can clear the stack correctly before jump
+   *  b. patch the jump command at every end of loop scope
+   */
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  if (loop_nest_level < 0) {
-    error("Can not break here");
+  if (cu_->loop_infos.empty()) {
+    ErrorAt(previous, "Can not break/continue here");
     return;
   }
-  createBreakJump(loop_nest_level);
-}
-void Compiler::createBreakJump(int level) {
-  auto tail = &loop_break_info;
-  while (tail->next) {
-    tail = tail->next;
+  int clear_size = cu_->locals.size() - cu_->loop_infos.back().initial_stack_size;
+  if (previous->type == TokenType::BREAK) {
+    cu_->CleanUpLocals(clear_size);
+    auto jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
+    cu_->loop_infos.back().breaks.push_back(jump);
+  } else if (previous->type == TokenType::CONTINUE) {
+    cu_->CleanUpLocals(clear_size -
+                       cu_->loop_infos.back().contains_init_value);  // a continue may need to keep the init value
+    assert(cu_->loop_infos.back().beg_offset > 0);
+    cu_->EmitJumpBack(cu_->loop_infos.back().beg_offset);
+  } else {
+    ErrorAt(previous, "Fatality: Unknown break/continue statement");
   }
-  int jump = emitJumpDown(OpCode::OP_JUMP);
-  tail->next = new LoopBreak;
-  tail->next->offset = jump;
-  tail->next->level = level;
 }
-void Compiler::openBreak() { ++loop_nest_level; }
-void Compiler::closeBreak() { --loop_nest_level; }
-void Compiler::patchBreaks(int level) {
-  if (level < 0) {
-    return;
-  }
-  auto p = &loop_break_info;
-  auto new_tail = &loop_break_info;
-  while (p && p->level != level) {
-    new_tail = p;
-    p = p->next;
-  }
-  while (p) {
-    patchJumpDown(p->offset);
-    auto tmp = p;
-    p = p->next;
-    delete tmp;
-  }
-  new_tail->next = nullptr;
+
+void Compiler::FunStmt() {
+  Consume(TokenType::IDENTIFIER, "Expect function name.");
+  Token function_name = previous;
+  auto named_value = cu_->DeclNamedValue(function_name);
+  named_value->is_inited = true;
+  // a hack to make the function name could be resolved later in function definition, to support recursion
+  // this impl is limited for we only have a 1 token ahead compiler
+  CreateFunc(FunctionType::FUNCTION);
+  cu_->DefineNamedValue(named_value);
 }
-void Compiler::funDeclaration() {
-  uint8_t global = parseVariable("Expect function name.");
-  markInitialized();
-  func(FunctionType::FUNCTION);
-  defineVariable(global);
-}
-void Compiler::func(FunctionType type) {
-  FunctionCU new_cu(current_cu_, type, "");
-  current_cu_ = &new_cu;
-  beginScope(ScopeType::FUNCTION);
+void Compiler::CreateFunc(FunctionType type) {
+  PushCU(type, previous->lexeme);
+  ScopeGuard guard(this, ScopeType::FUNCTION);  // function and method share the same scope type
 
   Consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
   if (!Check(TokenType::RIGHT_PAREN)) {
     do {
-      current_cu_->func->arity++;
-      if (current_cu_->func->arity > 255) {
-        errorAtCurrent("Can't have more than 255 parameters.");
+      cu_->func->arity++;
+      if (cu_->func->arity > (ARG_COUNT_MAX - cu_->locals.size())) {
+        ErrorAt(current, "Stack can not hold this much arguments");
       }
-      uint8_t constant = parseVariable("Expect parameter name.");
-      defineVariable(constant);
+      Consume(TokenType::IDENTIFIER, "Expect parameter name.");
+      auto arg = cu_->DeclNamedValue(previous);
+      cu_->DefineNamedValue(arg);
     } while (MatchAndAdvance(TokenType::COMMA));
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
   Consume(TokenType::LEFT_BRACE, "Expect '{' before function body.");
-  block();
+  BlockStmt();
 
-  endFunctionCompilation();
-  emitBytes(OpCode::OP_CLOSURE, makeConstant(Object(new_cu.func)));
-  for (int i = 0; i < new_cu.func->upvalueCount; i++) {
-    emitByte(new_cu.upvalues[i].isLocal ? 1 : 0);
-    emitByte(new_cu.upvalues[i].index);
+  auto new_cu = PopCU();
+  // We will create a closure at runtime for the function, OP_CLOSURE will update the newly created closure's upvalue,
+  // to make them in a valid state.
+  cu_->EmitBytes(OpCode::OP_CLOSURE, cu_->MakeConstant(Value(new_cu->func)));
+  assert(new_cu->upvalues.size() < UPVALUE_LOOKUP_MAX);
+  cu_->EmitByte((uint8_t)new_cu->upvalues.size());
+  for (auto &upvalue : new_cu->upvalues) {
+    cu_->EmitByte(upvalue.is_on_stack_at_begin ? 1 : 0);
+    cu_->EmitByte(upvalue.position);
   }
-  endScope(ScopeType::FUNCTION);
 }
-void Compiler::call() {
-  uint8_t argCount = argumentList();
-  emitBytes(OpCode::OP_CALL, argCount);
+void Compiler::CallExpr() {
+  uint8_t argCount = ArgumentList();
+  cu_->EmitBytes(OpCode::OP_CALL, argCount);
 }
-uint8_t Compiler::argumentList() {
+uint8_t Compiler::ArgumentList() {
   uint8_t argCount = 0;
   if (!Check(TokenType::RIGHT_PAREN)) {
     do {
-      Expression();
+      AnyExpression();
       if (argCount == 255) {
-        error("Can't have more than 255 arguments.");
+        ErrorAt(previous, "Can't have more than 255 arguments.");
       }
       argCount++;
     } while (MatchAndAdvance(TokenType::COMMA));
@@ -683,137 +570,117 @@ uint8_t Compiler::argumentList() {
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
   return argCount;
 }
-void Compiler::returnStatement() {
-  if (current_cu_->type == FunctionType::SCRIPT) {
-    error("Can't return from top-level code.");
+void Compiler::ReturnStmt() {
+  if (cu_->type == FunctionType::SCRIPT) {
+    ErrorAt(previous, "Can't return from top-level code.");
   }
   if (MatchAndAdvance(TokenType::SEMICOLON)) {
-    emitDefaultReturn();
+    cu_->EmitDefaultReturn();
   } else {
-    if (current_cu_->type == FunctionType::INITIALIZER) {
-      error("Can't return a value from an initializer.");
+    if (cu_->type == FunctionType::INITIALIZER) {
+      ErrorAt(previous, "Can't return a value from an initializer.");
     }
-    Expression();
+    AnyExpression();
     Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
-    emitByte(OpCode::OP_RETURN);
+    cu_->EmitByte(OpCode::OP_RETURN);
   }
 }
-int Compiler::resolveUpvalue(FunctionCU *cu, Token varaible_name) {
-  /**
-   * In enclosing, only direct enclosing is surely alive, other indirect enclosing maybe out of stack
-   */
-  if (cu->enclosing_ == nullptr) return -1;
-
-  int local = resolveLocal(cu->enclosing_, varaible_name);
-  if (local != -1) {
-    // if isLocal is true , upvalue will be on enclosing fn's stack with offset of `local`
-    // at runtime, we update this closure's upvalues[] from stack
-    current_cu_->enclosing_->locals[local].isCaptured = true;
-    return addUpvalue(cu, (uint8_t)local, true);
-  }
-  int upvalue = resolveUpvalue(cu->enclosing_, varaible_name);
-  if (upvalue != -1) {
-    // if isLocal is false, upvalue will be on enclosing fn's `upvalues[upvalue]`
-    // at runtime ,we update this functions upvalue from enclosing fn's upvalues
-    return addUpvalue(cu, (uint8_t)upvalue, false);
-  }
-
-  return -1;
-}
-int Compiler::addUpvalue(FunctionCU *cu, uint8_t index, bool isOnStack) {
-  int upvalueCount = cu->func->upvalueCount;
-
-  // check if upvalue is already added
-  for (int i = 0; i < upvalueCount; i++) {
-    FunctionCU::UpValue *upvalue = &cu->upvalues[i];
-    if (upvalue->index == index && upvalue->isLocal == isOnStack) {
-      return i;
-    }
-  }
-  if (upvalueCount == UPVALUE_LIMIT) {
-    error("Too many closure variables in function.");
-    return 0;
-  }
-  cu->upvalues[upvalueCount].isLocal = isOnStack;
-  cu->upvalues[upvalueCount].index = index;
-  return cu->func->upvalueCount++;
-}
-void Compiler::markRoots(void *compiler_p) {
-  Compiler *compiler = static_cast<Compiler *>(compiler_p);
-  auto &gc = GC::Instance();
-
-  // mark functions
-  auto cu = compiler->current_cu_;
+void Compiler::MarkRoots(void *compiler_p) {
+  Compiler *compiler = static_cast<Compiler *>(compiler);
+  // RecursiveMark functions
+  auto cu = compiler->cu_;
   while (cu) {
-    gc.mark(cu->func);
+    GC::Instance().RecursiveMark(cu->func);
     cu = cu->enclosing_;
   }
 }
-Compiler::Compiler() : marker_register_guard(&markRoots, this) {}
-void Compiler::classDeclaration() {
+Compiler::Compiler() : marker_register_guard(&MarkRoots, this) {}
+void Compiler::ClassDefStmt() {
   Consume(TokenType::IDENTIFIER, "Expect class name.");
-  Token className = parser_.previous;
-  uint8_t nameConstant = identifierConstant(parser_.previous);
-  declareVariable();
+  Token className = previous;
+  auto handle = cu_->DeclNamedValue(className);
 
-  emitBytes(OpCode::OP_CLASS, nameConstant);
-  defineVariable(nameConstant);
+  cu_->EmitBytes(OpCode::OP_CLASS, handle->position);  // create a objClass on stack
+  cu_->DefineNamedValue(
+      handle);  // most class def are in global scope, so here we will move the created class obj to global at runtime.
 
-  ClassScope new_scope(currentClass);
-  currentClass = &new_scope;
+  ClassLevel nest_class(currentClass);
+  currentClass = &nest_class;
 
   if (MatchAndAdvance(TokenType::LESS)) {
     Consume(TokenType::IDENTIFIER, "Expect superclass name.");
-    namedVariable(parser_.previous, false);
-    if (identifiersEqual(className->lexeme, parser_.previous->lexeme)) {
-      error("A class can't inherit from itself.");
+    Token superclass_name = previous;
+    GetNamedValue(superclass_name);
+    if (className->lexeme == superclass_name->lexeme) {
+      ErrorAt(superclass_name, "A class can't inherit from itself.");
     }
     currentClass->hasSuperclass = true;
-    namedVariable(className, false);
-    emitByte(OpCode::OP_INHERIT);
+    GetNamedValue(className);
+    cu_->EmitByte(OpCode::OP_INHERIT);  // inherit will consume the two class object on stack, and leaves nothing on
+                                        // stack, so stmt rule will be followed
   }
 
-  namedVariable(className, false);  // load class object to stack
+  GetNamedValue(className);  // put the class object on stack, so later method define could use it
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
-    method();
+    Consume(TokenType::IDENTIFIER, "Expect Method name.");
+    uint8_t Constant = cu_->StoreTokenLexmeToConstant(previous);
+    FunctionType Type = FunctionType::METHOD;
+    if (previous->lexeme == "init") {
+      Type = FunctionType::INITIALIZER;
+    }
+    CreateFunc(Type);
+    cu_->EmitBytes(OpCode::OP_METHOD, Constant);  // just move the objClosure on stack to the class object's dict
   }
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
-  emitByte(OpCode::OP_POP);  // pop the class object
+  cu_->EmitByte(OpCode::OP_POP);  // pop the class object, for class def is always a stmt.
   currentClass = currentClass->enclosing;
 }
-void Compiler::dot() {
+void Compiler::DotExpr() {
   // todo : check only method can use class method at compile time
   Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
-  uint8_t name = identifierConstant(parser_.previous);
+  uint8_t name = cu_->StoreTokenLexmeToConstant(previous);
 
-  if (canAssign() && MatchAndAdvance(TokenType::EQUAL)) {
-    Expression();
-    emitBytes(OpCode::OP_SET_ATTR, name);
+  if (CanAssign() && MatchAndAdvance(TokenType::EQUAL)) {
+    AnyExpression();
+    cu_->EmitBytes(OpCode::OP_SET_ATTR, name);
   } else if (MatchAndAdvance(TokenType::LEFT_PAREN)) {
-    uint8_t argCount = argumentList();
-    emitBytes(OpCode::OP_INVOKE, name);
-    emitByte(argCount);
+    uint8_t argCount = ArgumentList();
+    cu_->EmitBytes(OpCode::OP_INVOKE, name);
+    cu_->EmitByte(argCount);
   } else {
-    emitBytes(OpCode::OP_GET_ATTR, name);
+    cu_->EmitBytes(OpCode::OP_GET_ATTR, name);
   }
 }
-void Compiler::method() {
-  Consume(TokenType::IDENTIFIER, "Expect method name.");
-  uint8_t constant = identifierConstant(parser_.previous);
-  FunctionType type = FunctionType::METHOD;
-  if (parser_.previous->lexeme == "init") {
-    type = FunctionType::INITIALIZER;
-  }
-  func(type);
-  emitBytes(OpCode::OP_METHOD, constant);
-}
-void Compiler::this_() {
+void Compiler::ThisExpr() {
   if (currentClass == nullptr) {
-    error("Can't use 'this' outside of a class.");
+    ErrorAt(previous, "Can't use 'this' outside of a class.");
     return;
   }
-  namedVariable(parser_.previous, false);
+  GetNamedValue(previous);
 }
-}  // namespace vm
-}  // namespace lox
+void Compiler::GroupingExpr() {
+  AnyExpression();
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+}
+void Compiler::NumberExpr() {
+  double value = std::stod(previous->lexeme);
+  cu_->EmitConstant(Value(value));
+}
+
+void Compiler::PushCU(FunctionType type, const std::string &name) {
+  cu_ = new FunctionUnit(cu_, type, name, [this]() { return this->previous->line; });
+}
+std::unique_ptr<FunctionUnit> Compiler::PopCU() {
+  auto old_cu = cu_;
+  cu_->EmitDefaultReturn();  // always inject a default return to make sure the function ends
+#ifndef NDEBUG
+  DumpChunkCode(cu_->Chunk());
+  DumpChunkConstant(cu_->Chunk());
+#endif
+  cu_ = cu_->enclosing_;
+  return std::unique_ptr<FunctionUnit>(old_cu);
+}
+void Compiler::GetNamedValue(Token name) { return GetOrSetNamedValue(name, false); }
+
+}  // namespace lox::vm

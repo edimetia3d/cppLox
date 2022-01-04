@@ -5,89 +5,6 @@
 #ifndef LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_COMPILER_H_
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_COMPILER_H_
 
-#include <functional>
-
-#include "lox/backend/virtual_machine/bytecode/chunk.h"
-#include "lox/backend/virtual_machine/common/clox_value.h"
-#include "lox/backend/virtual_machine/common/err_code.h"
-#include "lox/frontend/scanner.h"
-
-#define STACK_LOOKUP_OFFSET_MAX (UINT8_MAX + 1)  // we only use one byte to store the local lookup offset
-#define UPVALUE_LIMIT 256
-namespace lox {
-
-namespace vm {
-struct Parser {
-  Token previous;  // previous is the last consumed token
-  Token current;   // current is the next might to be consumed token.
-  bool hadError = false;
-  bool panicMode = false;
-};
-
-enum class OperatorType {
-  NONE,
-  ASSIGNMENT,   // =
-  OR,           // or
-  AND,          // and
-  EQUALITY,     // == !=
-  COMPARISON,   // < > <= >=
-  TERM,         // + -
-  FACTOR,       // * /
-  UNARY,        // ! -
-  CALL_OR_DOT,  // . ()
-  PRIMARY
-};
-using Precedence = OperatorType;  // OperatorType is intended to sorted by precedence
-
-enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION };
-
-enum class FunctionType { UNKNOWN, FUNCTION, METHOD, INITIALIZER, SCRIPT };
-class Compiler;
-struct ParseRule {
-  std::function<void(Compiler*)> EmitPrefixFn;
-  std::function<void(Compiler*)> EmitInfixFn;
-  OperatorType operator_type;
-};
-/**
- * Function compilation unit is the representation of function during compilation
- */
-struct FunctionCU {
-  FunctionCU(FunctionCU* enclosing, FunctionType type, const std::string& name) : type(type) {
-    enclosing_ = enclosing;
-    func = new ObjFunction();  // handle function will get gc cleaned, so we only new , not delete
-    func->name = name;
-    // the function object will be pushed to stack at runtime, so locals[0] is occupied here
-    auto& local = locals[localCount++];
-    if (type == FunctionType::METHOD || type == FunctionType::INITIALIZER) {
-      local.name = "this";
-    } else {
-      local.name = name;
-    }
-    local.depth = 0;
-  }
-  struct Local {
-    std::string name;
-    int depth;
-    bool isCaptured = false;
-  };
-  struct UpValue {
-    bool isLocal = false;
-    int index;
-  };
-  FunctionCU* enclosing_ = nullptr;
-  ObjFunction* func;
-  FunctionType type = FunctionType::UNKNOWN;
-  Local locals[STACK_LOOKUP_OFFSET_MAX];
-  UpValue upvalues[UPVALUE_LIMIT];
-  int localCount = 0;
-  int scopeDepth = 0;
-};
-
-struct ClassScope {
-  ClassScope(ClassScope* encolsing) : enclosing(encolsing) {}
-  ClassScope* enclosing = nullptr;
-  bool hasSuperclass = false;
-};
 /**
  * Compiler is mainly a Pratt Parser, which could generate an bytecode IR that can work directly with stack machine.
  *
@@ -106,7 +23,39 @@ struct ClassScope {
  * code get run first too** b. The `throw` we used in tree-walker could be simply simulated by a instruction pointer
  * jump. c. The return could be simulated by a stack, like we did in Visitor Pattern of AST evaluation. That's why our
  * compiler work with stack machine naturally.
+ *
+ * Most code-gen are simple 1 pass style, we can gen bytecode as we see the source code, but some cases are more
+ * complicated, for we had to do parsing and code-gen interleaved. For example, `lvalue = rvalue_expression`, we had to
+ * generate bytecode for the rvalue expression, before we generate the bytecode for the lvalue assignment.
+ * And for this reason, most code about byte-code gen will be located in FunctionUnit, and some will be located in
+ * Compiler.
  */
+
+#include <functional>
+
+#include "lox/backend/virtual_machine/core/function_unit.h"
+#include "lox/err_code.h"
+#include "lox/frontend/scanner.h"
+#include "lox/object/gc.h"
+#include "lox/object/value.h"
+
+namespace lox::vm {
+
+enum class OperatorType {
+  NONE,
+  ASSIGNMENT,   // =
+  OR,           // or
+  AND,          // and
+  EQUALITY,     // == !=
+  COMPARISON,   // < > <= >=
+  TERM,         // + -
+  FACTOR,       // * /
+  UNARY,        // ! -
+  CALL_OR_DOT,  // . ()
+  PRIMARY
+};
+using Precedence = OperatorType;  // OperatorType is intended to sorted by precedence
+
 class Compiler {
  public:
   Compiler();
@@ -114,23 +63,26 @@ class Compiler {
 
  private:
   void Advance();
-  void errorAtCurrent(const char* message);
-  void error(const char* message);
-  void errorAt(Token token, const char* message);
+  void ErrorAt(Token token, const char* message);
   void Consume(TokenType type, const char* message);
-  void emitByte(uint8_t byte) { CurrentChunk()->WriteUInt8(byte, parser_.previous->line); }
-  void emitBytes(OpCode byte1, uint8_t byte2);
-  void emitByte(OpCode opcode) { emitByte(static_cast<uint8_t>(opcode)); }
-  void emitBytes(OpCode opcode0, OpCode opcode1) { emitBytes(opcode0, static_cast<uint8_t>(opcode1)); }
-  Chunk* CurrentChunk();
-  void endFunctionCompilation();
-  void emitDefaultReturn();
-  uint8_t makeConstant(Object value);
-  void emitConstant(Object value) { emitBytes(OpCode::OP_CONSTANT, makeConstant(value)); }
-  void number() {
-    double value = std::stod(parser_.previous->lexeme);
-    emitConstant(Object(value));
-  }
+  bool MatchAndAdvance(TokenType type);
+  bool Check(TokenType type);
+  void Synchronize();
+
+  void AnyStatement();
+
+  void BlockStmt();
+  void BreakOrContinueStmt();
+  void ClassDefStmt();
+  void ExpressionStmt();
+  void ForStmt();
+  void FunStmt();
+  void IfStmt();
+  void PrintStmt();
+  void ReturnStmt();
+  void VarDefStmt();
+  void WhileStmt();
+
   /**
    * The input operator_type is a mark to say that: we are parsing a expression that will be part of operand of
    * `operator_type` e.g. if `operator_type` is `+`, it means the expression we are parsing will be used in a binary
@@ -139,82 +91,68 @@ class Compiler {
    * Because we know what the expression will be used for, we known when to stop the parsing, that is , when we meet
    * some operator that has lower (or equal) precedence
    */
-  void Expression(OperatorType operator_type = OperatorType::ASSIGNMENT);
-  void grouping() {
-    Expression();
-    Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-  }
-  void call();
-  void dot();
-  void unary();
-  void literal();
-  friend std::vector<ParseRule> BuildRuleMap();
-  ParseRule* getRule(TokenType type);
-  ParseRule* getRule(Token token);
-  void binary();
-  void string();
-  void and_();
-  void or_();
-  bool canAssign();
-  void variable();
-  bool MatchAndAdvance(TokenType type);
-  void declaration();
-  void statement();
-  void printStatement();
-  bool Check(TokenType type);
-  void expressionStatement();
-  void synchronize();
-  void varDeclaration();
-  uint8_t parseVariable(const char* string);
-  uint8_t identifierConstant(Token token);
-  void defineVariable(uint8_t global);
-  void namedVariable(Token varaible_token, bool can_assign);
+  void AnyExpression(OperatorType operator_type = OperatorType::ASSIGNMENT);
+  void GroupingExpr();
+  void NumberExpr();
+  void CallExpr();
+  void DotExpr();
+  void UnaryExpr();
+  void LiteralExpr();
 
-  FunctionCU* current_cu_;
-  ClassScope* currentClass = nullptr;
-  Parser parser_;
+  void BinaryExpr();
+  void StringExpr();
+  void AndExpr();
+  void OrExpr();
+  void VariableExpr();
+  void ThisExpr();
+
+  /**
+   * Get named value from the current scope, and leaves the value on stack.
+   *
+   * When can_assign is false, this function could only be used to get named value.
+   * When doing a assignment, the assigned value will be leaves on stack
+   */
+
+  void GetNamedValue(Token name);
+  void GetOrSetNamedValue(Token varaible_token, bool can_assign);
+  bool CanAssign();
+
+  /**
+   * CreateFunc will create a ObjFunction stored in chunk's constant,
+   * and emit a OP_CLOUSRE to leave a ObjClosure on stack at runtime.
+   */
+  void CreateFunc(FunctionType type);
+  uint8_t ArgumentList();
+  static void MarkRoots(void* compiler);
+
+  GC::RegisterMarkerGuard marker_register_guard;
+  FunctionUnit* cu_ = nullptr;
+  /**
+   * Push a new Function Unit as the main compilation unit
+   */
+  void PushCU(FunctionType type, const std::string& name);
+  /**
+   * Pop and return the current Function Unit, and switch to the enclosing Function Unit as main compilation unit.
+   *
+   * A Pop means the current Function Unit is finished.
+   *
+   * @return
+   */
+  std::unique_ptr<FunctionUnit> PopCU();
+  struct ClassLevel {
+    explicit ClassLevel(ClassLevel* encolsing) : enclosing(encolsing) {}
+    ClassLevel* enclosing = nullptr;
+    bool hasSuperclass = false;
+  }* currentClass = nullptr;
+  Token previous;  // previous is the last consumed token
+  Token current;   // current is the next might to be consumed token.
+  bool had_error = false;
+  bool panic_mode = false;
   Scanner* scanner_;
   Precedence last_expression_precedence = Precedence::NONE;
-  struct LoopBreak {
-    int offset = -1;
-    LoopBreak* next = nullptr;
-    int level = -1;   // nested loop level value
-  } loop_break_info;  // a dummy head
-  int loop_nest_level = -1;
-  void openBreak();
-  void breakStatement();
-  void closeBreak();
-  void block();
-  void beginScope(ScopeType type);
-  void endScope(ScopeType type);
-  void declareVariable();
-  void addLocal(Token shared_ptr);
-  bool identifiersEqual(const std::string& t0, const std::string& t1);
-  int resolveLocal(FunctionCU* cu, Token token);
-  void markInitialized();
-  void ifStatement();
-  int emitJumpDown(OpCode jump_cmd);
-  void patchJumpDown(int jump);
-  void whileStatement();
-  void emitJumpBack(int start);
-  void forStatement();
-  void patchBreaks(int level);
-  void createBreakJump(int level);
-  int updateScopeCount();
-  void funDeclaration();
-  void func(FunctionType type);
-  uint8_t argumentList();
-  void returnStatement();
-  int resolveUpvalue(FunctionCU* cu, Token sharedPtr);
-  int addUpvalue(FunctionCU* cu, uint8_t index, bool isOnStack);
-  void cleanUpLocals(int scope_var_num);
-  static void markRoots(void* compiler);
-  GC::RegisterMarkerGuard marker_register_guard;
-  void classDeclaration();
-  void method();
-  void this_();
+  friend struct ScopeGuard;
+  friend int BuildRuleMap();
 };
 
-}  // namespace vm
-}  // namespace lox
+}  // namespace lox::vm
 #endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_COMPILER_H_

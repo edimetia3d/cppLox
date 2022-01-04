@@ -4,69 +4,86 @@
 
 #ifndef CLOX_SRCS_CLOX_VM_VM_H_
 #define CLOX_SRCS_CLOX_VM_VM_H_
-#include "lox/backend/virtual_machine/bytecode/chunk.h"
-#include "lox/backend/virtual_machine/common/clox_value.h"
-#include "lox/backend/virtual_machine/common/err_code.h"
 
+#include "lox/err_code.h"
+#include "lox/object/gc.h"
+
+#include "lox/backend/virtual_machine/object/object.h"
+#include "lox/backend/virtual_machine/core/chunk.h"
+
+/**
+ * The Core Component of the Virtual Machine are {CallFrame,Stack,Globals}
+ *
+ * The `stack` and `global` are unique to vm, CallFrame will only access `stack` and `global`.
+ *
+ * All execution start with a CallFrame. A CallFrame contains the function, which holds the chunk, a `ip`, which point
+ * to somewhere in the chunk, a `slots` which is the `stack` of the CallFrame.
+ *
+ * When call a new function, vm will create a new CallFrame, set the ip to the first instruction of the chunk, and set
+ * slots point to correct stack.
+ *
+ * When return from a function, vm just discard the frame, and leave only the last CallFrame's return value on stack.
+
+ */
 #define VM_FRAMES_MAX 64
-#define STACK_LOOKUP_OFFSET_MAX (UINT8_MAX + 1)  // same as the value in compiler
-#define VM_STACK_MAX (VM_FRAMES_MAX * IMMEDIATE_NUMBER_MAX)
-// Stack uses relative address , and command has a 256 limit,
-// so a command can find only in [frame_pointer,frame_pointer+256]
+#define VM_STACK_MAX (VM_FRAMES_MAX * STACK_LOOKUP_MAX)
 
-namespace lox {
-namespace vm {
+namespace lox::vm {
 
 struct CallFrame {
-  ObjRuntimeFunction *closure;  // the callee function
-  uint8_t *ip;                  // pointer to somewhere in function->chunk
-  Object *slots;                // pointer to somewhere in VM::stack_
+  ObjClosure *closure;  // the callee function
+  uint8_t *ip;          // pointer to somewhere in function->chunk
+  Value *slots;         // pointer to somewhere in VM::stack_
 };
 
 /**
- * A stack machine
+ * A stack machine, it has is most important part of the virtual machine, and very important to the performance.
  */
 class VM {
  public:
+  VM();
+  ~VM();
   static VM *Instance();
-  ErrCode Interpret(ObjFunction *function);
+  ErrCode Interpret(ObjFunction *function);  // interpret a function
+ private:
+  ErrCode Run();  // the core vm dispatch loop.
+
+  void Push(Value value);
+  Value Peek(int distance = 0);
+  Value Pop();
+
+  void ResetStack();
+  void DefineBuiltins();
+
+  CallFrame *CurrentFrame();
+
+  void RuntimeError(const char *format, ...);
+  bool CallValue(Value callee, int arg_count);
+  bool CallClosure(ObjClosure *callee, int arg_count);
+
+  ObjUpvalue *MarkValueNeedToClose(Value *local_value_stack_pos);
+  void CloseValuesAfterStack(Value *stack_position);
+
+  bool TryGetBoundMethod(ObjClass *klass, Symbol *name);
+  bool DispatchInvoke(Symbol *method_name, int arg_count);  // just a dispatcher of `ClassName.foo()`/`instance.foo()`
+  bool InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count);
+
+  static void MarkGCRoots(void *vm);
+  void TryGC() const;  // only vm will trigger gc at a suitable time.
+
+  friend void DumpStack(const VM *vm);
+  friend void DumpGlobal(const VM *vm);
 
  private:
-  void ResetStack();
-  VM();
-  void defineBultins();
-  ErrCode Run();
-  void Push(Object value);
-  Object Peek(int distance = 0);
-  Object Pop();
-  CallFrame frames[VM_FRAMES_MAX];
-  CallFrame *currentFrame() {
-    assert(frameCount > 0);
-    return &frames[frameCount - 1];
-  }
-  int frameCount = 0;
-  Object stack_[STACK_LOOKUP_OFFSET_MAX];
-  ObjUpvalue *openUpvalues;
-  std::unordered_map<Symbol *, Object> globals_;
-  Object *sp_ = nullptr;  // stack pointer
-  Symbol *const SYMBOL_THIS{Symbol::Intern("init")};
-  void DumpStack() const;
-  void DumpGlobals();
-  void runtimeError(const char *format, ...);
-  ~VM();
-  bool callValue(Object callee, int count);
-  bool call(ObjRuntimeFunction *closure, int arg_count);
-  void defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function);
-  ObjUpvalue *captureUpvalue(Object *pValue);
-  void closeUpvalues(Object *PValue);
-  static void markRoots(void *vm);
-  GC::RegisterMarkerGuard marker_register_guard;
-  void tryGC() const;
-  void defineMethod(Symbol *name);
-  bool tryGetBoundMethod(ObjClass *klass, Symbol *name);
-  bool invoke(Symbol *method_name, int arg_count);
-  bool invokeFromClass(ObjClass *klass, Symbol *name, int argCount);
+  CallFrame frames_[VM_FRAMES_MAX];
+  int frame_count_ = 0;
+  Value stack_[VM_STACK_MAX];
+  Value *sp_ = nullptr;  // pointer to somewhere in stack_
+  std::unordered_map<Symbol *, Value> globals_;
+
+  ObjUpvalue *open_upvalues;  // a linked-list that stores all the upvalues that has not been closed
+  Symbol *const SYMBOL_INIT{Symbol::Intern("init")};  // just used to avoid repeated symbol creation
+  GC::RegisterMarkerGuard marker_register_guard;      // used to register the marker function
 };
-}  // namespace vm
-}  // namespace lox
+}  // namespace lox::vm
 #endif  // CLOX_SRCS_CLOX_VM_VM_H_

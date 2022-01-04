@@ -28,7 +28,7 @@ bool Parser::AdvanceIfMatchAny() {
 }
 
 template <lox::Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
-Expr Parser::BinaryExpression() {
+Expr Parser::BinaryExpr() {
   // This function is the state_ of  " left_expr (<binary_op> right_expr)* "
 
   // All token before this->current has been parsed to the expr
@@ -41,49 +41,49 @@ Expr Parser::BinaryExpression() {
   while (AdvanceIfMatchAny<MATCH_TYPES...>()) {
     Token op = Previous();
     auto r_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-    expr = MakeExpr<BinaryExpr>(expr, op, r_expr);
+    expr = MakeExpr<lox::BinaryExpr>(expr, op, r_expr);
   }
   // ok now it's done
   return expr;
 }
 
-Expr Parser::Or() {
-  auto expr = And();
+Expr Parser::OrExpr() {
+  auto expr = AndExpr();
 
   while (AdvanceIfMatchAny<TokenType::OR>()) {
     Token op = Previous();
-    auto r_expr = And();
+    auto r_expr = AndExpr();
     expr = MakeExpr<LogicalExpr>(expr, op, r_expr);
   }
   return expr;
 }
-Expr Parser::And() {
-  auto expr = Equality();
+Expr Parser::AndExpr() {
+  auto expr = EqualityExpr();
 
   while (AdvanceIfMatchAny<TokenType::AND>()) {
     Token op = Previous();
-    auto r_expr = Equality();
+    auto r_expr = EqualityExpr();
     expr = MakeExpr<LogicalExpr>(expr, op, r_expr);
   }
   return expr;
 }
 
-lox::Expr lox::Parser::Equality() {
-  return BinaryExpression<&Parser::Comparison, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
+lox::Expr lox::Parser::EqualityExpr() {
+  return BinaryExpr<&Parser::ComparisonExpr, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
 }
-lox::Expr lox::Parser::Comparison() {
-  return BinaryExpression<&Parser::Term, TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS,
-                          TokenType::LESS_EQUAL>();
+lox::Expr lox::Parser::ComparisonExpr() {
+  return BinaryExpr<&Parser::TermExpr, TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS,
+                    TokenType::LESS_EQUAL>();
 }
-lox::Expr lox::Parser::Term() { return BinaryExpression<&Parser::Factor, TokenType::MINUS, TokenType::PLUS>(); }
-lox::Expr lox::Parser::Factor() { return BinaryExpression<&Parser::Unary, TokenType::SLASH, TokenType::STAR>(); }
-lox::Expr lox::Parser::Unary() {
+lox::Expr lox::Parser::TermExpr() { return BinaryExpr<&Parser::FactorExpr, TokenType::MINUS, TokenType::PLUS>(); }
+lox::Expr lox::Parser::FactorExpr() { return BinaryExpr<&Parser::UnaryExpr, TokenType::SLASH, TokenType::STAR>(); }
+lox::Expr lox::Parser::UnaryExpr() {
   if (AdvanceIfMatchAny<TokenType::BANG, TokenType::MINUS>()) {
     Token op = Previous();
-    auto right = this->Unary();
-    return MakeExpr<UnaryExpr>(op, right);
+    auto right = this->UnaryExpr();
+    return MakeExpr<lox::UnaryExpr>(op, right);
   }
-  return Call();
+  return CallExpr();
 }
 lox::Expr lox::Parser::Primary() {
   if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
@@ -94,7 +94,7 @@ lox::Expr lox::Parser::Primary() {
   }
 
   if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
-    auto expr = ExpressionExpr();
+    auto expr = AnyExpression();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
     return MakeExpr<GroupingExpr>(expr);
   }
@@ -131,7 +131,7 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
   std::vector<lox::Stmt> statements;
   while (!IsAtEnd()) {
     try {
-      auto stmt = Declaration();
+      auto stmt = AnyStatement();
       statements.push_back(stmt);
     } catch (LoxError& error) {
       Synchronize();
@@ -144,52 +144,60 @@ std::vector<lox::Stmt> lox::Parser::Parse() {
     return statements;
   }
 }
-lox::Stmt lox::Parser::Statement() {
-  if (AdvanceIfMatchAny<TokenType::IF>()) return If();
-  if (AdvanceIfMatchAny<TokenType::WHILE>()) return While();
-  if (AdvanceIfMatchAny<TokenType::BREAK, TokenType::CONTINUE>()) return Break();
-  if (AdvanceIfMatchAny<TokenType::FOR>()) return ForStmtSugar();
-  if (AdvanceIfMatchAny<TokenType::PRINT>()) return Print();
-  if (AdvanceIfMatchAny<TokenType::RETURN>()) return Return();
-  if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) return Block();
-
-  return ExpressionStmt();
+lox::Stmt lox::Parser::AnyStatement() {
+  if (AdvanceIfMatchAny<TokenType::CLASS>()) {
+    return ClassDefStmt();
+  } else if (AdvanceIfMatchAny<TokenType::FUN>()) {
+    return FunStmt("function");
+  } else if (AdvanceIfMatchAny<TokenType::VAR>()) {
+    return VarDefStmt();
+  } else if (AdvanceIfMatchAny<TokenType::IF>()) {
+    return IfStmt();
+  } else if (AdvanceIfMatchAny<TokenType::WHILE>()) {
+    return WhileStmt();
+  } else if (AdvanceIfMatchAny<TokenType::BREAK, TokenType::CONTINUE>()) {
+    return BreakStmt();
+  } else if (AdvanceIfMatchAny<TokenType::FOR>()) {
+    return ForStmt();
+  } else if (AdvanceIfMatchAny<TokenType::PRINT>()) {
+    return PrintStmt();
+  } else if (AdvanceIfMatchAny<TokenType::RETURN>()) {
+    return ReturnStmt();
+  } else if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) {
+    return BlockStmt();
+  } else {
+    return ExpressionStmt();
+  }
 }
-Stmt Parser::Print() {
-  Expr value = ExpressionExpr();
+Stmt lox::Parser::VarDefStmt() {
+  auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after key `var`.");
+  Expr init_expr(nullptr);
+  if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
+    init_expr = AnyExpression();
+  }
+  Consume(TokenType::SEMICOLON, "Expect ; when var decl finish.");
+  return MakeStmt<lox::VarDeclStmt>(name, init_expr);
+}
+Stmt Parser::PrintStmt() {
+  Expr value = AnyExpression();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  return MakeStmt<PrintStmt>(value);
+  return MakeStmt<lox::PrintStmt>(value);
 }
 Stmt Parser::ExpressionStmt() {
-  Expr expr = ExpressionExpr();
+  Expr expr = AnyExpression();
   if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
     return MakeStmt<ExprStmt>(expr);
   } else {
     if (GlobalSetting().interactive_mode) {
-      return MakeStmt<PrintStmt>(expr);
+      return MakeStmt<lox::PrintStmt>(expr);
     } else {
       Error(Peek(), "Non-interactive mode must have ; after expression");
     }
   }
   return Stmt(nullptr);
 }
-Stmt Parser::Declaration() {
-  if (AdvanceIfMatchAny<TokenType::CLASS>()) return ClassDef();
-  if (AdvanceIfMatchAny<TokenType::FUN>()) return FunctionDef("function");
-  if (AdvanceIfMatchAny<TokenType::VAR>()) {
-    auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after key `var`.");
-    Expr init_expr(nullptr);
-    if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
-      init_expr = ExpressionExpr();
-    }
-    Consume(TokenType::SEMICOLON, "Expect ; when var decl finish.");
-    return MakeStmt<VarDeclStmt>(name, init_expr);
-  }
-
-  return Statement();
-}
 Expr Parser::Assignment() {
-  Expr expr = Or();
+  Expr expr = OrExpr();
 
   if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
     Token equals = Previous();
@@ -207,88 +215,88 @@ Expr Parser::Assignment() {
 
   return expr;
 }
-Stmt Parser::Block() { return MakeStmt<BlockStmt>(GetBlocks()); }
+Stmt Parser::BlockStmt() { return MakeStmt<lox::BlockStmt>(GetBlocks()); }
 std::vector<Stmt> Parser::GetBlocks() {
   std::vector<Stmt> statements;
 
   while (!Check(TokenType::RIGHT_BRACE) && !IsAtEnd()) {
-    statements.push_back(Declaration());
+    statements.push_back(AnyStatement());
   }
 
-  Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+  Consume(TokenType::RIGHT_BRACE, "Expect '}' after BlockStmt.");
   return statements;
 }
-Stmt Parser::If() {
+Stmt Parser::IfStmt() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
-  Expr condition = ExpressionExpr();
+  Expr condition = AnyExpression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
 
-  Stmt thenBranch = Statement();
+  Stmt thenBranch = AnyStatement();
   Stmt elseBranch(nullptr);
   if (AdvanceIfMatchAny<TokenType::ELSE>()) {
-    elseBranch = Statement();
+    elseBranch = AnyStatement();
   }
 
-  return MakeStmt<IfStmt>(condition, thenBranch, elseBranch);
+  return MakeStmt<lox::IfStmt>(condition, thenBranch, elseBranch);
 }
-Stmt Parser::While() {
+Stmt Parser::WhileStmt() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
-  Expr condition = ExpressionExpr();
+  Expr condition = AnyExpression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
-  Stmt body = Statement();
-  return MakeStmt<WhileStmt>(condition, body);
+  Stmt body = AnyStatement();
+  return MakeStmt<lox::WhileStmt>(condition, body);
 }
-Stmt Parser::ForStmtSugar() {
+Stmt Parser::ForStmt() {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
 
   Stmt initializer(nullptr);
   if (AdvanceIfMatchAny<TokenType::SEMICOLON>()) {
   } else if (Check(TokenType::VAR)) {
-    initializer = Declaration();
+    initializer = AnyStatement();
   } else {
     initializer = ExpressionStmt();
   }
 
   Expr condition(nullptr);
   if (!Check(TokenType::SEMICOLON)) {
-    condition = ExpressionExpr();
+    condition = AnyExpression();
   }
   Consume(TokenType::SEMICOLON, "Expect ';' after loop condition.");
 
   Expr increment(nullptr);
   if (!Check(TokenType::RIGHT_PAREN)) {
-    increment = ExpressionExpr();
+    increment = AnyExpression();
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
-  Stmt body = Statement();
+  Stmt body = AnyStatement();
 
   if (IsValid(increment)) {
     std::vector<Stmt> body_with_increasement = {body};
     body_with_increasement.push_back(MakeStmt<ExprStmt>(increment));
-    body = MakeStmt<BlockStmt>(body_with_increasement);
+    body = MakeStmt<lox::BlockStmt>(body_with_increasement);
   }
   if (!IsValid(condition)) {
     auto tmp_true_token = MakeToken(TokenType::TRUE, "for_sugar_true", Peek()->line);
     condition = MakeExpr<LiteralExpr>(tmp_true_token);
   }
-  body = MakeStmt<WhileStmt>(condition, body);
+  body = MakeStmt<lox::WhileStmt>(condition, body);
 
   if (IsValid(initializer)) {
     std::vector<Stmt> body_with_initializer = {initializer, body};
-    body = MakeStmt<BlockStmt>(body_with_initializer);
+    body = MakeStmt<lox::BlockStmt>(body_with_initializer);
   }
 
   return body;
 }
-Stmt Parser::Break() {
+Stmt Parser::BreakStmt() {
   auto src_token = Previous();
   if (src_token->type == TokenType::CONTINUE) {
     Error(Previous(), " 'continue' not supported yet.");
   }
   Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token->lexeme);
-  return MakeStmt<BreakStmt>(src_token);
+  return MakeStmt<lox::BreakStmt>(src_token);
 }
-Expr Parser::Call() {
+Expr Parser::CallExpr() {
   Expr expr = Primary();
   // We treat a.b as a sugar of GetAttr(a,"b"),but implement it as a new ast node
   // So, technically, only top level symbol will be treated as a variable at runtime, all .x.y follows is
@@ -314,15 +322,15 @@ Expr Parser::FinishCall(const Expr& callee) {
       if (arguments.size() >= 255) {
         Error(Peek(), "Can't have more than 255 arguments.");
       }
-      arguments.push_back(ExpressionExpr());
+      arguments.push_back(AnyExpression());
     } while (AdvanceIfMatchAny<TokenType::COMMA>());
   }
 
   Token paren = Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
 
-  return MakeExpr<CallExpr>(callee, paren, arguments);
+  return MakeExpr<lox::CallExpr>(callee, paren, arguments);
 }
-Stmt Parser::FunctionDef(const std::string& kind) {
+Stmt Parser::FunStmt(const std::string& kind) {
   Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
   Consume(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
   std::vector<Token> parameters;
@@ -340,17 +348,17 @@ Stmt Parser::FunctionDef(const std::string& kind) {
   std::vector<Stmt> body = GetBlocks();
   return MakeStmt<FunctionStmt>(name, parameters, body);
 }
-Stmt Parser::Return() {
+Stmt Parser::ReturnStmt() {
   Token keyword = Previous();
   Expr value(nullptr);
   if (!Check(TokenType::SEMICOLON)) {
-    value = ExpressionExpr();
+    value = AnyExpression();
   }
 
   Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
-  return MakeStmt<ReturnStmt>(keyword, value);
+  return MakeStmt<lox::ReturnStmt>(keyword, value);
 }
-Stmt Parser::ClassDef() {
+Stmt Parser::ClassDefStmt() {
   Token name = Consume(TokenType::IDENTIFIER, "Expect class name.");
   auto superclass = Expr();
   if (AdvanceIfMatchAny<TokenType::LESS>()) {
@@ -361,7 +369,7 @@ Stmt Parser::ClassDef() {
 
   std::vector<Stmt> methods;
   while (!Check(TokenType::RIGHT_BRACE) && !IsAtEnd()) {
-    methods.push_back(FunctionDef("method"));
+    methods.push_back(FunStmt("method"));
   }
 
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");

@@ -1,9 +1,10 @@
 
 #include "lox/backend/virtual_machine/virtual_machine.h"
 
-#include "lox/backend/virtual_machine/bytecode/chunk.h"
+#include "lox/backend/virtual_machine/core/chunk.h"
 #include "lox/backend/virtual_machine/core/compiler.h"
 #include "lox/backend/virtual_machine/core/vm.h"
+#include "lox/err_code.h"
 
 namespace lox {
 namespace vm {
@@ -11,12 +12,11 @@ namespace vm {
 LoxError VirtualMachine::Run(Scanner& scanner) {
   Compiler compiler;
   ErrCode err_code = ErrCode::NO_ERROR;
-  ObjFunction* entry_point = compiler.Compile(&scanner);
-  if (!entry_point) {
+  ObjFunction* script = compiler.Compile(&scanner);
+  if (!script) {
     return LoxError("Compiler Error: " + std::to_string(static_cast<int>(err_code)));
   }
-  auto vm = VM::Instance();
-  if ((err_code = vm->Interpret(entry_point)) != ErrCode::NO_ERROR) {
+  if ((err_code = VM::Instance()->Interpret(script)) != ErrCode::NO_ERROR) {
     return LoxError("Runtime Error: " + std::to_string(static_cast<int>(err_code)));
   }
   return LoxError();

@@ -4,113 +4,107 @@
 
 #include "lox/backend/virtual_machine/core/vm.h"
 
-#include <lox/backend/virtual_machine/common/builtin_fn.h>
 #include <stdarg.h>
 
-#define DEBUG_STRESS_GC
-namespace lox {
-namespace vm {
+#include "lox/backend/virtual_machine/builtins/builtin_fn.h"
+#include "lox/backend/virtual_machine/debug/debug.h"
+#include "lox/backend/virtual_machine/object/object.h"
+#include "lox/err_code.h"
+
+#define CHUNK_READ_BYTE() (*frame->ip++)
+#define CHUNK_READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+#define CHEK_STACK_TOP_TYPE(TYPE)                   \
+  do {                                              \
+    if (!Peek().Is##TYPE()) {                       \
+      RuntimeError("Operand must be a " #TYPE "."); \
+      return ErrCode::INTERPRET_RUNTIME_ERROR;      \
+    }                                               \
+  } while (0)
+#define CHUNK_READ_CONSTANT() (frame->closure->function->chunk->constants[CHUNK_READ_BYTE()])
+#define CHUNK_READ_STRING() ((CHUNK_READ_CONSTANT()).AsObject()->DynAs<Symbol>())
+#define BINARY_OP(OutputT, op)                                       \
+  do {                                                               \
+    CHEK_STACK_TOP_TYPE(Number);                                     \
+    Value b = Pop();                                                 \
+    CHEK_STACK_TOP_TYPE(Number);                                     \
+    Value a = Pop();                                                 \
+    Push(Value(static_cast<OutputT>(a.AsNumber() op b.AsNumber()))); \
+  } while (false)
+
+namespace lox::vm {
 VM *VM::Instance() {
   static VM object;
   return &object;
 }
 ErrCode VM::Run() {
-  CallFrame *frame = currentFrame();  // we use a local variable as cache, to avoid calling currentFrame.
-#define READ_BYTE() (*frame->ip++)
-#define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
-#define CHEK_STACK_TOP_TYPE(TYPE)                   \
-  do {                                              \
-    if (!Peek().Is##TYPE()) {                       \
-      runtimeError("Operand must be a " #TYPE "."); \
-      return ErrCode::INTERPRET_RUNTIME_ERROR;      \
-    }                                               \
-  } while (0)
-#define READ_CONSTANT() (frame->closure->function->chunk->constants[READ_BYTE()])
-#define READ_STRING() ((READ_CONSTANT()).AsHandle()->As<Symbol>())
-#define BINARY_OP(OutputT, op)                                        \
-  do {                                                                \
-    CHEK_STACK_TOP_TYPE(Number);                                      \
-    Object b = Pop();                                                 \
-    CHEK_STACK_TOP_TYPE(Number);                                      \
-    Object a = Pop();                                                 \
-    Push(Object(static_cast<OutputT>(a.AsNumber() op b.AsNumber()))); \
-  } while (false)
-
-#ifdef DEBUG_TRACE_EXECUTION
-  int dbg_op_id = 0;
-#endif
+  CallFrame *frame = CurrentFrame();  // we use a local variable as cache, to avoid calling CurrentFrame.
   for (;;) {
-#ifdef DEBUG_TRACE_EXECUTION
-    printf("---- CMD %d ----\n", dbg_op_id);
-    frame->closure->function->chunk->DumpByOffset((int)(frame->ip - frame->closure->function->chunk->code.data()));
-#endif
-    OpCode instruction;
-    switch (instruction = static_cast<OpCode>(READ_BYTE())) {
+    switch (static_cast<OpCode>(CHUNK_READ_BYTE())) {
       case OpCode::OP_CONSTANT: {
-        Object constant = READ_CONSTANT();
+        Value constant = CHUNK_READ_CONSTANT();
         Push(constant);
         break;
       }
       case OpCode::OP_NIL:
-        Push(Object());
+        Push(Value());
         break;
       case OpCode::OP_TRUE:
-        Push(Object(true));
+        Push(Value(true));
         break;
       case OpCode::OP_FALSE:
-        Push(Object(false));
+        Push(Value(false));
         break;
       case OpCode::OP_POP:
         Pop();
         break;
       case OpCode::OP_GET_LOCAL: {
-        uint8_t slot = READ_BYTE();
+        uint8_t slot = CHUNK_READ_BYTE();
         Push(frame->slots[slot]);
         break;
       }
       case OpCode::OP_SET_LOCAL: {
-        uint8_t slot = READ_BYTE();
+        uint8_t slot = CHUNK_READ_BYTE();
         frame->slots[slot] = Peek(0);
         break;
       }
       case OpCode::OP_GET_GLOBAL: {
-        Symbol *name = READ_STRING();
+        Symbol *name = CHUNK_READ_STRING();
         if (!globals_.contains(name)) {
-          runtimeError("Undefined variable '%s'.", name->c_str());
+          RuntimeError("Undefined variable '%s'.", name->c_str());
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
         Push(globals_[name]);
         break;
       }
       case OpCode::OP_DEFINE_GLOBAL: {
-        Symbol *name = READ_STRING();
+        Symbol *name = CHUNK_READ_STRING();
         globals_[name] = Peek(0);
-        Pop();
+        Pop();  // OP_DEFINE_GLOBAL is always trigger by a var define statement, so we will pop the value.
         break;
       }
       case OpCode::OP_SET_GLOBAL: {
-        Symbol *name = READ_STRING();
+        Symbol *name = CHUNK_READ_STRING();
         if (!globals_.contains(name)) {
-          runtimeError("Undefined variable '%s'.", name->c_str());
+          RuntimeError("Undefined variable '%s'.", name->c_str());
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
         globals_[name] = Peek(0);
         break;
       }
       case OpCode::OP_GET_UPVALUE: {
-        uint8_t slot = READ_BYTE();
+        uint8_t slot = CHUNK_READ_BYTE();
         Push(*frame->closure->upvalues[slot]->location);
         break;
       }
       case OpCode::OP_SET_UPVALUE: {
-        uint8_t slot = READ_BYTE();
+        uint8_t slot = CHUNK_READ_BYTE();
         *frame->closure->upvalues[slot]->location = Peek(0);
         break;
       }
       case OpCode::OP_EQUAL: {
-        Object b = Pop();
-        Object a = Pop();
-        Push(Object(a.Equal(b)));
+        Value b = Pop();
+        Value a = Pop();
+        Push(Value(a.Equal(b)));
         break;
       }
       case OpCode::OP_GREATER:
@@ -121,15 +115,15 @@ ErrCode VM::Run() {
         break;
       case OpCode::OP_ADD:
         if (Peek().IsNumber() && Peek(1).IsNumber()) {
-          Object b = Pop();
-          Object a = Pop();
-          Push(Object(static_cast<double>(a.AsNumber() + b.AsNumber())));
-        } else if (Peek().IsHandle() && Peek(1).IsHandle()) {
-          Object b = Pop();
-          Object a = Pop();
-          Push(Object(Symbol::Intern(a.AsHandle()->As<Symbol>()->str() + b.AsHandle()->As<Symbol>()->str())));
+          Value b = Pop();
+          Value a = Pop();
+          Push(Value(static_cast<double>(a.AsNumber() + b.AsNumber())));
+        } else if (Peek().IsObject() && Peek(1).IsObject()) {
+          Value b = Pop();
+          Value a = Pop();
+          Push(Value(Symbol::Intern(a.AsObject()->DynAs<Symbol>()->Str() + b.AsObject()->DynAs<Symbol>()->Str())));
         } else {
-          runtimeError("Add only support string and number.");
+          RuntimeError("Add only support string and number.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -143,55 +137,52 @@ ErrCode VM::Run() {
         BINARY_OP(double, /);
         break;
       case OpCode::OP_NOT:
-        Push(Object(!Pop().IsTrue()));
+        Push(Value(!Pop().IsTrue()));
         break;
       case OpCode::OP_NEGATE: {
         CHEK_STACK_TOP_TYPE(Number);
-        Push(Object(-Pop().AsNumber()));
+        Push(Value(-Pop().AsNumber()));
         break;
       }
       case OpCode::OP_CLASS:
-        Push(Object(new ObjClass(READ_STRING()->c_str())));
+        Push(Value(new ObjClass(CHUNK_READ_STRING()->c_str())));
         break;
       case OpCode::OP_PRINT: {
-#ifdef DEBUG_TRACE_EXECUTION
-        printf("------------------------------------------------------------ ");
-#endif
-        lox::printValue(Pop());
-        printf("\n");
+        Pop().PrintLn();
         break;
       }
       case OpCode::OP_JUMP: {
-        uint16_t offset = READ_SHORT();
+        uint16_t offset = CHUNK_READ_SHORT();
         frame->ip += offset;
         break;
       }
       case OpCode::OP_JUMP_IF_FALSE: {
-        uint16_t offset = READ_SHORT();
+        uint16_t offset = CHUNK_READ_SHORT();
         if (!Peek(0).IsTrue()) frame->ip += offset;
         break;
       }
       case OpCode::OP_JUMP_BACK: {
-        uint16_t offset = READ_SHORT();
+        uint16_t offset = CHUNK_READ_SHORT();
         frame->ip -= offset;
         break;
       }
       case OpCode::OP_CALL: {
-        int argCount = READ_BYTE();
-        if (!callValue(Peek(argCount), argCount)) {
+        int argCount = CHUNK_READ_BYTE();
+        if (!CallValue(Peek(argCount), argCount)) {
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        frame = currentFrame();  // active frame has changed, update cache
+        frame = CurrentFrame();  // active frame has changed, update cache
         break;
       }
       case OpCode::OP_CLOSURE: {
-        auto closure = new ObjRuntimeFunction(READ_CONSTANT().AsHandle()->As<ObjFunction>());
-        Push(Object(closure));
-        for (int i = 0; i < closure->upvalueCount; i++) {
-          uint8_t isLocal = READ_BYTE();
-          uint8_t index = READ_BYTE();
+        auto closure = new ObjClosure(CHUNK_READ_CONSTANT().AsObject()->DynAs<ObjFunction>());
+        Push(Value(closure));
+        uint8_t upvalue_count = CHUNK_READ_BYTE();
+        for (int i = 0; i < upvalue_count; i++) {
+          uint8_t isLocal = CHUNK_READ_BYTE();
+          uint8_t index = CHUNK_READ_BYTE();
           if (isLocal) {
-            closure->upvalues[i] = captureUpvalue(frame->slots + index);
+            closure->upvalues[i] = MarkValueNeedToClose(frame->slots + index);
           } else {
             closure->upvalues[i] = frame->closure->upvalues[index];
           }
@@ -199,164 +190,136 @@ ErrCode VM::Run() {
         break;
       }
       case OpCode::OP_CLOSE_UPVALUE:
-        closeUpvalues(sp_ - 1);
+        CloseValuesAfterStack(sp_ - 1);
         Pop();
         break;
       case OpCode::OP_RETURN: {
-        Object result = Pop();        // retrive return first
-        closeUpvalues(frame->slots);  // discard parameter ,if some parameter is closed ,close them
-        frameCount--;
-        if (frameCount == 0) {
+        Value result = Pop();                 // retrive return first
+        CloseValuesAfterStack(frame->slots);  // discard parameter ,if some parameter is closed ,close them
+        frame_count_--;
+        if (frame_count_ == 0) {
           Pop();
-          tryGC();
+          TryGC();
           goto EXIT;
         } else {
           sp_ = frame->slots;
           Push(result);
-          frame = currentFrame();  // active frame has changed, update cache
-          tryGC();
+          frame = CurrentFrame();  // active frame has changed, update cache
+          TryGC();
           break;
         }
       }
       case OpCode::OP_GET_ATTR: {
         auto top_v = Peek(0);
-        if (top_v.IsHandle() && top_v.AsHandle()->IsType<ObjInstance>()) {
-          ObjInstance *instance = top_v.AsHandle()->As<ObjInstance>();
-          Symbol *name = READ_STRING();
+        if (top_v.IsObject() && top_v.AsObject()->DynAs<ObjInstance>()) {
+          ObjInstance *instance = top_v.AsObject()->DynAs<ObjInstance>();
+          Symbol *name = CHUNK_READ_STRING();
           if (instance->dict.contains(name)) {
             Pop();  // Instance.
-            Push(Object(instance->dict[name]));
+            Push(Value(instance->dict[name]));
             break;
           }
-          if (!tryGetBoundMethod(instance->klass, name)) {
-            runtimeError("Undefined attr '%s'.", name->c_str());
+          if (!TryGetBoundMethod(instance->klass, name)) {
+            RuntimeError("Undefined attr '%s'.", name->c_str());
             return ErrCode::INTERPRET_RUNTIME_ERROR;
           }
           break;
         }
-        if (top_v.IsHandle() && top_v.AsHandle()->IsType<ObjClass>()) {
-          ObjClass *klass = top_v.AsHandle()->As<ObjClass>();
-          auto possible_instance = *currentFrame()->slots;
-          if (!possible_instance.IsHandle() || !possible_instance.AsHandle()->IsType<ObjInstance>() ||
-              !possible_instance.AsHandle()->As<ObjInstance>()->IsInstance(klass)) {
-            runtimeError("class method cannot access", klass);
+        if (top_v.IsObject() && top_v.AsObject()->DynAs<ObjClass>()) {
+          ObjClass *klass = top_v.AsObject()->DynAs<ObjClass>();
+          auto possible_instance = *CurrentFrame()->slots;
+          if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
+              !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
+            RuntimeError("class method cannot access", klass);
             return ErrCode::INTERPRET_RUNTIME_ERROR;
           }
           sp_[-1] = possible_instance;  // a hack that replace class with instance
-          Symbol *name = READ_STRING();
-          if (!tryGetBoundMethod(klass, name)) {
-            runtimeError("Undefined method '%s'.", name->c_str());
+          Symbol *name = CHUNK_READ_STRING();
+          if (!TryGetBoundMethod(klass, name)) {
+            RuntimeError("Undefined method '%s'.", name->c_str());
             return ErrCode::INTERPRET_RUNTIME_ERROR;
           }
           break;
         }
-        runtimeError("Only instances have attrs. Only class have methods.");
+        RuntimeError("Only instances have attrs. Only class have methods.");
         return ErrCode::INTERPRET_RUNTIME_ERROR;
       }
       case OpCode::OP_SET_ATTR: {
         auto top_v_1 = Peek(1);
-        if (!top_v_1.IsHandle() || !top_v_1.AsHandle()->IsType<ObjInstance>()) {
-          runtimeError("Only instances have attr.");
+        if (!top_v_1.IsObject() || !top_v_1.AsObject()->DynAs<ObjInstance>()) {
+          RuntimeError("Only instances have attr.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        ObjInstance *instance = top_v_1.AsHandle()->As<ObjInstance>();
-        Symbol *name = READ_STRING();
+        ObjInstance *instance = top_v_1.AsObject()->DynAs<ObjInstance>();
+        Symbol *name = CHUNK_READ_STRING();
         instance->dict[name] = Peek();
         // stack need to be [... instance, attr_new_value] -> [...,attr_new_value]
-        Object value = Pop();  // expression value temporay discarded
-        Pop();                 // pop instance
-        Push(value);           // push expression value back
+        Value value = Pop();  // expression value temporay discarded
+        Pop();                // pop instance
+        Push(value);          // push expression value back
         break;
       }
       case OpCode::OP_INVOKE: {
-        auto *method = READ_STRING();
-        int argCount = READ_BYTE();
-        if (!invoke(method, argCount)) {
+        auto *method = CHUNK_READ_STRING();
+        int argCount = CHUNK_READ_BYTE();
+        if (!DispatchInvoke(method, argCount)) {
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        frame = &frames[frameCount - 1];
+        frame = &frames_[frame_count_ - 1];
         break;
       }
       case OpCode::OP_INHERIT: {
-        if (!Peek(1).AsHandle()->IsType<ObjClass>()) {
-          runtimeError("Superclass must be a class.");
+        if (!Peek(1).AsObject()->DynAs<ObjClass>()) {
+          RuntimeError("Superclass must be a class.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        auto superclass = Peek(1).AsHandle()->As<ObjClass>();
-        auto subclass = Peek(0).AsHandle()->As<ObjClass>();
+        auto superclass = Peek(1).AsObject()->DynAs<ObjClass>();
+        auto subclass = Peek(0).AsObject()->DynAs<ObjClass>();
         subclass->superclass = superclass;
         subclass->methods.insert(superclass->methods.begin(), superclass->methods.end());
         Pop();  // pop subclass.
         Pop();  // pop superclass
         break;
       }
-      case OpCode::OP_METHOD:
-        defineMethod(READ_STRING());
+      case OpCode::OP_METHOD: {
+        Symbol *name = CHUNK_READ_STRING();
+        Value method = Peek(0);
+        ObjClass *Klass = Peek(1).AsObject()->DynAs<ObjClass>();
+        Klass->methods[name] = method.AsObject()->DynAs<ObjClosure>();
+        Pop();
         break;
+      }
     }
-#ifdef DEBUG_TRACE_EXECUTION
-    DumpStack();
-    DumpGlobals();
-    ++dbg_op_id;
-#endif
   }
 EXIT:
   return ErrCode::NO_ERROR;
-#undef READ_BYTE
-#undef READ_CONSTANT
-#undef BINARY_OP
 }
-void VM::tryGC() const {
-#ifdef DEBUG_STRESS_GC
-  GC::Instance().collectGarbage();
-#else
-  if (ObjHandle::ObjCount() > GC::Instance().gc_threashold) {
+void VM::TryGC() const {
+  if (Object::AllCreatedObj().size() > GC::Instance().gc_threashold) {
     GC::Instance().collectGarbage();
-    GC::Instance().gc_threashold = ObjHandle::ObjCount() * 1.2;
+    GC::Instance().gc_threashold = Object::AllCreatedObj().size() * 1.2;
   }
-#endif
 }
-void VM::DumpStack() const {
-  printf("Stack:");
-  for (const Object *slot = stack_; slot != sp_; ++slot) {
-    printf("[ ");
-    lox::printValue(*slot);
-    printf(" ]");
-  }
-  printf("\n");
-}
-void VM::DumpGlobals() {
-  printf("Globals:");
-  auto iter = globals_.begin();
-  while (iter != globals_.end()) {
-    printf("{ ");
-    printf("%s", iter->first->c_str());
-    printf(" : ");
-    lox::printValue(iter->second);
-    printf(" }");
-    ++iter;
-  }
-  printf("\n");
-}
+
 void VM::ResetStack() { sp_ = stack_; }
-void VM::Push(Object value) { *sp_++ = value; }
-Object VM::Pop() { return *(--sp_); }
+void VM::Push(Value value) { *sp_++ = value; }
+Value VM::Pop() { return *(--sp_); }
 ErrCode VM::Interpret(ObjFunction *function) {
-  Push(Object(function));
-  auto rt_fn = new ObjRuntimeFunction(function);
+  Push(Value(function));
+  auto rt_fn = new ObjClosure(function);
   Pop();
-  Push(Object(rt_fn));
-  call(rt_fn, 0);
+  Push(Value(rt_fn));
+  CallClosure(rt_fn, 0);
   return Run();
 }
-void VM::runtimeError(const char *format, ...) {
+void VM::RuntimeError(const char *format, ...) {
   va_list args;
   va_start(args, format);
   vfprintf(stderr, format, args);
   va_end(args);
   fputs("\n", stderr);
-  for (int i = frameCount - 1; i >= 0; i--) {
-    CallFrame *frame = &frames[i];
+  for (int i = frame_count_ - 1; i >= 0; i--) {
+    CallFrame *frame = &frames_[i];
     ObjFunction *function = frame->closure->function;
     size_t instruction = frame->ip - function->chunk->code.data() - 1;
     fprintf(stderr, "[line %d] in ", function->chunk->lines[instruction]);
@@ -364,198 +327,196 @@ void VM::runtimeError(const char *format, ...) {
   }
   ResetStack();
 }
-Object VM::Peek(int distance) {
+Value VM::Peek(int distance) {
   assert(distance >= 0);
   return *(sp_ - distance - 1);
 }
 VM::~VM() {
   int count = 0;
-  while (!ObjHandle::AllCreatedObj().empty()) {
+  while (!Object::AllCreatedObj().empty()) {
     ++count;
-    ObjHandle::Destroy(*ObjHandle::AllCreatedObj().begin());
+    delete *Object::AllCreatedObj().begin();
   }
   if (count) {
     printf("VM destroyed %d CLoxObject at exit.\n", count);
   }
 }
-bool VM::callValue(Object callee, int count) {
-  if (callee.IsHandle()) {
-    switch (callee.AsHandle()->type) {
-      case ObjType::OBJ_CLASS: {
-        ObjClass *klass = callee.AsHandle()->As<ObjClass>();
-        auto new_instance = new ObjInstance(klass);
-        Object instance_value(new_instance);
-        sp_[-count - 1] = instance_value;  // a hack replace the class object with self
-        if (klass->methods.contains(SYMBOL_THIS)) {
-          return call(klass->methods[SYMBOL_THIS]->As<ObjRuntimeFunction>(), count);
-        } else if (count != 0) {
-          runtimeError("Expected 0 arguments but got %d.", count);
-          return false;
-        }
-        // if codes goes here, no init is called , we just leave the instance on stack
-        return true;
+bool VM::CallValue(Value callee, int arg_count) {
+  if (callee.IsObject()) {
+    if (ObjClass *klass = callee.AsObject()->DynAs<ObjClass>()) {
+      auto new_instance = new ObjInstance(klass);
+      Value instance_value(new_instance);
+      sp_[-arg_count - 1] = instance_value;  // a hack replace the class object with self
+      if (klass->methods.contains(SYMBOL_INIT)) {
+        return CallClosure(klass->methods[SYMBOL_INIT]->DynAs<ObjClosure>(), arg_count);
+      } else if (arg_count != 0) {
+        RuntimeError("Expected 0 arguments but got %d.", arg_count);
+        return false;
       }
-      case ObjType::OBJ_BOUND_METHOD: {
-        ObjBoundMethod *bound = callee.AsHandle()->As<ObjBoundMethod>();
-        sp_[-count - 1] = bound->receiver;  // a hack that replace bounded method with self
-        return call(bound->method, count);
-      }
-      case ObjType::OBJ_RUNTIME_FUNCTION:
-        return call(callee.AsHandle()->As<ObjRuntimeFunction>(), count);
-      case ObjType::OBJ_NATIVE_FUNCTION: {
-        auto native = callee.AsHandle()->As<ObjNativeFunction>()->function;
-        Object result = native(count, sp_ - count);
-        sp_ -= (count + 1);
-        Push(result);
-        return true;
-      }
-      default:
-        break;  // Non-callable object type.
+      // if codes goes here, no init is called , we just leave the instance on stack
+      return true;
+    }
+    if (ObjBoundMethod *bound = callee.AsObject()->DynAs<ObjBoundMethod>()) {
+      sp_[-arg_count - 1] = bound->receiver;  // a hack that replace bounded method with self
+      return CallClosure(bound->method, arg_count);
+    }
+    if (ObjClosure *closure = callee.AsObject()->DynAs<ObjClosure>()) {
+      return CallClosure(closure, arg_count);
+    }
+    if (auto native = callee.AsObject()->DynAs<ObjNativeFunction>()->function) {
+      Value result = native(arg_count, sp_ - arg_count);
+      sp_ -= (arg_count + 1);
+      Push(result);
+      return true;
     }
   }
-  runtimeError("Can only call functions and classes.");
+  RuntimeError("Can only CallClosure functions and classes.");
   return false;
 }
-bool VM::call(ObjRuntimeFunction *closure, int arg_count) {
-  if (arg_count != closure->function->arity) {
-    runtimeError("Expected %d arguments but got %d.", closure->function->arity, arg_count);
+bool VM::CallClosure(ObjClosure *callee, int arg_count) {
+  if (arg_count != callee->function->arity) {
+    RuntimeError("Expected %d arguments but got %d.", callee->function->arity, arg_count);
     return false;
   }
-  if (frameCount == VM_FRAMES_MAX) {
-    runtimeError("Stack overflow.");
+  if (frame_count_ == VM_FRAMES_MAX) {
+    RuntimeError("Stack overflow.");
     return false;
   }
 
-  CallFrame *frame = &frames[frameCount++];
-  frame->closure = closure;
-  frame->ip = closure->function->chunk->code.data();
+  CallFrame *frame = &frames_[frame_count_++];
+  frame->closure = callee;
+  frame->ip = callee->function->chunk->code.data();
   frame->slots = sp_ - arg_count - 1;
   return true;
 }
-VM::VM() : marker_register_guard(&markRoots, this) {
+VM::VM() : marker_register_guard(&MarkGCRoots, this) {
   ResetStack();
-  defineBultins();
+  DefineBuiltins();
 }
-void VM::defineBultins() { defineNativeFunction("clock", &clockNative); }
-void VM::defineNativeFunction(const std::string &name, ObjNativeFunction::NativeFn function) {
-  Push(Object(Symbol::Intern(name)));
-  Push(Object(new ObjNativeFunction(function)));
-  auto key = Peek(1).AsHandle()->As<Symbol>();
-  assert(!globals_.contains(key));
-  globals_[key] = Peek(0);
-  Pop();
-  Pop();
+void VM::DefineBuiltins() {
+  for (const auto &pair : AllNativeFn()) {
+    const std::string &Name = pair.first.c_str();
+    Push(Value(Symbol::Intern(Name)));
+    Push(Value(new ObjNativeFunction(pair.second)));
+    auto Key = Peek(1).AsObject()->DynAs<Symbol>();
+    assert(!globals_.contains(Key));
+    globals_[Key] = Peek(0);
+    Pop();
+    Pop();
+  }
 }
-ObjUpvalue *VM::captureUpvalue(Object *pValue) {
-  // we insert pValue into a sorted link-list
+
+ObjUpvalue *VM::MarkValueNeedToClose(Value *local_value_stack_pos) {
+  // we insert local_value_stack_pos into a sorted link-list
   // so `p->location` > `p->next->location` is always true
   ObjUpvalue *prevUpvalue = nullptr;
-  ObjUpvalue *upvalue = openUpvalues;
-  while (upvalue != nullptr && pValue < upvalue->location) {
+  ObjUpvalue *upvalue = open_upvalues;
+  while (upvalue != nullptr && local_value_stack_pos < upvalue->location) {
     prevUpvalue = upvalue;
     upvalue = upvalue->next;
   }
 
-  if (upvalue != nullptr && upvalue->location == pValue) {
+  if (upvalue != nullptr && upvalue->location == local_value_stack_pos) {
     return upvalue;
   }
-  auto createdUpvalue = new ObjUpvalue(pValue);
+  auto createdUpvalue = new ObjUpvalue(local_value_stack_pos);
   createdUpvalue->next = upvalue;
 
   if (prevUpvalue == nullptr) {
-    openUpvalues = createdUpvalue;
+    open_upvalues = createdUpvalue;
   } else {
     prevUpvalue->next = createdUpvalue;
   }
   return createdUpvalue;
 }
-void VM::closeUpvalues(Object *last) {
+void VM::CloseValuesAfterStack(Value *stack_position) {
   // for `p->location` > `p->next->location` is always true
-  // we could just delete all directly one by one
-  while (openUpvalues != nullptr && openUpvalues->location >= last) {
-    ObjUpvalue *upvalue = openUpvalues;
+  // we could just delete open_upvalues at right side of last
+  while (open_upvalues != nullptr && open_upvalues->location >= stack_position) {
+    ObjUpvalue *upvalue = open_upvalues;
     upvalue->closed = *upvalue->location;
     upvalue->location = &upvalue->closed;
-    openUpvalues = upvalue->next;
+    open_upvalues = upvalue->next;
   }
 }
-void VM::markRoots(void *vm_p) {
+void VM::MarkGCRoots(void *vm_p) {
   VM *vm = static_cast<VM *>(vm_p);
 
-  auto &gc = GC::Instance();
+  // RecursiveMark data
+  GC::Instance().RecursiveMark(vm->SYMBOL_INIT);
 
-  // mark data
-  gc.mark(vm->SYMBOL_THIS);
-
-  // mark stacks
-  for (Object *slot = vm->stack_; slot < vm->sp_; slot++) {
-    gc.mark(*slot);
+  // RecursiveMark stacks
+  for (Value *slot = vm->stack_; slot < vm->sp_; slot++) {
+    if (slot->IsObject()) {
+      GC::Instance().RecursiveMark(slot->AsObject());
+    }
   }
-  // mark globals
-  gc.mark(vm->globals_);
-
-  // mark closures
-  for (int i = 0; i < vm->frameCount; i++) {
-    gc.mark(vm->frames[i].closure);
+  // RecursiveMark globals
+  for (auto pair : vm->globals_) {
+    GC::Instance().RecursiveMark(pair.first);
+    if (pair.second.IsObject()) {
+      GC::Instance().RecursiveMark(pair.second.AsObject());
+    }
   }
 
-  // mark openUpvalue
-  for (ObjUpvalue *upvalue = vm->openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
-    gc.mark((ObjHandle *)upvalue);
+  // RecursiveMark closures
+  for (int i = 0; i < vm->frame_count_; i++) {
+    GC::Instance().RecursiveMark(vm->frames_[i].closure);
+  }
+
+  // RecursiveMark openUpvalue
+  for (ObjUpvalue *upvalue = vm->open_upvalues; upvalue != NULL; upvalue = upvalue->next) {
+    GC::Instance().RecursiveMark((Object *)upvalue);
   }
 }
-void VM::defineMethod(Symbol *name) {
-  Object method = Peek(0);
-  ObjClass *klass = Peek(1).AsHandle()->As<ObjClass>();
-  klass->methods[name] = method.AsHandle()->As<ObjRuntimeFunction>();
-  Pop();
-}
-bool VM::tryGetBoundMethod(ObjClass *klass, Symbol *name) {
-  Object method;
+bool VM::TryGetBoundMethod(ObjClass *klass, Symbol *name) {
+  Value method;
   if (!klass->methods.contains(name)) {
-    runtimeError("Undefined property '%s'.", name->c_str());
+    RuntimeError("Undefined property '%s'.", name->c_str());
     return false;
   }
 
-  ObjBoundMethod *bound = new ObjBoundMethod(Peek(0), klass->methods[name]->As<ObjRuntimeFunction>());
-  Pop();                // Pop instance
-  Push(Object(bound));  // replace with new attr value
+  ObjBoundMethod *bound = new ObjBoundMethod(Peek(0), klass->methods[name]->DynAs<ObjClosure>());
+  Pop();               // Pop instance
+  Push(Value(bound));  // replace with new attr value
   return true;
 }
-bool VM::invoke(Symbol *method_name, int arg_count) {
-  Object receiver = Peek(arg_count);
-  if (receiver.AsHandle()->IsType<ObjInstance>()) {
-    ObjInstance *instance = receiver.AsHandle()->As<ObjInstance>();
+bool VM::DispatchInvoke(Symbol *method_name, int arg_count) {
+  Value receiver = Peek(arg_count);
+  if (receiver.AsObject()->DynAs<ObjInstance>()) {
+    ObjInstance *instance = receiver.AsObject()->DynAs<ObjInstance>();
     if (instance->dict.contains(method_name)) {
       sp_[-arg_count - 1] = instance->dict[method_name];
-      return callValue(instance->dict[method_name], arg_count);
+      return CallValue(instance->dict[method_name], arg_count);
     }
-    return invokeFromClass(instance->klass, method_name, arg_count);
+    return InvokeMethod(instance->klass, method_name, arg_count);
   }
-  if (receiver.AsHandle()->IsType<ObjClass>()) {
-    ObjClass *klass = receiver.AsHandle()->As<ObjClass>();
-    auto possible_instance = *currentFrame()->slots;
-    if (!possible_instance.IsHandle() || !possible_instance.AsHandle()->IsType<ObjInstance>() ||
-        !possible_instance.AsHandle()->As<ObjInstance>()->IsInstance(klass)) {
-      runtimeError("class method cannot access", klass);
+  if (receiver.AsObject()->DynAs<ObjClass>()) {
+    ObjClass *klass = receiver.AsObject()->DynAs<ObjClass>();
+    auto possible_instance = *CurrentFrame()->slots;
+    if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
+        !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
+      RuntimeError("class method cannot access", klass);
       return false;
     }
     // a hack that change class to the instance
     sp_[-arg_count - 1] = possible_instance;
-    return invokeFromClass(klass, method_name, arg_count);
+    return InvokeMethod(klass, method_name, arg_count);
   }
-  runtimeError("Only instances / class have methods.");
+  RuntimeError("Only instances / class have methods.");
   return false;
 }
 
-bool VM::invokeFromClass(ObjClass *klass, Symbol *name, int argCount) {
-  Object method;
-  if (!klass->methods.contains(name)) {
-    runtimeError("Undefined property '%s'.", name->c_str());
+bool VM::InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count) {
+  if (!klass->methods.contains(method_name)) {
+    RuntimeError("Undefined property '%s'.", method_name->c_str());
     return false;
   }
-  return call(klass->methods[name], argCount);
+  return CallClosure(klass->methods[method_name], arg_count);
+}
+CallFrame *VM::CurrentFrame() {
+  assert(frame_count_ > 0);
+  return &frames_[frame_count_ - 1];
 }
 
-}  // namespace vm
-}  // namespace lox
+}  // namespace lox::vm

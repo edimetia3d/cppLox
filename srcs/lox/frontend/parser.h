@@ -56,43 +56,47 @@ class Parser {
    */
   template <TokenType type, TokenType... remained_types>
   bool AdvanceIfMatchAny();
-  Stmt Declaration();
-  Stmt FunctionDef(const std::string& kind);
-  Stmt Statement();
-  Stmt Print();
-  Stmt Return();
-  Stmt While();
-  Stmt Break();
-  Stmt ForStmtSugar();
+
+  Stmt AnyStatement();
+
+  Stmt BlockStmt();
+  Stmt BreakStmt();
+  Stmt ClassDefStmt();
   Stmt ExpressionStmt();
-  Stmt Block();
+  Stmt ForStmt();
+  Stmt FunStmt(const std::string& kind);
+  Stmt IfStmt();
+  Stmt PrintStmt();
+  Stmt ReturnStmt();
+  Stmt VarDefStmt();
+  Stmt WhileStmt();
+
   std::vector<Stmt> GetBlocks();
-  Stmt If();
-  Expr ExpressionExpr() { return Assignment(); }
+
+  Expr AnyExpression() { return Assignment(); }
   Expr Assignment();
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
-  Expr BinaryExpression();
-  Expr Or();
+  Expr BinaryExpr();
+  Expr OrExpr();
 
-  Expr And();
+  Expr AndExpr();
 
-  Expr Equality();
+  Expr EqualityExpr();
 
-  Expr Comparison();
+  Expr ComparisonExpr();
 
-  Expr Term();
+  Expr TermExpr();
 
-  Expr Factor();
+  Expr FactorExpr();
 
-  Expr Unary();
+  Expr UnaryExpr();
 
-  Expr Call();
+  Expr CallExpr();
 
   Expr FinishCall(const Expr& callee);
 
   Expr Primary();
-  Stmt ClassDef();
 };
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_PARSER_H_
