@@ -52,8 +52,8 @@ FunctionUnit::UpValue *FunctionUnit::TryResolveUpValue(Token varaible_name) {
   if (Local *enclosing_local = enclosing_->TryResolveLocal(varaible_name)) {
     // the value is still on stack when creating closure at runtime
 
-    enclosing_local->isCaptured = true;  // mark enclosing_local as captured to emit CLOSE_UPVALUE instead of POP, when
-                                         // the enclosing_local go out of scope.
+    enclosing_local->is_captured = true;  // mark enclosing_local as captured to emit CLOSE_UPVALUE instead of POP, when
+                                          // the enclosing_local go out of scope.
     return AddUpValue(enclosing_local, true);
   } else {
     // the value is not on stack, make the enclosing_ to capture it, and we use the one captured by enclosing_.
@@ -127,7 +127,7 @@ bool FunctionUnit::IsGlobalScope() const { return semantic_scope_depth == 0; }
 
 void FunctionUnit::CleanUpLocals(int local_var_num) {
   for (int i = 0; i < local_var_num; ++i) {
-    if (locals.back().isCaptured) {
+    if (locals.back().is_captured) {
       EmitByte(OpCode::OP_CLOSE_UPVALUE);
     } else {
       EmitByte(OpCode::OP_POP);

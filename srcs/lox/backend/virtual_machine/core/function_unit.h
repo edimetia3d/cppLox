@@ -17,10 +17,10 @@ using LineInfoCB = std::function<int()>;
 enum class FunctionType { UNKNOWN, FUNCTION, METHOD, INITIALIZER, SCRIPT };
 
 /**
- * Function compilation unit is the core of the compiling process. We are always creating nested FunctionUnit.
+ * Function compilation unit is the core of the compiling process. For we are always creating nested FunctionUnit.
  *
- * A FunctionUnit is a ObjFunction with a set of compilation information. For ObjFunction only contains things needed
- * at runtime, we need a wrapper to help ObjFunction creation at compliation time.
+ * For ObjFunction only contains things needed at runtime, we need a wrapper to help ObjFunction creation at compile
+ * time.
  */
 struct FunctionUnit {
   FunctionUnit(FunctionUnit* enclosing, FunctionType type, const std::string& name, LineInfoCB line_info);
@@ -28,7 +28,7 @@ struct FunctionUnit {
   ///////////////////////////////////////////// NAME RESOLVE SUPPORT BEG////////////////////////////////////////////////
 
   /**
-   * Name declaration/definition/resolve and clousre support are highly related.
+   * Name declaration/definition/resolve and closure support are highly related.
    *
    * Every obj that has a `name` is a named value, eg. a variable, a function, a class, etc.
    *
@@ -37,10 +37,11 @@ struct FunctionUnit {
    *    2. track all upvalues needed by this function and this function's nested closure, only new items will be added.
    *    3. track all globals needed by this function, only new items will be added.
    *
-   * DeclNamedValue will make a named value entry with invalid state.
-   * DefineNamedValue will make a named value entry with valid state.
-   * TryResolve*** will try to resolve a named value entry, if not found, it will return nullptr.
+   * DeclNamedValue will make a named value entry with un-inited state.
+   * DefineNamedValue will convert the named value entry to inited state.
+   * TryResolveXXX will try to resolve a named value entry, if not found, it will return nullptr.
    *
+   * Note that only local/global named value could be decl/defined, upvalue could only be resolved.
    */
 
   struct NamedValue {
@@ -59,11 +60,11 @@ struct FunctionUnit {
   struct Local : public NamedValue {
     // position of local is offset on stack
     int semantic_scope_depth;
-    bool isCaptured = false;
+    bool is_captured = false;  // if the local is captured by a closure, it will get closed when it goes out of scope.
   };
   std::vector<Local> locals;  // contains currently active local vars, that is, not destroyed by "out of scoped" yet
-
   Local* TryResolveLocal(Token varaible_name);
+
   struct UpValue : public NamedValue {
     // position of upvalue is :
     //   1. offset in parent's stack slot, if it is is_on_stack_at_begin
@@ -88,18 +89,22 @@ struct FunctionUnit {
   };
 
   struct LoopInfo {
-    int initial_stack_size = 0;
+    int initial_stack_size = 0;  // stack size at the beginning of the loop, when the loop ends, the stack size will be
+                                 // restored to this value.
     bool contains_init_value = false;  // used to determine if a for-loop contains a newly created value ,that should
                                        // not be destroyed when continue.
-    int beg_offset = -1;
-    std::vector<JumpDownHole> breaks;
+    int beg_offset = -1;               // the loops first instruction offset
+    std::vector<JumpDownHole> breaks;  // all the breaks in this loop that should be patched
   };
-  std::vector<LoopInfo> loop_infos;
+  std::vector<LoopInfo> loop_infos;  // loop could also be nested, so we need a vector to track all loops.
 
   FunctionUnit* enclosing_ = nullptr;
-  ObjFunction* func;  // CreateFunc is managed by GC
+  ObjFunction* func;  // func is created by us, and managed by GC
   FunctionType type = FunctionType::UNKNOWN;
-  int semantic_scope_depth = 0;  // `{}` style scope depth
+  int semantic_scope_depth = 0;  // the current tokens semantic scope depth, 0 means the global scope.
+  // Note that 1. function name belongs to outer scope, function body is in the inner scope. 2. In our implementation,
+  // class do not create new scope, and class can only define methods, and these methods will not be populated as named
+  // value in scope.
 
   UpValue* AddUpValue(NamedValue* some_value, bool is_on_stack);
   Chunk* Chunk() { return func->chunk.get(); }

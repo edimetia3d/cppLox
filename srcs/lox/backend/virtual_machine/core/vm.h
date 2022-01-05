@@ -11,20 +11,6 @@
 #include "lox/backend/virtual_machine/object/object.h"
 #include "lox/backend/virtual_machine/core/chunk.h"
 
-/**
- * The Core Component of the Virtual Machine are {CallFrame,Stack,Globals}
- *
- * The `stack` and `global` are unique to vm, CallFrame will only access `stack` and `global`.
- *
- * All execution start with a CallFrame. A CallFrame contains the function, which holds the chunk, a `ip`, which point
- * to somewhere in the chunk, a `slots` which is the `stack` of the CallFrame.
- *
- * When call a new function, vm will create a new CallFrame, set the ip to the first instruction of the chunk, and set
- * slots point to correct stack.
- *
- * When return from a function, vm just discard the frame, and leave only the last CallFrame's return value on stack.
-
- */
 #define VM_FRAMES_MAX 64
 #define VM_STACK_MAX (VM_FRAMES_MAX * STACK_LOOKUP_MAX)
 
@@ -35,18 +21,17 @@ namespace lox::vm {
  * implementation will store these values on stack. Also, our implementation will store the closure on stack too, but
  * only used to reserve a stack slot to support some runtime hack.)
  *
- * slots is the `local stack` of the call frame, it is a part of the "global vm stack", for we do not use fixed size
- * call frame, the size of the slots is dynamic.
+ * The `slots` is the `local stack` of the call frame, it is a part of the "global vm stack", for we do not use fixed
+ * size call frame, the size of the slots is dynamic. The `slots` is mainly used to support random access to the stack.
  *
- * The slot of the call frame will always begin with the `self` of the function, and the `argv` of the function, that is
- * slots[0] is the ObjClosure, and slots[1] to slots[argc+1] are the arguments.
+ * The `slots` of the call frame will always begin with the `self` of the function, and then the `argv` of the function,
+ * that is slots[0] is ObjClosure, and slots[1] to slots[argc+1] are the arguments.
  *
- * We save the closure explicitly, because we will use runtime hacks sometimes, and the closure stored in the stack will
- * possibly be changed.
+ * Though there is a clousre object on stack, we save the closure explicitly, because the one on stack might get
+ * changed.
  *
  * A OP::RETURN will cause a frame switch, the frame switch will only leave the return value on caller's stack.
- * And, a return frame switch will also discard the frame's stack, because the sp_ of vm will update to the caller's
- * slots, thus all the value in the frame's stack will be discarded implicitly.
+ * And, a return frame switch will also discard everything in the callee frame's local stack.
  */
 struct CallFrame {
   ObjClosure *closure;      // the callee function
@@ -62,15 +47,15 @@ class VM {
   VM();
   ~VM();
   static VM *Instance();
-  ErrCode Interpret(ObjFunction *function);  // interpret a function
+  ErrCode Interpret(ObjFunction *function);  // interpret a script
  private:
   ErrCode Run();  // the core vm dispatch loop.
 
-  void Push(Value value);
-  Value Peek(int distance = 0);
-  Value Pop();
+  inline void Push(Value value);
+  inline Value Peek(int distance = 0);
+  inline Value Pop();
 
-  void ResetStack();
+  inline void ResetStack();
   void DefineBuiltins();
 
   void RuntimeError(const char *format, ...);

@@ -624,13 +624,13 @@ void Compiler::ClassDefStmt() {
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
     Consume(TokenType::IDENTIFIER, "Expect Method name.");
-    uint8_t Constant = cu_->StoreTokenLexmeToConstant(previous);
+    uint8_t fn_name_cst = cu_->StoreTokenLexmeToConstant(previous);
     FunctionType Type = FunctionType::METHOD;
     if (previous->lexeme == "init") {
       Type = FunctionType::INITIALIZER;
     }
     CreateFunc(Type);
-    cu_->EmitBytes(OpCode::OP_METHOD, Constant);  // just move the objClosure on stack to the class object's dict
+    cu_->EmitBytes(OpCode::OP_METHOD, fn_name_cst);  // just move the objClosure on stack to the class object's dict
   }
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
   cu_->EmitByte(OpCode::OP_POP);  // pop the class object, for class def is always a stmt.

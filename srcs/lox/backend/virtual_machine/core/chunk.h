@@ -12,20 +12,15 @@
 
 namespace lox::vm {
 /**
- * Chunk is an abstraction of `data segment` and `code segment` of the stack machine, the code could run directly.
+ * Chunk is an abstraction of `data segment` and `code segment`.
  *
- * Every chunk is logically belong to a function. That is, a valid chunk usually begin with some stack access, to
- * get function arguments, and ended with a return instruction, to leave some value on stack.
+ * Every chunk is logically belong to a function. That is, a valid chunk's bytecode usually begin with some stack
+ * access, to process function arguments, and ended with a return instruction, to leave some value on stack.
  *
  * Chunk will only get updated at compile time, and will not be updated at runtime. That is, only a compiler should
  * update some chunk.
  *
- * When the chunk is executed, the instruction in it could access three kinds of data:
- * 1. Access stack variables (only at runtime in VM) with instruction like OP_POP/OP_PUSH
- * 2. Access constants (in itself) with instruction like OP_CONSTANT
- * 3. Access globals variables (only at runtime in VM) with instruction like OP_GET_GLOBAL/OP_SET_GLOBAL
- *
- * Note that some data like immediate value, or jump offset, will be stored in the chunk.code directly.
+ * Note that some data like immediate value, or jump offset, will be stored in the chunk's code directly.
  */
 struct Chunk {
   using ConstatntIndex = uint8_t;

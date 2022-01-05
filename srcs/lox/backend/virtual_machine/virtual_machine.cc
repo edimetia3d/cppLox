@@ -6,8 +6,7 @@
 #include "lox/backend/virtual_machine/core/vm.h"
 #include "lox/err_code.h"
 
-namespace lox {
-namespace vm {
+namespace lox::vm {
 
 LoxError VirtualMachine::Run(Scanner& scanner) {
   Compiler compiler;
@@ -21,5 +20,4 @@ LoxError VirtualMachine::Run(Scanner& scanner) {
   }
   return LoxError();
 }
-}  // namespace vm
 }  // namespace lox
