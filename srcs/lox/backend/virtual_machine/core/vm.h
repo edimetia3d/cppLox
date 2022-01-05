@@ -30,10 +30,28 @@
 
 namespace lox::vm {
 
+/**
+ * A explicit call frame, which contains the function, return_address, and stack. (We call it "explicit", because some
+ * implementation will store these values on stack. Also, our implementation will store the closure on stack too, but
+ * only used to reserve a stack slot to support some runtime hack.)
+ *
+ * slots is the `local stack` of the call frame, it is a part of the "global vm stack", for we do not use fixed size
+ * call frame, the size of the slots is dynamic.
+ *
+ * The slot of the call frame will always begin with the `self` of the function, and the `argv` of the function, that is
+ * slots[0] is the ObjClosure, and slots[1] to slots[argc+1] are the arguments.
+ *
+ * We save the closure explicitly, because we will use runtime hacks sometimes, and the closure stored in the stack will
+ * possibly be changed.
+ *
+ * A OP::RETURN will cause a frame switch, the frame switch will only leave the return value on caller's stack.
+ * And, a return frame switch will also discard the frame's stack, because the sp_ of vm will update to the caller's
+ * slots, thus all the value in the frame's stack will be discarded implicitly.
+ */
 struct CallFrame {
-  ObjClosure *closure;  // the callee function
-  uint8_t *ip;          // pointer to somewhere in function->chunk
-  Value *slots;         // pointer to somewhere in VM::stack_
+  ObjClosure *closure;      // the callee function
+  uint8_t *return_address;  // pointer to somewhere in caller's chunk
+  Value *slots;             // pointer to somewhere in VM::stack_
 };
 
 /**
@@ -55,14 +73,12 @@ class VM {
   void ResetStack();
   void DefineBuiltins();
 
-  CallFrame *CurrentFrame();
-
   void RuntimeError(const char *format, ...);
   bool CallValue(Value callee, int arg_count);
   bool CallClosure(ObjClosure *callee, int arg_count);
 
   ObjUpvalue *MarkValueNeedToClose(Value *local_value_stack_pos);
-  void CloseValuesAfterStack(Value *stack_position);
+  void CloseValuesFromStackPosition(Value *stack_position);
 
   bool TryGetBoundMethod(ObjClass *klass, Symbol *name);
   bool DispatchInvoke(Symbol *method_name, int arg_count);  // just a dispatcher of `ClassName.foo()`/`instance.foo()`
@@ -71,14 +87,18 @@ class VM {
   static void MarkGCRoots(void *vm);
   void TryGC() const;  // only vm will trigger gc at a suitable time.
 
+  void PushFrame(ObjClosure *closure);  // push a new call frame and active it
+  void PopFrame();                      // pop the current call frame and discard it
+
   friend void DumpStack(const VM *vm);
   friend void DumpGlobal(const VM *vm);
 
  private:
   CallFrame frames_[VM_FRAMES_MAX];
-  int frame_count_ = 0;
+  CallFrame *active_frame_ = nullptr;  // point to the current active frame
   Value stack_[VM_STACK_MAX];
-  Value *sp_ = nullptr;  // pointer to somewhere in stack_
+  Value *sp_ = nullptr;    // the pointer point to global stack top.(also the top of last call-frame's local stack)
+  uint8_t *ip_ = nullptr;  // pointer to the next instruction to be executed
   std::unordered_map<Symbol *, Value> globals_;
 
   ObjUpvalue *open_upvalues;  // a linked-list that stores all the upvalues that has not been closed

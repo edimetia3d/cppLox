@@ -11,8 +11,8 @@
 #include "lox/backend/virtual_machine/object/object.h"
 #include "lox/err_code.h"
 
-#define CHUNK_READ_BYTE() (*frame->ip++)
-#define CHUNK_READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+#define CHUNK_READ_BYTE() (*ip_++)
+#define CHUNK_READ_SHORT() (ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))
 #define CHEK_STACK_TOP_TYPE(TYPE)                   \
   do {                                              \
     if (!Peek().Is##TYPE()) {                       \
@@ -20,7 +20,7 @@
       return ErrCode::INTERPRET_RUNTIME_ERROR;      \
     }                                               \
   } while (0)
-#define CHUNK_READ_CONSTANT() (frame->closure->function->chunk->constants[CHUNK_READ_BYTE()])
+#define CHUNK_READ_CONSTANT() (active_frame_->closure->function->chunk->constants[CHUNK_READ_BYTE()])
 #define CHUNK_READ_STRING() ((CHUNK_READ_CONSTANT()).AsObject()->DynAs<Symbol>())
 #define BINARY_OP(OutputT, op)                                       \
   do {                                                               \
@@ -37,7 +37,6 @@ VM *VM::Instance() {
   return &object;
 }
 ErrCode VM::Run() {
-  CallFrame *frame = CurrentFrame();  // we use a local variable as cache, to avoid calling CurrentFrame.
   for (;;) {
     switch (static_cast<OpCode>(CHUNK_READ_BYTE())) {
       case OpCode::OP_CONSTANT: {
@@ -59,12 +58,12 @@ ErrCode VM::Run() {
         break;
       case OpCode::OP_GET_LOCAL: {
         uint8_t slot = CHUNK_READ_BYTE();
-        Push(frame->slots[slot]);
+        Push(active_frame_->slots[slot]);
         break;
       }
       case OpCode::OP_SET_LOCAL: {
         uint8_t slot = CHUNK_READ_BYTE();
-        frame->slots[slot] = Peek(0);
+        active_frame_->slots[slot] = Peek(0);
         break;
       }
       case OpCode::OP_GET_GLOBAL: {
@@ -93,12 +92,12 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_GET_UPVALUE: {
         uint8_t slot = CHUNK_READ_BYTE();
-        Push(*frame->closure->upvalues[slot]->location);
+        Push(*active_frame_->closure->upvalues[slot]->location);
         break;
       }
       case OpCode::OP_SET_UPVALUE: {
         uint8_t slot = CHUNK_READ_BYTE();
-        *frame->closure->upvalues[slot]->location = Peek(0);
+        *active_frame_->closure->upvalues[slot]->location = Peek(0);
         break;
       }
       case OpCode::OP_EQUAL: {
@@ -153,17 +152,17 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_JUMP: {
         uint16_t offset = CHUNK_READ_SHORT();
-        frame->ip += offset;
+        ip_ += offset;
         break;
       }
       case OpCode::OP_JUMP_IF_FALSE: {
         uint16_t offset = CHUNK_READ_SHORT();
-        if (!Peek(0).IsTrue()) frame->ip += offset;
+        if (!Peek(0).IsTrue()) ip_ += offset;
         break;
       }
       case OpCode::OP_JUMP_BACK: {
         uint16_t offset = CHUNK_READ_SHORT();
-        frame->ip -= offset;
+        ip_ -= offset;
         break;
       }
       case OpCode::OP_CALL: {
@@ -171,7 +170,6 @@ ErrCode VM::Run() {
         if (!CallValue(Peek(argCount), argCount)) {
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        frame = CurrentFrame();  // active frame has changed, update cache
         break;
       }
       case OpCode::OP_CLOSURE: {
@@ -182,29 +180,26 @@ ErrCode VM::Run() {
           uint8_t isLocal = CHUNK_READ_BYTE();
           uint8_t index = CHUNK_READ_BYTE();
           if (isLocal) {
-            closure->upvalues[i] = MarkValueNeedToClose(frame->slots + index);
+            closure->upvalues[i] = MarkValueNeedToClose(active_frame_->slots + index);
           } else {
-            closure->upvalues[i] = frame->closure->upvalues[index];
+            closure->upvalues[i] = active_frame_->closure->upvalues[index];
           }
         }
         break;
       }
       case OpCode::OP_CLOSE_UPVALUE:
-        CloseValuesAfterStack(sp_ - 1);
+        CloseValuesFromStackPosition(sp_ - 1);
         Pop();
         break;
       case OpCode::OP_RETURN: {
-        Value result = Pop();                 // retrive return first
-        CloseValuesAfterStack(frame->slots);  // discard parameter ,if some parameter is closed ,close them
-        frame_count_--;
-        if (frame_count_ == 0) {
+        Value result = Pop();  // retrive return first
+        PopFrame();
+        if (active_frame_ < frames_) {
           Pop();
           TryGC();
           goto EXIT;
         } else {
-          sp_ = frame->slots;
           Push(result);
-          frame = CurrentFrame();  // active frame has changed, update cache
           TryGC();
           break;
         }
@@ -227,7 +222,7 @@ ErrCode VM::Run() {
         }
         if (top_v.IsObject() && top_v.AsObject()->DynAs<ObjClass>()) {
           ObjClass *klass = top_v.AsObject()->DynAs<ObjClass>();
-          auto possible_instance = *CurrentFrame()->slots;
+          auto possible_instance = *active_frame_->slots;
           if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
               !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
             RuntimeError("class method cannot access", klass);
@@ -265,7 +260,6 @@ ErrCode VM::Run() {
         if (!DispatchInvoke(method, argCount)) {
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
-        frame = &frames_[frame_count_ - 1];
         break;
       }
       case OpCode::OP_INHERIT: {
@@ -318,10 +312,9 @@ void VM::RuntimeError(const char *format, ...) {
   vfprintf(stderr, format, args);
   va_end(args);
   fputs("\n", stderr);
-  for (int i = frame_count_ - 1; i >= 0; i--) {
-    CallFrame *frame = &frames_[i];
-    ObjFunction *function = frame->closure->function;
-    size_t instruction = frame->ip - function->chunk->code.data() - 1;
+  for (auto fp = frames_; fp <= active_frame_; ++fp) {
+    ObjFunction *function = fp->closure->function;
+    size_t instruction = ip_ - function->chunk->code.data() - 1;
     fprintf(stderr, "[line %d] in ", function->chunk->lines[instruction]);
     fprintf(stderr, "%s()\n", function->name.c_str());
   }
@@ -378,18 +371,15 @@ bool VM::CallClosure(ObjClosure *callee, int arg_count) {
     RuntimeError("Expected %d arguments but got %d.", callee->function->arity, arg_count);
     return false;
   }
-  if (frame_count_ == VM_FRAMES_MAX) {
-    RuntimeError("Stack overflow.");
+  if ((active_frame_ - frames_ + 1) == VM_FRAMES_MAX) {
+    RuntimeError("Too many stack frames");
     return false;
   }
-
-  CallFrame *frame = &frames_[frame_count_++];
-  frame->closure = callee;
-  frame->ip = callee->function->chunk->code.data();
-  frame->slots = sp_ - arg_count - 1;
+  PushFrame(callee);
   return true;
 }
 VM::VM() : marker_register_guard(&MarkGCRoots, this) {
+  active_frame_ = &frames_[0] - 1;  // to make the active_frame_ comparable, init with a dummy value
   ResetStack();
   DefineBuiltins();
 }
@@ -429,7 +419,7 @@ ObjUpvalue *VM::MarkValueNeedToClose(Value *local_value_stack_pos) {
   }
   return createdUpvalue;
 }
-void VM::CloseValuesAfterStack(Value *stack_position) {
+void VM::CloseValuesFromStackPosition(Value *stack_position) {
   // for `p->location` > `p->next->location` is always true
   // we could just delete open_upvalues at right side of last
   while (open_upvalues != nullptr && open_upvalues->location >= stack_position) {
@@ -460,12 +450,12 @@ void VM::MarkGCRoots(void *vm_p) {
   }
 
   // RecursiveMark closures
-  for (int i = 0; i < vm->frame_count_; i++) {
-    GC::Instance().RecursiveMark(vm->frames_[i].closure);
+  for (auto fp = vm->frames_; fp <= vm->active_frame_; ++fp) {
+    GC::Instance().RecursiveMark(fp->closure);
   }
 
   // RecursiveMark openUpvalue
-  for (ObjUpvalue *upvalue = vm->open_upvalues; upvalue != NULL; upvalue = upvalue->next) {
+  for (ObjUpvalue *upvalue = vm->open_upvalues; upvalue != nullptr; upvalue = upvalue->next) {
     GC::Instance().RecursiveMark((Object *)upvalue);
   }
 }
@@ -493,7 +483,7 @@ bool VM::DispatchInvoke(Symbol *method_name, int arg_count) {
   }
   if (receiver.AsObject()->DynAs<ObjClass>()) {
     ObjClass *klass = receiver.AsObject()->DynAs<ObjClass>();
-    auto possible_instance = *CurrentFrame()->slots;
+    auto possible_instance = *active_frame_->slots;
     if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
         !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
       RuntimeError("class method cannot access", klass);
@@ -514,9 +504,22 @@ bool VM::InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count) {
   }
   return CallClosure(klass->methods[method_name], arg_count);
 }
-CallFrame *VM::CurrentFrame() {
-  assert(frame_count_ > 0);
-  return &frames_[frame_count_ - 1];
+
+void VM::PushFrame(ObjClosure *closure) {
+  ++active_frame_;
+  active_frame_->closure = closure;
+  active_frame_->return_address = ip_;
+  active_frame_->slots = sp_ - closure->function->arity - 1;
+  ip_ = closure->function->chunk->code.data();
+  // no need to update sp_, it is already on correct location
+}
+
+void VM::PopFrame() {
+  // close stack values if necessary.
+  CloseValuesFromStackPosition(active_frame_->slots);
+  ip_ = active_frame_->return_address;
+  sp_ = active_frame_->slots;
+  --active_frame_;
 }
 
 }  // namespace lox::vm
