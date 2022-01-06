@@ -73,8 +73,8 @@ class Parser {
 
   std::vector<Stmt> GetBlocks();
 
-  Expr AnyExpression() { return Assignment(); }
-  Expr Assignment();
+  Expr AnyExpression() { return AssignExpr(); }
+  Expr AssignExpr();
 
   template <Expr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
   Expr BinaryExpr();

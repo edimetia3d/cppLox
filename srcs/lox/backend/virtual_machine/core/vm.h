@@ -14,6 +14,9 @@
 #define VM_FRAMES_MAX 64
 #define VM_STACK_MAX (VM_FRAMES_MAX * STACK_LOOKUP_MAX)
 
+// todo: clean up error system
+// todo: clean up log/ptrintf
+// todo: clean up gc / malloc system push / pop
 namespace lox::vm {
 
 /**
@@ -58,7 +61,8 @@ class VM {
   inline void ResetStack();
   void DefineBuiltins();
 
-  void RuntimeError(const char *format, ...);
+  template <class... Args>
+  void RuntimeError(const char *format, Args...);
   bool CallValue(Value callee, int arg_count);
   bool CallClosure(ObjClosure *callee, int arg_count);
 

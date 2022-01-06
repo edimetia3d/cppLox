@@ -34,8 +34,10 @@
 
 namespace lox::vm {
 
-enum class OperatorType {
-  NONE,
+/**
+ * The int value of InfixPrecedence will be used in comparison, the order or the enum item is very important.
+ */
+enum class InfixPrecedence {
   ASSIGNMENT,   // =
   OR,           // or
   AND,          // and
@@ -45,9 +47,11 @@ enum class OperatorType {
   FACTOR,       // * /
   UNARY,        // ! -
   CALL_OR_DOT,  // . ()
-  PRIMARY
 };
-using Precedence = OperatorType;  // OperatorType is intended to sorted by precedence
+enum class InfixAssociativity {
+  LEFT_TO_RIGHT,
+  RIGHT_TO_LEFT,
+};
 
 class Compiler {
  public:
@@ -77,26 +81,23 @@ class Compiler {
   void WhileStmt();
 
   /**
-   * The input operator_type is a mark to say that: we are parsing a expression that will be part of operand of
-   * `operator_type` e.g. if `operator_type` is `+`, it means the expression we are parsing will be used in a binary
-   * plus operation.
+   * Parse a new expression and emit code for it, at runtime, a new value will be left on stack after the code for
+   * expression is executed.
    *
-   * Because we know what the expression will be used for, we known when to stop the parsing, that is , when we meet
-   * some operator that has lower (or equal) precedence
+   * The param `lower_bound` and `associativity` is used when the compiled expression contains infix expression:
+   * When a new infix operator comes, the parsing will continue if one of following conditions is met:
+   *   1. The infix operators that has a higher `lower_bound`.
+   *   2. The infix operators that has the same `lower_bound`, and `associativity` is RIGHT_TO_LEFT.
+   *
+   * Note:
+   *
+   * `operator=` is not treated as an infix expression in our implementation, so the default `lower_bound` of OR
+   * and `associativity` of LEFT_TO_RIGHT are fine.
    */
-  void AnyExpression(OperatorType operator_type = OperatorType::ASSIGNMENT);
-  void GroupingExpr();
-  void NumberExpr();
-  void CallExpr();
-  void DotExpr();
-  void UnaryExpr();
-  void LiteralExpr();
-  void BinaryExpr();
-  void StringExpr();
-  void AndExpr();
-  void OrExpr();
-  void VariableExpr();
-  void ThisExpr();
+  void AnyExpression(InfixPrecedence lower_bound = InfixPrecedence::OR,
+                     InfixAssociativity associativity = InfixAssociativity::LEFT_TO_RIGHT);
+  void EmitPrefix();
+  void EmitInfix();
 
   void GetNamedValue(Token name);
 
@@ -139,9 +140,8 @@ class Compiler {
   bool had_error = false;
   bool panic_mode = false;
   Scanner* scanner_;
-  Precedence last_expression_precedence = Precedence::NONE;
+  InfixPrecedence last_expr_lower_bound = InfixPrecedence::ASSIGNMENT;
   friend struct ScopeGuard;
-  friend int BuildRuleMap();
 };
 
 }  // namespace lox::vm

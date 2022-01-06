@@ -4,10 +4,7 @@
 
 #include "lox/backend/virtual_machine/core/vm.h"
 
-#include <stdarg.h>
-
 #include "lox/backend/virtual_machine/builtins/builtin_fn.h"
-#include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/object/object.h"
 #include "lox/err_code.h"
 
@@ -69,7 +66,7 @@ ErrCode VM::Run() {
       case OpCode::OP_GET_GLOBAL: {
         Symbol *name = CHUNK_READ_STRING();
         if (!globals_.contains(name)) {
-          RuntimeError("Undefined variable '%s'.", name->c_str());
+          RuntimeError("Undefined global variable '%s'.", name->c_str());
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
         Push(globals_[name]);
@@ -306,17 +303,14 @@ ErrCode VM::Interpret(ObjFunction *function) {
   CallClosure(rt_fn, 0);
   return Run();
 }
-void VM::RuntimeError(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-  fputs("\n", stderr);
+
+template <class... Args>
+void VM::RuntimeError(const char *format, Args... args) {
+  fprintf(stderr, format, args...);
   for (auto fp = frames_; fp <= active_frame_; ++fp) {
     ObjFunction *function = fp->closure->function;
     size_t instruction = ip_ - function->chunk->code.data() - 1;
-    fprintf(stderr, "[line %d] in ", function->chunk->lines[instruction]);
-    fprintf(stderr, "%s()\n", function->name.c_str());
+    fprintf(stderr, "[line %d] in %s() \n", function->chunk->lines[instruction], function->name.c_str());
   }
   ResetStack();
 }

@@ -2,6 +2,8 @@
 // LICENSE: MIT
 //
 
+#include <spdlog/spdlog.h>
+
 #include "lox/backend/virtual_machine/object/object.h"
 
 #include "lox/backend/virtual_machine/core/chunk.h"
@@ -20,7 +22,7 @@ static inline void InjectValueToObjVec(std::vector<Object *> &vec, Value value) 
   vec.push_back(value.AsObject());
 }
 
-ObjFunction::ObjFunction() { chunk.reset(new Chunk()); }
+ObjFunction::ObjFunction(std::string name) : name(name) { chunk.reset(new Chunk()); }
 std::vector<Object *> ObjFunction::References() {
   int n = chunk->constants.size();
   auto p = chunk->constants.data();

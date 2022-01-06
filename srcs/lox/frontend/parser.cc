@@ -196,16 +196,16 @@ Stmt Parser::ExpressionStmt() {
   }
   return Stmt(nullptr);
 }
-Expr Parser::Assignment() {
+Expr Parser::AssignExpr() {
   Expr expr = OrExpr();
 
   if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
     Token equals = Previous();
-    Expr value = Assignment();  // use recurse to impl the right-associative
+    Expr value = AssignExpr();  // use recurse to impl the right-associative
 
     if (auto state = expr->DownCast<VariableExpr>()) {
       Token name = state->name();
-      return MakeExpr<AssignExpr>(name, value);
+      return MakeExpr<lox::AssignExpr>(name, value);
     } else if (auto state = expr->DownCast<GetAttrExpr>()) {
       return MakeExpr<SetAttrExpr>(state->src_object(), state->attr_name(), value);
     }

@@ -10,125 +10,107 @@
 
 namespace lox::vm {
 
-struct ParseRule {
-  std::function<void(Compiler *)> EmitPrefixFn;
-  std::function<void(Compiler *)> EmitInfixFn;
-  OperatorType operator_type;
-};
-
-static std::vector<ParseRule> &RuleMap();
-int BuildRuleMap() {
-#define RULE_ITEM(TOKEN_T, MEMBER_FN0, MEMBER_FN1, PRECEDENCE_V)                         \
-  {                                                                                      \
-    TokenType::TOKEN_T, ParseRule { MEMBER_FN0, MEMBER_FN1, OperatorType::PRECEDENCE_V } \
+struct InfixOpPrecedenceMap {
+  static InfixOpPrecedenceMap &Instance() {
+    static InfixOpPrecedenceMap instance;
+    return instance;
   }
-#define M(MEMBER_FN) &Compiler::MEMBER_FN
-  // clang-format off
-    auto map_tmp = std::map<TokenType,ParseRule> {
-/*     TokenType ,         PrefixEmitFn , InfixEmitFn, OperatorType */
-      RULE_ITEM(LEFT_PAREN   , M(GroupingExpr), M(CallExpr)  , CALL_OR_DOT),
-      RULE_ITEM(RIGHT_PAREN  , nullptr        , nullptr      , NONE),
-      RULE_ITEM(LEFT_BRACE   , nullptr        , nullptr      , NONE),
-      RULE_ITEM(RIGHT_BRACE  , nullptr        , nullptr      , NONE),
-      RULE_ITEM(COMMA        , nullptr        , nullptr      , NONE),
-      RULE_ITEM(DOT          , nullptr        , M(DotExpr)   , CALL_OR_DOT),
-      RULE_ITEM(MINUS        , M(UnaryExpr)   , M(BinaryExpr), TERM),
-      RULE_ITEM(PLUS         , nullptr        , M(BinaryExpr), TERM),
-      RULE_ITEM(SEMICOLON    , nullptr        , nullptr      , NONE),
-      RULE_ITEM(SLASH        , nullptr        , M(BinaryExpr), FACTOR),
-      RULE_ITEM(STAR         , nullptr        , M(BinaryExpr), FACTOR),
-      RULE_ITEM(BANG         , M(UnaryExpr)   , nullptr      , NONE),
-      RULE_ITEM(BANG_EQUAL   , nullptr        , M(BinaryExpr), EQUALITY),
-      RULE_ITEM(EQUAL        , nullptr        , nullptr      , NONE),
-      RULE_ITEM(EQUAL_EQUAL  , nullptr        , M(BinaryExpr), EQUALITY),
-      RULE_ITEM(GREATER      , nullptr        , M(BinaryExpr), COMPARISON),
-      RULE_ITEM(GREATER_EQUAL, nullptr        , M(BinaryExpr), COMPARISON),
-      RULE_ITEM(LESS         , nullptr        , M(BinaryExpr), COMPARISON),
-      RULE_ITEM(LESS_EQUAL   , nullptr        , M(BinaryExpr), COMPARISON),
-      RULE_ITEM(IDENTIFIER   , M(VariableExpr), nullptr      , NONE),
-      RULE_ITEM(STRING       , M(StringExpr)  , nullptr      , NONE),
-      RULE_ITEM(NUMBER       , M(NumberExpr)  , nullptr      , NONE),
-      RULE_ITEM(AND          , nullptr        , M(AndExpr)   , AND),
-      RULE_ITEM(CLASS        , nullptr        , nullptr      , NONE),
-      RULE_ITEM(ELSE         , nullptr        , nullptr      , NONE),
-      RULE_ITEM(FALSE        , M(LiteralExpr) , nullptr      , NONE),
-      RULE_ITEM(FOR          , nullptr        , nullptr      , NONE),
-      RULE_ITEM(FUN          , nullptr        , nullptr      , NONE),
-      RULE_ITEM(IF           , nullptr        , nullptr      , NONE),
-      RULE_ITEM(NIL          , M(LiteralExpr) , nullptr      , NONE),
-      RULE_ITEM(OR           , nullptr        , M(OrExpr)    , OR),
-      RULE_ITEM(PRINT        , nullptr        , nullptr      , NONE),
-      RULE_ITEM(RETURN       , nullptr        , nullptr      , NONE),
-      RULE_ITEM(THIS         , M(ThisExpr)    , nullptr      , NONE),
-      RULE_ITEM(TRUE         , M(LiteralExpr) , nullptr      , NONE),
-      RULE_ITEM(VAR          , nullptr        , nullptr      , NONE),
-      RULE_ITEM(WHILE        , nullptr        , nullptr      , NONE),
-      RULE_ITEM(EOF_TOKEN    , nullptr        , nullptr      , NONE),
+
+  static InfixPrecedence *GetPrecedence(TokenType type) {
+    if (InfixOpPrecedenceMap::Instance().data.contains(type)) {
+      return &InfixOpPrecedenceMap::Instance().data[type];
+    }
+    return nullptr;
+  }
+
+  static InfixPrecedence *GetPrecedence(Token token) { return GetPrecedence(token->type); }
+
+  std::map<TokenType, InfixPrecedence> data;
+
+ private:
+  InfixOpPrecedenceMap() {
+    /**
+     * There is no rule for the `operator=`, or the `TokenType::EQUAL`, because our implement of compiler will need more
+     * tracking utils to support assignment, which will introduce unnecessary complexity.
+     *
+     * Assignment have only three cases
+     * 1. `var a = expression`, initialization.
+     * 2. `a = expression`, assignment.
+     * 3. `a.b = expression`, set attribute.
+     *
+     * With only one token ahead is known. We can hardly know what the operator='s real meaning.
+     * e.g. `a.b.c.d.e = expression`, when the compiler saw the `=`, it will only see a `e` as previous token,
+     * it could be a global, a local, or a attribute, for these three cases would
+     * generate different code, we would never go without knowing what the `e` is.
+     *
+     */
+#define RULE_ITEM(TOKEN_T, PRECEDENCE_V) \
+  { TokenType::TOKEN_T, InfixPrecedence::PRECEDENCE_V }
+    // clang-format off
+    auto map_tmp = std::map<TokenType,InfixPrecedence> {
+/*    TokenType              , Precedence */
+      RULE_ITEM(LEFT_PAREN   , CALL_OR_DOT),
+      RULE_ITEM(DOT          , CALL_OR_DOT),
+      RULE_ITEM(MINUS        , TERM),
+      RULE_ITEM(PLUS         , TERM),
+      RULE_ITEM(SLASH        , FACTOR),
+      RULE_ITEM(STAR         , FACTOR),
+      RULE_ITEM(BANG_EQUAL   , EQUALITY),
+      RULE_ITEM(EQUAL_EQUAL  , EQUALITY),
+      RULE_ITEM(GREATER      , COMPARISON),
+      RULE_ITEM(GREATER_EQUAL, COMPARISON),
+      RULE_ITEM(LESS         , COMPARISON),
+      RULE_ITEM(LESS_EQUAL   , COMPARISON),
+      RULE_ITEM(AND          , AND),
+      RULE_ITEM(OR           , OR),
     };
-  // clang-format on
+    // clang-format on
 #undef RULE_ITEM
-#undef M
 
-  std::vector<ParseRule> ret((int)TokenType::_TOKEN_COUNT_NUMBER);
-  for (auto &pair : map_tmp) {
-    ret[(int)pair.first] = pair.second;
-  }
-  RuleMap() = std::move(ret);
-  return 1;
+    data = std::move(map_tmp);
+  };
 };
-
-static int call_once = BuildRuleMap();
-
-static std::vector<ParseRule> &RuleMap() {
-  static std::vector<ParseRule> ret;
-  static int unused = call_once;
-  return ret;
-}
-static ParseRule *GetRule(TokenType type) { return &RuleMap()[(int)type]; }
-static ParseRule *GetRule(Token token) { return GetRule(token->type); }
 
 enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION };
 
 /**
- * ScopeGuard is a helper to emit code that will be executed when scope ends
+ * ScopeGuard is a helper to emit some scope related code.
+ * 1. local clean up code
+ * 2. break path code.
  */
 struct ScopeGuard {
-  ScopeGuard(Compiler *compiler, ScopeType type) : compiler(compiler), type(type) {
-    auto cu = compiler->cu_;
+  ScopeGuard(FunctionUnit *cu, ScopeType type) : cu(cu), type(type) {
+    ++cu->current_semantic_scope_level;
     if (type == ScopeType::FOR || type == ScopeType::WHILE) {
-      cu->loop_infos.push_back(
-          FunctionUnit::LoopInfo{.initial_stack_size = static_cast<int>(compiler->cu_->locals.size())});
+      cu->loop_infos.push_back(FunctionUnit::LoopInfo{.initial_stack_size = static_cast<int>(cu->locals.size())});
     }
-    ++cu->semantic_scope_depth;
   }
   int OutOfScopeVar() {
-    auto cu = compiler->cu_;
     int scope_var_count = 0;
     uint64_t N = cu->locals.size();
-    while (cu->locals[N - scope_var_count - 1].semantic_scope_depth >= cu->semantic_scope_depth) {
+    while (cu->locals[N - scope_var_count - 1].semantic_scope_depth >= cu->current_semantic_scope_level) {
       ++scope_var_count;
     }
     return scope_var_count;
   }
   ~ScopeGuard() {
-    auto cu = compiler->cu_;
     if (type == ScopeType::FUNCTION) {
       return;  // function scope is cleared by a frame switch at runtime, all stack variables in the frame will be
                // discarded.
     }
 
     int var_num_of_just_out_of_scope = OutOfScopeVar();
-    cu->CleanUpLocals(var_num_of_just_out_of_scope);
+    cu->CleanUpNLocalFromTail(var_num_of_just_out_of_scope);
 
     if (type == ScopeType::FOR || type == ScopeType::WHILE) {
       for (auto &jmp : cu->loop_infos.back().breaks) {
         cu->JumpHerePatch(jmp);
-      }  // before jumping here ,the locals had been cleared.
+      }
       cu->loop_infos.pop_back();
     }
-    --cu->semantic_scope_depth;
+    --cu->current_semantic_scope_level;
   }
-  Compiler *compiler;
+  FunctionUnit *cu;
   ScopeType type;
 };
 
@@ -172,55 +154,38 @@ void Compiler::Consume(TokenType type, const char *message) {
   ErrorAt(current, message);
 }
 
-void Compiler::AnyExpression(OperatorType operator_type) {
-  auto bak_last_expression_precedence = last_expression_precedence;
-  last_expression_precedence = operator_type;
-  Precedence precedence = operator_type;
-  Advance();
-  auto EmitPrefixFn = GetRule(previous)->EmitPrefixFn;
-  if (EmitPrefixFn == nullptr) {
-    ErrorAt(previous, "Expect expression.");
-    return;
+void Compiler::AnyExpression(InfixPrecedence lower_bound, InfixAssociativity associativity) {
+  /**
+   *
+   * It is easy to understand the expression category from it's runtime behavior.
+   *  1. An expression that will consume zero or one value from stack is a prefix expression.
+   *  2. An expression that will consume more than one values from stack is a infix expression.
+   *
+   * Every expression starts with a prefix expression, because `AnyExpression` will start a new expression,
+   * and nothing would be on stack at that time logically, there is no way to emit a infix expression.
+   *
+   * prefix expression could be treated as the minimal expression, and infix expression is composed of prefix expression
+   * fundamentally.
+   *
+   */
+
+  EmitPrefix();
+  auto precedence = InfixOpPrecedenceMap::GetPrecedence(current);
+  while (precedence && (*precedence > lower_bound ||
+                        (*precedence == lower_bound && associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
+    auto bak = last_expr_lower_bound;
+    last_expr_lower_bound = lower_bound;
+    EmitInfix();
+    last_expr_lower_bound = bak;
   }
-
-  EmitPrefixFn(this);
-
-  while (precedence <= GetRule(current)->operator_type) {
-    Advance();
-    auto EmitInfixFn = GetRule(previous)->EmitInfixFn;
-    EmitInfixFn(this);
-  }
-  last_expression_precedence = bak_last_expression_precedence;
 }
 
-void Compiler::UnaryExpr() {
-  TokenType token_type = previous->type;
-  // Compile the operand.
-  AnyExpression(OperatorType::UNARY);
-  // Emit the operator instruction.
-  cu_->EmitUnary(token_type);
-}
-
-void Compiler::BinaryExpr() {
-  TokenType token_type = previous->type;
-  ParseRule *rule = GetRule(token_type);
-  AnyExpression((OperatorType)((int)(rule->operator_type) + 1));
-
-  cu_->EmitBinary(token_type);
-}
-
-void Compiler::LiteralExpr() { cu_->EmitLiteral(previous->type); }
-
-void Compiler::StringExpr() {
-  std::string tmp = previous->lexeme;
-  *tmp.rbegin() = '\0';
-  cu_->EmitConstant(Value(Symbol::Intern(tmp.c_str() + 1)));
-}
 bool Compiler::MatchAndAdvance(TokenType type) {
   if (!Check(type)) return false;
   Advance();
   return true;
 }
+
 void Compiler::AnyStatement() {
   if (MatchAndAdvance(TokenType::CLASS)) {
     ClassDefStmt();
@@ -295,7 +260,6 @@ void Compiler::VarDefStmt() {
   cu_->DefineNamedValue(new_var);
 }
 
-void Compiler::VariableExpr() { GetOrSetNamedValue(previous, CanAssign()); }
 void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
   /**
    * About UpValue:
@@ -374,9 +338,9 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
     cu_->EmitBytes(getOp, reslove->position);
   }
 }
-bool Compiler::CanAssign() { return last_expression_precedence <= Precedence::ASSIGNMENT; }
+bool Compiler::CanAssign() { return last_expr_lower_bound <= InfixPrecedence::ASSIGNMENT; }
 void Compiler::BlockStmt() {
-  ScopeGuard guard(this, ScopeType::BLOCK);
+  ScopeGuard guard(cu_, ScopeType::BLOCK);
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
     AnyStatement();
   }
@@ -385,7 +349,7 @@ void Compiler::BlockStmt() {
 }
 
 void Compiler::IfStmt() {
-  ScopeGuard guard(this, ScopeType::IF_ELSE);
+  ScopeGuard guard(cu_, ScopeType::IF_ELSE);
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
   AnyExpression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
@@ -402,26 +366,8 @@ void Compiler::IfStmt() {
   cu_->JumpHerePatch(jump_to_exit);
 }
 
-void Compiler::AndExpr() {
-  auto endJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
-
-  cu_->EmitByte(OpCode::OP_POP);
-  AnyExpression(Precedence::AND);
-
-  cu_->JumpHerePatch(endJump);
-}
-void Compiler::OrExpr() {
-  auto elseJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
-  auto endJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
-
-  cu_->JumpHerePatch(elseJump);
-  cu_->EmitByte(OpCode::OP_POP);
-
-  AnyExpression(Precedence::OR);
-  cu_->JumpHerePatch(endJump);
-}
 void Compiler::WhileStmt() {
-  ScopeGuard guard(this, ScopeType::WHILE);
+  ScopeGuard guard(cu_, ScopeType::WHILE);
   int loop_begin_offset = cu_->Chunk()->ChunkSize();
   cu_->loop_infos.back().beg_offset =
       loop_begin_offset;  // save the loop begin offset, so we can `continue` to here later
@@ -438,7 +384,7 @@ void Compiler::WhileStmt() {
 }
 
 void Compiler::ForStmt() {
-  ScopeGuard guard(this, ScopeType::FOR);
+  ScopeGuard guard(cu_, ScopeType::FOR);
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
   if (MatchAndAdvance(TokenType::SEMICOLON)) {
     // No initializer.
@@ -498,12 +444,12 @@ void Compiler::BreakOrContinueStmt() {
   }
   int clear_size = cu_->locals.size() - cu_->loop_infos.back().initial_stack_size;
   if (previous->type == TokenType::BREAK) {
-    cu_->CleanUpLocals(clear_size);
+    cu_->CleanUpNLocalFromTail(clear_size);
     auto jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
     cu_->loop_infos.back().breaks.push_back(jump);
   } else if (previous->type == TokenType::CONTINUE) {
-    cu_->CleanUpLocals(clear_size -
-                       cu_->loop_infos.back().contains_init_value);  // a continue may need to keep the init value
+    cu_->CleanUpNLocalFromTail(
+        clear_size - cu_->loop_infos.back().contains_init_value);  // a continue may need to keep the init value
     assert(cu_->loop_infos.back().beg_offset > 0);
     cu_->EmitJumpBack(cu_->loop_infos.back().beg_offset);
   } else {
@@ -523,7 +469,7 @@ void Compiler::FunStmt() {
 }
 void Compiler::CreateFunc(FunctionType type) {
   PushCU(type, previous->lexeme);
-  ScopeGuard guard(this, ScopeType::FUNCTION);  // function and method share the same scope type
+  ScopeGuard guard(cu_, ScopeType::FUNCTION);  // function and method share the same scope type
 
   Consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
   if (!Check(TokenType::RIGHT_PAREN)) {
@@ -544,25 +490,16 @@ void Compiler::CreateFunc(FunctionType type) {
   auto new_cu = PopCU();
   // We will create a closure at runtime for the function, OP_CLOSURE will update the newly created closure's upvalue,
   // to make them in a valid state.
-  cu_->EmitBytes(OpCode::OP_CLOSURE, cu_->MakeConstant(Value(new_cu->func)));
-  assert(new_cu->upvalues.size() < UPVALUE_LOOKUP_MAX);
-  cu_->EmitByte((uint8_t)new_cu->upvalues.size());
-  for (auto &upvalue : new_cu->upvalues) {
-    cu_->EmitByte(upvalue.is_on_stack_at_begin ? 1 : 0);
-    cu_->EmitByte(upvalue.position);
-  }
+  cu_->EmitOpClosure(new_cu->func, new_cu->upvalues);
 }
-void Compiler::CallExpr() {
-  uint8_t argCount = ArgumentList();
-  cu_->EmitBytes(OpCode::OP_CALL, argCount);
-}
+
 uint8_t Compiler::ArgumentList() {
   uint8_t argCount = 0;
   if (!Check(TokenType::RIGHT_PAREN)) {
     do {
       AnyExpression();
-      if (argCount == 255) {
-        ErrorAt(previous, "Can't have more than 255 arguments.");
+      if (argCount == (ARG_COUNT_MAX - 1)) {
+        ErrorAt(previous, "Too many arguments.");
       }
       argCount++;
     } while (MatchAndAdvance(TokenType::COMMA));
@@ -591,10 +528,12 @@ void Compiler::MarkRoots(void *compiler_p) {
   auto cu = compiler->cu_;
   while (cu) {
     GC::Instance().RecursiveMark(cu->func);
-    cu = cu->enclosing_;
+    cu = cu->enclosing;
   }
 }
+
 Compiler::Compiler() : marker_register_guard(&MarkRoots, this) {}
+
 void Compiler::ClassDefStmt() {
   Consume(TokenType::IDENTIFIER, "Expect class name.");
   Token className = previous;
@@ -624,7 +563,7 @@ void Compiler::ClassDefStmt() {
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
     Consume(TokenType::IDENTIFIER, "Expect Method name.");
-    uint8_t fn_name_cst = cu_->StoreTokenLexmeToConstant(previous);
+    uint8_t fn_name_cst = cu_->AddStrConstant(previous);
     FunctionType Type = FunctionType::METHOD;
     if (previous->lexeme == "init") {
       Type = FunctionType::INITIALIZER;
@@ -635,37 +574,6 @@ void Compiler::ClassDefStmt() {
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
   cu_->EmitByte(OpCode::OP_POP);  // pop the class object, for class def is always a stmt.
   currentClass = currentClass->enclosing;
-}
-void Compiler::DotExpr() {
-  // todo : check only method can use class method at compile time
-  Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
-  uint8_t name = cu_->StoreTokenLexmeToConstant(previous);
-
-  if (CanAssign() && MatchAndAdvance(TokenType::EQUAL)) {
-    AnyExpression();
-    cu_->EmitBytes(OpCode::OP_SET_ATTR, name);
-  } else if (MatchAndAdvance(TokenType::LEFT_PAREN)) {
-    uint8_t argCount = ArgumentList();
-    cu_->EmitBytes(OpCode::OP_INVOKE, name);
-    cu_->EmitByte(argCount);
-  } else {
-    cu_->EmitBytes(OpCode::OP_GET_ATTR, name);
-  }
-}
-void Compiler::ThisExpr() {
-  if (currentClass == nullptr) {
-    ErrorAt(previous, "Can't use 'this' outside of a class.");
-    return;
-  }
-  GetNamedValue(previous);
-}
-void Compiler::GroupingExpr() {
-  AnyExpression();
-  Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-}
-void Compiler::NumberExpr() {
-  double value = std::stod(previous->lexeme);
-  cu_->EmitConstant(Value(value));
 }
 
 void Compiler::PushCU(FunctionType type, const std::string &name) {
@@ -678,9 +586,131 @@ std::unique_ptr<FunctionUnit> Compiler::PopCU() {
   DumpChunkCode(cu_->Chunk());
   DumpChunkConstant(cu_->Chunk());
 #endif
-  cu_ = cu_->enclosing_;
+  cu_ = cu_->enclosing;
   return std::unique_ptr<FunctionUnit>(old_cu);
 }
+
 void Compiler::GetNamedValue(Token name) { return GetOrSetNamedValue(name, false); }
 
+void Compiler::EmitPrefix() {
+  Advance();  // advance to consume the current token
+  switch (previous->type) {
+    case TokenType::LEFT_PAREN: {
+      AnyExpression();
+      Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+      break;
+    }
+    case TokenType::MINUS:
+      [[fallthrough]];
+    case TokenType::BANG: {
+      AnyExpression(InfixPrecedence::UNARY);
+      cu_->EmitUnary(previous->type);
+      break;
+    }
+    case TokenType::IDENTIFIER: {
+      GetOrSetNamedValue(previous, CanAssign());
+      break;
+    }
+    case TokenType::STRING: {
+      std::string tmp = previous->lexeme;
+      *tmp.rbegin() = '\0';
+      cu_->EmitConstant(Value(Symbol::Intern(tmp.c_str() + 1)));
+      break;
+    }
+    case TokenType::NUMBER: {
+      cu_->EmitConstant(lox::Value(std::stod(previous->lexeme)));
+      break;
+    }
+    case TokenType::TRUE:
+      [[fallthrough]];
+    case TokenType::FALSE:
+      [[fallthrough]];
+    case TokenType::NIL: {
+      cu_->EmitLiteral(previous->type);
+      break;
+    }
+    case TokenType::THIS: {
+      if (currentClass == nullptr) {
+        ErrorAt(previous, "Can't use 'this' outside of a class.");
+        return;
+      }
+      GetNamedValue(previous);
+      break;
+    }
+    default:
+      ErrorAt(previous, "Expect valid prefix expression.");
+  }
+}
+void Compiler::EmitInfix() {
+  Advance();  // advance to consume the current token
+  switch (previous->type) {
+    case TokenType::LEFT_PAREN: {
+      cu_->EmitBytes(OpCode::OP_CALL, ArgumentList());
+      break;
+    }
+    case TokenType::DOT: {
+      // todo : check only method can use class method at compile time
+      Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
+      uint8_t attr_name = cu_->AddStrConstant(previous);
+
+      if (CanAssign() && MatchAndAdvance(TokenType::EQUAL)) {
+        AnyExpression();
+        cu_->EmitBytes(OpCode::OP_SET_ATTR, attr_name);
+      } else if (MatchAndAdvance(TokenType::LEFT_PAREN)) {
+        uint8_t ArgCount = ArgumentList();
+        cu_->EmitBytes(OpCode::OP_INVOKE, attr_name);
+        cu_->EmitByte(ArgCount);
+      } else {
+        cu_->EmitBytes(OpCode::OP_GET_ATTR, attr_name);
+      }
+      break;
+    }
+    case TokenType::MINUS:
+      [[fallthrough]];
+    case TokenType::PLUS:
+      [[fallthrough]];
+    case TokenType::SLASH:
+      [[fallthrough]];
+    case TokenType::STAR:
+      [[fallthrough]];
+    case TokenType::BANG_EQUAL:
+      [[fallthrough]];
+    case TokenType::EQUAL_EQUAL:
+      [[fallthrough]];
+    case TokenType::GREATER:
+      [[fallthrough]];
+    case TokenType::GREATER_EQUAL:
+      [[fallthrough]];
+    case TokenType::LESS:
+      [[fallthrough]];
+    case TokenType::LESS_EQUAL: {
+      TokenType OpType = previous->type;
+      AnyExpression(*InfixOpPrecedenceMap::GetPrecedence(previous->type));
+      cu_->EmitBinary(previous->type);
+      break;
+    }
+    case TokenType::AND: {
+      auto end_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+
+      cu_->EmitByte(OpCode::OP_POP);
+      AnyExpression(InfixPrecedence::AND);
+
+      cu_->JumpHerePatch(end_jump);
+      break;
+    }
+    case TokenType::OR: {
+      auto else_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+      auto end_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
+
+      cu_->JumpHerePatch(else_jump);
+      cu_->EmitByte(OpCode::OP_POP);
+
+      AnyExpression(InfixPrecedence::OR);
+      cu_->JumpHerePatch(end_jump);
+      break;
+    }
+    default:
+      ErrorAt(previous, "Expect valid infix expression.");
+  }
+}
 }  // namespace lox::vm

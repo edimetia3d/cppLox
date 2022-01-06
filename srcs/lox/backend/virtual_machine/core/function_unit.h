@@ -51,7 +51,7 @@ struct FunctionUnit {
   };
 
   NamedValue* DeclNamedValue(Token var_name);
-  void DefineNamedValue(NamedValue* handle);
+  void DefineNamedValue(NamedValue* value);
 
   /**
    * A Local var will be stored in semantic depth 1 or deeper, any thing create a new semantic scope will deeper the
@@ -67,10 +67,10 @@ struct FunctionUnit {
 
   struct UpValue : public NamedValue {
     // position of upvalue is :
-    //   1. offset in parent's stack slot, if it is is_on_stack_at_begin
-    //   2. offset in parent's upvalues, if it is not is_on_stack_at_begin
+    //   1. offset in caller's stack slot, if it is is_on_stack_at_begin
+    //   2. offset in caller's upvalues, if it is not is_on_stack_at_begin
     bool is_on_stack_at_begin = false;
-    int corresponding_position = -1;
+    int offset_in_upvalues = -1;
   };
   std::vector<UpValue> upvalues;  // contains upvalues current function will used
   UpValue* TryResolveUpValue(Token varaible_name);
@@ -98,36 +98,39 @@ struct FunctionUnit {
   };
   std::vector<LoopInfo> loop_infos;  // loop could also be nested, so we need a vector to track all loops.
 
-  FunctionUnit* enclosing_ = nullptr;
+  FunctionUnit* enclosing = nullptr;
   ObjFunction* func;  // func is created by us, and managed by GC
   FunctionType type = FunctionType::UNKNOWN;
-  int semantic_scope_depth = 0;  // the current tokens semantic scope depth, 0 means the global scope.
+  int current_semantic_scope_level = 0;  // the current tokens semantic scope depth, 0 means the global scope.
   // Note that 1. function name belongs to outer scope, function body is in the inner scope. 2. In our implementation,
   // class do not create new scope, and class can only define methods, and these methods will not be populated as named
   // value in scope.
 
-  UpValue* AddUpValue(NamedValue* some_value, bool is_on_stack);
+  UpValue* AddUpValueFromEnclosingStack(Local* some_value);
+  UpValue* AddUpValueFromEnclosingUpValue(UpValue* some_value);
   Chunk* Chunk() { return func->chunk.get(); }
   void EmitByte(uint8_t byte);
   void EmitBytes(OpCode byte1, uint8_t byte2);
   void EmitByte(OpCode opcode);
   void EmitBytes(OpCode opcode0, OpCode opcode1);
   void EmitDefaultReturn();
-  uint8_t MakeConstant(Value value);
-  void EmitConstant(Value value) { EmitBytes(OpCode::OP_CONSTANT, MakeConstant(value)); }
+  uint8_t AddValueConstant(Value value);
+  void EmitConstant(Value value);
   JumpDownHole CreateJumpDownHole(OpCode jump_cmd);
   void JumpHerePatch(JumpDownHole hole);
   void EmitJumpBack(int start);
-  void CleanUpLocals(int local_var_num);
+  void CleanUpNLocalFromTail(int local_var_num);
 
-  uint8_t StoreTokenLexmeToConstant(Token token);
+  uint8_t AddStrConstant(Token token);
 
   void EmitUnary(const TokenType& token_type);
   void EmitBinary(const TokenType& token_type);
   void EmitLiteral(TokenType token_type);
-  LineInfoCB line_info;
+  void EmitOpClosure(ObjFunction* func, std::vector<UpValue> upvalues_of_func);
   bool IsGlobalScope() const;
-  bool IsLocalAtOuterScope(const Local* local) const;
+
+  LineInfoCB line_info;
+  bool had_error = false;
 };
 
 }  // namespace lox::vm

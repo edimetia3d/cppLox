@@ -5,18 +5,19 @@
 #ifndef LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_OBJECT_H
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_OBJECT_H
 
-#include <spdlog/spdlog.h>
+#include "lox/object/object.h"
 
 #include <set>
 #include <string>
+#include <unordered_map>
 
 #include "lox/object/value.h"
-#include "lox/object/object.h"
+
 namespace lox::vm {
 
 class Chunk;
 struct ObjFunction : public lox::Object {
-  ObjFunction();
+  ObjFunction(std::string name);
   int arity = 0;
   std::string name;
   std::unique_ptr<Chunk> chunk;

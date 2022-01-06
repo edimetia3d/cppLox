@@ -57,9 +57,11 @@ enum class OpCode : uint8_t {
 #define U16_LOOKUP_MAX (UINT16_MAX + 1)
 
 #define STACK_LOOKUP_MAX U8_LOOKUP_MAX
-#define UPVALUE_LOOKUP_MAX U8_LOOKUP_MAX
+#define CONSTANT_LOOKUP_MAX U8_LOOKUP_MAX
+
+#define UPVALUE_LOOKUP_MAX STACK_LOOKUP_MAX
 #define ARG_COUNT_MAX STACK_LOOKUP_MAX
-#define GLOBAL_LOOKUP_MAX U8_LOOKUP_MAX
+#define GLOBAL_LOOKUP_MAX CONSTANT_LOOKUP_MAX
 // Stack uses relative address , and command has a 256 limit,
 // so a command can find only in [frame_pointer,frame_pointer+256]
 
