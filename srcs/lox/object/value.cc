@@ -4,6 +4,8 @@
 
 #include "lox/object/value.h"
 
+#include <numeric>
+
 #include <cstdio>
 
 namespace lox {
@@ -27,10 +29,19 @@ void Value::PrintLn() const {
   switch (type) {
     case ValueType::BOOL:
       printf(AsBool() ? "true\n" : "false\n");
-    case ValueType::NUMBER:
-      printf("%f\n", AsNumber());
+      break;
+    case ValueType::NUMBER: {
+      auto num = AsNumber();
+      if (std::trunc(num) == num) {
+        printf("%d\n", (int)num);
+      } else {
+        printf("%f\n", num);
+      }
+      break;
+    }
     case ValueType::NIL:
       printf("nil\n");
+      break;
     case ValueType::OBJECT:
       printf("%s\n", AsObject()->Str().c_str());
       break;

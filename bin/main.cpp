@@ -1,6 +1,9 @@
 
-#include <CLI/CLI.hpp>
+
 #include <iostream>
+
+#include <CLI/CLI.hpp>
+#include <spdlog/spdlog.h>
 
 #include "lox/global_setting.h"
 #include "lox/lox.h"
@@ -18,17 +21,18 @@ struct CLIArgs {
   bool just_man = false;
 };
 void ArgsDef(CLI::App& app, CLIArgs& args) {
+  app.add_option("script_file", args.input_file, "Input file path, if not provided, interactive mode will be used.");
   app.add_option("--backend", GlobalSetting().backend,
                  "Specify the backend, "
                  "could be one of{\"TreeWalker\",\"VirtualMachine\"}, default is \"VirtualMachine\"");
-
-  app.add_option("--file", args.input_file, "Input file path, if not provided, interactive mode will be used.");
 
   app.add_option("--man", args.just_man, "Print user manual and return");
 }
 
 int main(int argn, char* argv[]) {
-  PrintBuildInfo();
+#ifndef NDEBUG
+  spdlog::set_level(spdlog::level::debug);
+#endif
   CLI::App app{"Lox Interpreter"};
   CLIArgs args;
   ArgsDef(app, args);
@@ -38,6 +42,7 @@ int main(int argn, char* argv[]) {
   LoxInterpreter interpreter;
 
   if (args.just_man) {
+    PrintBuildInfo();
     std::cout << LoxInterpreter::CLIHelpString() << std::endl;
     return 0;
   }

@@ -1,11 +1,12 @@
 //
 // LICENSE: MIT
 //
-
-#include "lox/backend/virtual_machine/debug/debug.h"
+#define SPDLOG_EOL ""
 
 #include <spdlog/spdlog.h>
 
+#include "lox/backend/virtual_machine/core/chunk.h"
+#include "lox/backend/virtual_machine/core/vm.h"
 #include "lox/backend/virtual_machine/object/object.h"
 #include "lox/object/value.h"
 
@@ -13,17 +14,25 @@ namespace lox::vm {
 
 static void PrintValue(Value v) {
   switch (v.Type()) {
-    case ValueType::BOOL:
+    case ValueType::BOOL: {
       SPDLOG_DEBUG(v.AsBool() ? "true" : "false");
-    case ValueType::NUMBER:
+      break;
+    }
+    case ValueType::NUMBER: {
       SPDLOG_DEBUG("%f", v.AsNumber());
-    case ValueType::NIL:
+      break;
+    }
+    case ValueType::NIL: {
       SPDLOG_DEBUG("nil");
-    case ValueType::OBJECT:
+      break;
+    }
+    case ValueType::OBJECT: {
       SPDLOG_DEBUG("%s", v.AsObject()->Str().c_str());
       break;
-    default:
+    }
+    default: {
       SPDLOG_DEBUG("UnKownValue");
+    }
   }
 }
 

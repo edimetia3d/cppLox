@@ -2,6 +2,8 @@
 // LICENSE: MIT
 //
 
+#include <spdlog/spdlog.h>
+
 #include "lox/backend/virtual_machine/core/vm.h"
 
 #include "lox/backend/virtual_machine/builtins/builtin_fn.h"
@@ -325,7 +327,7 @@ VM::~VM() {
     delete *Object::AllCreatedObj().begin();
   }
   if (count) {
-    printf("VM destroyed %d CLoxObject at exit.\n", count);
+    SPDLOG_DEBUG("VM destroyed {} CLoxObject at exit.", count);
   }
 }
 bool VM::CallValue(Value callee, int arg_count) {

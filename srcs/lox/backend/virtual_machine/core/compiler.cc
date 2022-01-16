@@ -170,13 +170,16 @@ void Compiler::AnyExpression(InfixPrecedence lower_bound, InfixAssociativity ass
    */
 
   EmitPrefix();
-  auto precedence = InfixOpPrecedenceMap::GetPrecedence(current);
-  while (precedence && (*precedence > lower_bound ||
-                        (*precedence == lower_bound && associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
-    auto bak = last_expr_lower_bound;
-    last_expr_lower_bound = lower_bound;
-    EmitInfix();
-    last_expr_lower_bound = bak;
+  while (auto precedence = InfixOpPrecedenceMap::GetPrecedence(current)) {
+    if ((*precedence > lower_bound ||
+         (*precedence == lower_bound && associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
+      auto bak = last_expr_lower_bound;
+      last_expr_lower_bound = lower_bound;
+      EmitInfix();
+      last_expr_lower_bound = bak;
+    } else {
+      break;
+    }
   }
 }
 
@@ -684,9 +687,9 @@ void Compiler::EmitInfix() {
     case TokenType::LESS:
       [[fallthrough]];
     case TokenType::LESS_EQUAL: {
-      TokenType OpType = previous->type;
-      AnyExpression(*InfixOpPrecedenceMap::GetPrecedence(previous->type));
-      cu_->EmitBinary(previous->type);
+      TokenType op_token = previous->type;
+      AnyExpression(*InfixOpPrecedenceMap::GetPrecedence(op_token));
+      cu_->EmitBinary(op_token);
       break;
     }
     case TokenType::AND: {

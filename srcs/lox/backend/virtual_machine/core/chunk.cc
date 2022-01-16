@@ -12,7 +12,7 @@ void Chunk::WriteUInt8(uint8_t data, int line_number) {
 Chunk::ConstatntIndex Chunk::AddConstant(Value value) {
   int index = constants.size();
   constants.push_back(value);
-  assert(index < (1 << sizeof(Chunk::ConstatntIndex)));
+  assert(index < (1 << (sizeof(Chunk::ConstatntIndex) * 8)));
   return index;
 }
 int Chunk::ChunkSize() const { return code.size(); }
