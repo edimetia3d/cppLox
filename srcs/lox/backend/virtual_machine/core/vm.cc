@@ -146,7 +146,7 @@ ErrCode VM::Run() {
         Push(Value(new ObjClass(CHUNK_READ_STRING()->c_str())));
         break;
       case OpCode::OP_PRINT: {
-        Pop().PrintLn();
+        printf("%s\n", Pop().Str().c_str());
         break;
       }
       case OpCode::OP_JUMP: {

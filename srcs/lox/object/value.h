@@ -39,7 +39,7 @@ struct Value {
   [[nodiscard]] bool IsObject() const { return type == ValueType::OBJECT; }
   [[nodiscard]] ValueType Type() const { return type; }
   bool Equal(Value rhs);
-  void PrintLn() const;
+  std::string Str() const;
 
   [[nodiscard]] bool IsTrue() const { return !IsNil() && IsBool() && AsBool(); }
 

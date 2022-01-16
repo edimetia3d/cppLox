@@ -25,28 +25,24 @@ bool Value::Equal(Value rhs) {
       return false;  // Unreachable.
   }
 }
-void Value::PrintLn() const {
+std::string Value::Str() const {
   switch (type) {
     case ValueType::BOOL:
-      printf(AsBool() ? "true\n" : "false\n");
-      break;
+      return AsBool() ? "true" : "false";
     case ValueType::NUMBER: {
       auto num = AsNumber();
       if (std::trunc(num) == num) {
-        printf("%d\n", (int)num);
+        return std::to_string((int64_t)num);
       } else {
-        printf("%f\n", num);
+        return std::to_string(num);
       }
-      break;
     }
     case ValueType::NIL:
-      printf("nil\n");
-      break;
+      return "nil";
     case ValueType::OBJECT:
-      printf("%s\n", AsObject()->Str().c_str());
-      break;
+      return AsObject()->Str();
     default:
-      printf("UnKownValue");
+      return "UnKownValue";
   }
 }
 }  // namespace lox
