@@ -164,10 +164,13 @@ class ChunkDump {
     }
     return offset;
   };
-  template <class... Args>
-  void AppendLatestLine(Args... args) {
-    int new_offset = snprintf(latest_line_buf.data() + valid_line_content_size,
-                              latest_line_buf.size() - valid_line_content_size, args...);
+
+  void AppendLatestLine(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    int new_offset = vsnprintf(latest_line_buf.data() + valid_line_content_size,
+                               latest_line_buf.size() - valid_line_content_size, format, args);
+    va_end(args);
     valid_line_content_size += new_offset;
     assert(valid_line_content_size <= latest_line_buf.size());
   }
@@ -203,7 +206,7 @@ void DumpGlobal(const VM *vm) {
   SPDLOG_DEBUG(buf.data());
 }
 
-int DumpInstruction(const Chunk *chunk, int offset) {
+void DumpInstruction(const Chunk *chunk, int offset) {
   ChunkDump dump(*chunk);
   dump.DumpCodeAt(offset);
 }

@@ -121,7 +121,7 @@ ErrCode VM::Run() {
           Value a = Pop();
           Push(Value(Symbol::Intern(a.AsObject()->DynAs<Symbol>()->Str() + b.AsObject()->DynAs<Symbol>()->Str())));
         } else {
-          RuntimeError("Add only support string and number.");
+          RuntimeError("Operands must be two numbers or two strings.");
           return ErrCode::INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -306,14 +306,19 @@ ErrCode VM::Interpret(ObjFunction *function) {
   return Run();
 }
 
-template <class... Args>
-void VM::RuntimeError(const char *format, Args... args) {
-  fprintf(stderr, format, args...);
+void VM::RuntimeError(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+  fputs("\n", stderr);
+#ifndef NDEBUG
   for (auto fp = frames_; fp <= active_frame_; ++fp) {
     ObjFunction *function = fp->closure->function;
     size_t instruction = ip_ - function->chunk->code.data() - 1;
-    fprintf(stderr, "[line %d] in %s() \n", function->chunk->lines[instruction], function->name.c_str());
+    SPDLOG_DEBUG("[line {}] in {}() \n", function->chunk->lines[instruction], function->name);
   }
+#endif
   ResetStack();
 }
 Value VM::Peek(int distance) {

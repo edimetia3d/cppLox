@@ -10,7 +10,7 @@
 #include "lox/backend/virtual_machine/core/chunk.h"
 #include "lox/backend/virtual_machine/core/vm.h"
 namespace lox::vm {
-int DumpInstruction(const Chunk* chunk, int offset);
+void DumpInstruction(const Chunk* chunk, int offset);
 
 void DumpChunkCode(const Chunk* chunk);
 

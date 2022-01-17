@@ -61,8 +61,7 @@ class VM {
   inline void ResetStack();
   void DefineBuiltins();
 
-  template <class... Args>
-  void RuntimeError(const char *format, Args...);
+  void RuntimeError(const char *format, ...);
   bool CallValue(Value callee, int arg_count);
   bool CallClosure(ObjClosure *callee, int arg_count);
 

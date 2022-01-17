@@ -4,10 +4,12 @@
 
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
+#include <sysexits.h>
 
 #include "lox/global_setting.h"
 #include "lox/lox.h"
 #include "lox/version.h"
+
 using namespace lox;
 
 void PrintBuildInfo() {
@@ -58,5 +60,8 @@ int main(int argn, char* argv[]) {
   } else {
     ret = interpreter.RunPrompt();
   }
-  return ret.ToErrCode();
+  if(ret.ToErrCode()){
+    return EX_SOFTWARE;
+  }
+  return 0;
 }
