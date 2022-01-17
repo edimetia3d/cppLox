@@ -23,7 +23,7 @@ make -j4
 BINARY_PATH=$PWD/bin/lox
 popd
 
-git clone https://github.com/munificent/craftinginterpreters.git --depth=1
+git clone https://github.com/edimetia3d/craftinginterpreters.git --depth=1
 
 mkdir -p dart_pub_cache
 export PUB_CACHE=$PWD/dart_pub_cache
@@ -33,7 +33,7 @@ popd
 
 pushd craftinginterpreters
 echo "Testing with virtual machine"
-dart tool/bin/test.dart clox operator/add.lox --interpreter "$BINARY_PATH"
+dart tool/bin/test.dart clox operator/add --interpreter "$BINARY_PATH" --loose_mode
 echo "Testing with tree walker"
-dart tool/bin/test.dart clox operator/add.lox --interpreter "$BINARY_PATH" --arguments --backend="TreeWalker"
+dart tool/bin/test.dart clox operator/add.lox --interpreter "$BINARY_PATH" --loose_mode --arguments --backend="TreeWalker"
 popd
