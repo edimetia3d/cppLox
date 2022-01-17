@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <numeric>
 
 #include "lox/token/token.h"
 namespace lox {
@@ -101,7 +102,12 @@ class Number : public LoxObjectBase {
  public:
   using RawValueT = double;
   bool IsTrue() const override { return static_cast<bool>(RawValue<RawValueT>()); }
-  std::string ToString() const override { return std::to_string(RawValue<RawValueT>()); }
+  std::string ToString() const override {
+    if (std::trunc(RawValue<RawValueT>()) == RawValue<RawValueT>()) {
+      return std::to_string(static_cast<int64_t>(RawValue<RawValueT>()));
+    }
+    return std::to_string(RawValue<RawValueT>());
+  }
   LoxObject operator-() const override;
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(Number);
 };
@@ -109,7 +115,7 @@ class Number : public LoxObjectBase {
 class String : public LoxObjectBase {
  public:
   using RawValueT = std::string;
-  std::string ToString() const override { return std::string("\"") + RawValue<RawValueT>() + "\""; }
+  std::string ToString() const override { return RawValue<RawValueT>(); }
   LoxObject operator-() const override { throw "`!` is not supported on String"; }
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(String);
 };

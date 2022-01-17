@@ -9,7 +9,7 @@
 namespace lox {
 struct _GlobalSetting {
   bool interactive_mode = true;
-  bool debug = true;
+  bool debug = false;
   std::string backend = "VirtualMachine";
 };
 
