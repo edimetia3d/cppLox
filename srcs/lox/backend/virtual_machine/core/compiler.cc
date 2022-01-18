@@ -606,8 +606,9 @@ void Compiler::EmitPrefix() {
     case TokenType::MINUS:
       [[fallthrough]];
     case TokenType::BANG: {
+      auto op_type = previous->type;
       AnyExpression(InfixPrecedence::UNARY);
-      cu_->EmitUnary(previous->type);
+      cu_->EmitUnary(op_type);
       break;
     }
     case TokenType::IDENTIFIER: {

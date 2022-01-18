@@ -12,20 +12,20 @@
 
 #define CHUNK_READ_BYTE() (*ip_++)
 #define CHUNK_READ_SHORT() (ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))
-#define CHEK_STACK_TOP_TYPE(TYPE)                   \
-  do {                                              \
-    if (!Peek().Is##TYPE()) {                       \
-      RuntimeError("Operand must be a " #TYPE "."); \
-      return ErrCode::INTERPRET_RUNTIME_ERROR;      \
-    }                                               \
+#define CHEK_STACK_TOP_NUMBER(MSG)             \
+  do {                                         \
+    if (!Peek().IsNumber()) {                  \
+      RuntimeError(MSG);                       \
+      return ErrCode::INTERPRET_RUNTIME_ERROR; \
+    }                                          \
   } while (0)
 #define CHUNK_READ_CONSTANT() (active_frame_->closure->function->chunk->constants[CHUNK_READ_BYTE()])
 #define CHUNK_READ_STRING() ((CHUNK_READ_CONSTANT()).AsObject()->DynAs<Symbol>())
 #define BINARY_OP(OutputT, op)                                       \
   do {                                                               \
-    CHEK_STACK_TOP_TYPE(Number);                                     \
+    CHEK_STACK_TOP_NUMBER("Operands must be numbers.");              \
     Value b = Pop();                                                 \
-    CHEK_STACK_TOP_TYPE(Number);                                     \
+    CHEK_STACK_TOP_NUMBER("Operands must be numbers.");              \
     Value a = Pop();                                                 \
     Push(Value(static_cast<OutputT>(a.AsNumber() op b.AsNumber()))); \
   } while (false)
@@ -138,7 +138,7 @@ ErrCode VM::Run() {
         Push(Value(!Pop().IsTrue()));
         break;
       case OpCode::OP_NEGATE: {
-        CHEK_STACK_TOP_TYPE(Number);
+        CHEK_STACK_TOP_NUMBER("Operand must be a number.");
         Push(Value(-Pop().AsNumber()));
         break;
       }

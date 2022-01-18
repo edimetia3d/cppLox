@@ -41,7 +41,7 @@ struct Value {
   bool Equal(Value rhs);
   std::string Str() const;
 
-  [[nodiscard]] bool IsTrue() const { return !IsNil() && IsBool() && AsBool(); }
+  [[nodiscard]] bool IsTrue() const;
 
  private:
   ValueType type;

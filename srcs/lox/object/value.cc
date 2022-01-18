@@ -34,7 +34,9 @@ std::string Value::Str() const {
       if (std::trunc(num) == num) {
         return std::to_string((int64_t)num);
       } else {
-        return std::to_string(num);
+        char buf[20];
+        snprintf(buf, 20, "%g", num);
+        return buf;
       }
     }
     case ValueType::NIL:
@@ -45,4 +47,5 @@ std::string Value::Str() const {
       return "UnKownValue";
   }
 }
+bool Value::IsTrue() const { return !IsNil() && (!IsBool() || AsBool()); }
 }  // namespace lox
