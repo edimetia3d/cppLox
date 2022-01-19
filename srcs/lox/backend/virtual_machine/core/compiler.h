@@ -89,13 +89,8 @@ class Compiler {
    *   1. The infix operators that has a higher `lower_bound`.
    *   2. The infix operators that has the same `lower_bound`, and `associativity` is RIGHT_TO_LEFT.
    *
-   * Note:
-   *
-   * `operator=` is not treated as an infix expression in our implementation, so the default `lower_bound` of OR
-   * and `associativity` of LEFT_TO_RIGHT are fine.
    */
-  void AnyExpression(InfixPrecedence lower_bound = InfixPrecedence::OR,
-                     InfixAssociativity associativity = InfixAssociativity::LEFT_TO_RIGHT);
+  void AnyExpression(InfixPrecedence lower_bound = InfixPrecedence::ASSIGNMENT);
   void EmitPrefix();
   void EmitInfix();
 

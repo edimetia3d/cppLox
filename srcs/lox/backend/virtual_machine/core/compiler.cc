@@ -10,25 +10,31 @@
 
 namespace lox::vm {
 
-struct InfixOpPrecedenceMap {
-  static InfixOpPrecedenceMap &Instance() {
-    static InfixOpPrecedenceMap instance;
+struct InfixOpInfoMap {
+  struct InfixOpInfo {
+    InfixPrecedence precedence;
+    InfixAssociativity associativity;
+    ;
+  };
+
+  static InfixOpInfoMap &Instance() {
+    static InfixOpInfoMap instance;
     return instance;
   }
 
-  static InfixPrecedence *GetPrecedence(TokenType type) {
-    if (InfixOpPrecedenceMap::Instance().data.contains(type)) {
-      return &InfixOpPrecedenceMap::Instance().data[type];
+  static InfixOpInfo *Get(TokenType type) {
+    if (InfixOpInfoMap::Instance().data.contains(type)) {
+      return &InfixOpInfoMap::Instance().data[type];
     }
     return nullptr;
   }
 
-  static InfixPrecedence *GetPrecedence(Token token) { return GetPrecedence(token->type); }
+  static InfixOpInfo *Get(Token token) { return Get(token->type); }
 
-  std::map<TokenType, InfixPrecedence> data;
+  std::map<TokenType, InfixOpInfo> data;
 
  private:
-  InfixOpPrecedenceMap() {
+  InfixOpInfoMap() {
     /**
      * There is no rule for the `operator=`, or the `TokenType::EQUAL`, because our implement of compiler will need more
      * tracking utils to support assignment, which will introduce unnecessary complexity.
@@ -44,25 +50,27 @@ struct InfixOpPrecedenceMap {
      * generate different code, we would never go without knowing what the `e` is.
      *
      */
-#define RULE_ITEM(TOKEN_T, PRECEDENCE_V) \
-  { TokenType::TOKEN_T, InfixPrecedence::PRECEDENCE_V }
+#define RULE_ITEM(TOKEN_T, PRECEDENCE_V, ASSOCIATIVITY_V)                                      \
+  {                                                                                            \
+    TokenType::TOKEN_T, { InfixPrecedence::PRECEDENCE_V, InfixAssociativity::ASSOCIATIVITY_V } \
+  }
     // clang-format off
-    auto map_tmp = std::map<TokenType,InfixPrecedence> {
-/*    TokenType              , Precedence */
-      RULE_ITEM(LEFT_PAREN   , CALL_OR_DOT),
-      RULE_ITEM(DOT          , CALL_OR_DOT),
-      RULE_ITEM(MINUS        , TERM),
-      RULE_ITEM(PLUS         , TERM),
-      RULE_ITEM(SLASH        , FACTOR),
-      RULE_ITEM(STAR         , FACTOR),
-      RULE_ITEM(BANG_EQUAL   , EQUALITY),
-      RULE_ITEM(EQUAL_EQUAL  , EQUALITY),
-      RULE_ITEM(GREATER      , COMPARISON),
-      RULE_ITEM(GREATER_EQUAL, COMPARISON),
-      RULE_ITEM(LESS         , COMPARISON),
-      RULE_ITEM(LESS_EQUAL   , COMPARISON),
-      RULE_ITEM(AND          , AND),
-      RULE_ITEM(OR           , OR),
+    auto map_tmp = std::map<TokenType,InfixOpInfo> {
+      RULE_ITEM(LEFT_PAREN    , CALL_OR_DOT , LEFT_TO_RIGHT) ,
+      RULE_ITEM(DOT           , CALL_OR_DOT , LEFT_TO_RIGHT) ,
+      RULE_ITEM(MINUS         , TERM        , LEFT_TO_RIGHT) ,
+      RULE_ITEM(PLUS          , TERM        , LEFT_TO_RIGHT) ,
+      RULE_ITEM(SLASH         , FACTOR      , LEFT_TO_RIGHT) ,
+      RULE_ITEM(STAR          , FACTOR      , LEFT_TO_RIGHT) ,
+      RULE_ITEM(BANG_EQUAL    , EQUALITY    , LEFT_TO_RIGHT) ,
+      RULE_ITEM(EQUAL         , ASSIGNMENT  , RIGHT_TO_LEFT) ,
+      RULE_ITEM(EQUAL_EQUAL   , EQUALITY    , LEFT_TO_RIGHT) ,
+      RULE_ITEM(GREATER       , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(GREATER_EQUAL , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(LESS          , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(LESS_EQUAL    , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(AND           , AND         , LEFT_TO_RIGHT) ,
+      RULE_ITEM(OR            , OR          , LEFT_TO_RIGHT) ,
     };
     // clang-format on
 #undef RULE_ITEM
@@ -154,7 +162,7 @@ void Compiler::Consume(TokenType type, const char *message) {
   ErrorAt(current, message);
 }
 
-void Compiler::AnyExpression(InfixPrecedence lower_bound, InfixAssociativity associativity) {
+void Compiler::AnyExpression(InfixPrecedence lower_bound) {
   /**
    *
    * It is easy to understand the expression category from it's runtime behavior.
@@ -170,9 +178,9 @@ void Compiler::AnyExpression(InfixPrecedence lower_bound, InfixAssociativity ass
    */
 
   EmitPrefix();
-  while (auto precedence = InfixOpPrecedenceMap::GetPrecedence(current)) {
-    if ((*precedence > lower_bound ||
-         (*precedence == lower_bound && associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
+  while (auto op_info = InfixOpInfoMap::Get(current)) {
+    if ((op_info->precedence > lower_bound ||
+         (op_info->precedence == lower_bound && op_info->associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
       auto bak = last_expr_lower_bound;
       last_expr_lower_bound = lower_bound;
       EmitInfix();
@@ -669,6 +677,10 @@ void Compiler::EmitInfix() {
       }
       break;
     }
+    case TokenType::EQUAL: {
+      ErrorAt(previous, "Invalid assignment target.");
+      break;
+    }
     case TokenType::MINUS:
       [[fallthrough]];
     case TokenType::PLUS:
@@ -689,7 +701,7 @@ void Compiler::EmitInfix() {
       [[fallthrough]];
     case TokenType::LESS_EQUAL: {
       TokenType op_token = previous->type;
-      AnyExpression(*InfixOpPrecedenceMap::GetPrecedence(op_token));
+      AnyExpression(InfixOpInfoMap::Get(op_token)->precedence);
       cu_->EmitBinary(op_token);
       break;
     }
