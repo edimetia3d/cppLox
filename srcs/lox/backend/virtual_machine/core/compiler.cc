@@ -5,8 +5,10 @@
 #include "lox/backend/virtual_machine/core/compiler.h"
 
 #include <map>
+#include <spdlog/spdlog.h>
 
 #include "lox/backend/virtual_machine/debug/debug.h"
+#include "lox/backend/virtual_machine/errors.h"
 
 namespace lox::vm {
 
@@ -122,7 +124,8 @@ struct ScopeGuard {
   ScopeType type;
 };
 
-ObjFunction *Compiler::Compile(Scanner *scanner) {
+ObjFunction *Compiler::Compile(Scanner *scanner, std::string *err_msg) {
+  err_msgs.clear();
   PushCU(FunctionType::SCRIPT, "<script>");
 
   scanner_ = scanner;
@@ -131,28 +134,25 @@ ObjFunction *Compiler::Compile(Scanner *scanner) {
     AnyStatement();
   }
   auto top_level_cu = PopCU();
-  if (had_error) {
+  if (err_msgs.size() > 0) {
+    for (auto &msg : err_msgs) {
+      *err_msg += msg;
+    }
     return nullptr;
   }
   return top_level_cu->func;
 }
 void Compiler::Advance() {
   previous = current;
-
-  for (;;) {
-    auto err = scanner_->ScanOne(&current);
-    if (err.NoError()) break;
-
-    ErrorAt(current, current->lexeme.c_str());
-  }
+  current = scanner_->ScanOne();
 }
-void Compiler::ErrorAt(Token token, const char *message) {
-  if (panic_mode) return;
-  panic_mode = true;
-  fprintf(stderr, "[line %d] Error", token->line);
-  fprintf(stderr, " at '%.*s'", (int)token->lexeme.size(), token->lexeme.c_str());
-  fprintf(stderr, ": %s\n", message);
-  had_error = true;
+void Compiler::ErrorAt(Token token, const char *message) { throw CompilationError(CreateErrMsg(token, message)); }
+std::string Compiler::CreateErrMsg(const Token &token, const char *message) const {
+  std::vector<char> buf(256);
+  int offset = 0;
+  offset += snprintf(buf.data() + offset, 256, "[line %d] Error at '%s': %s\n", token->line + 1, token->lexeme.c_str(),
+                     message);
+  return std::string(buf.data());
 }
 void Compiler::Consume(TokenType type, const char *message) {
   if (current->type == type) {
@@ -176,19 +176,18 @@ void Compiler::AnyExpression(InfixPrecedence lower_bound) {
    * fundamentally.
    *
    */
-
+  auto bak = last_expr_lower_bound;
+  last_expr_lower_bound = lower_bound;
   EmitPrefix();
   while (auto op_info = InfixOpInfoMap::Get(current)) {
     if ((op_info->precedence > lower_bound ||
          (op_info->precedence == lower_bound && op_info->associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
-      auto bak = last_expr_lower_bound;
-      last_expr_lower_bound = lower_bound;
       EmitInfix();
-      last_expr_lower_bound = bak;
     } else {
       break;
     }
   }
+  last_expr_lower_bound = bak;
 }
 
 bool Compiler::MatchAndAdvance(TokenType type) {
@@ -198,6 +197,15 @@ bool Compiler::MatchAndAdvance(TokenType type) {
 }
 
 void Compiler::AnyStatement() {
+  try {
+    DoAnyStatement();
+  } catch (const CompilationError &e) {
+    Synchronize();
+    err_msgs.emplace_back(e.what());
+  }
+}
+
+void Compiler::DoAnyStatement() {
   if (MatchAndAdvance(TokenType::CLASS)) {
     ClassDefStmt();
   } else if (MatchAndAdvance(TokenType::FUN)) {
@@ -221,7 +229,6 @@ void Compiler::AnyStatement() {
   } else {
     ExpressionStmt();
   }
-  if (panic_mode) Synchronize();
 }
 void Compiler::PrintStmt() {
   AnyExpression();
@@ -235,7 +242,6 @@ void Compiler::ExpressionStmt() {
   cu_->EmitByte(OpCode::OP_POP);
 }
 void Compiler::Synchronize() {
-  panic_mode = false;
 
   while (current->type != TokenType::EOF_TOKEN) {
     if (previous->type == TokenType::SEMICOLON) return;
@@ -333,7 +339,10 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
     assert(reslove->position < GLOBAL_LOOKUP_MAX);
   }
   if (!reslove) {
-    ErrorAt(varaible_token, "Undefined variable.");
+    // upstream lox compiler will not check undefined variable at compile time, we use a hack to throw a runtime error.
+    auto msg = CreateErrMsg(varaible_token, "Undefined variable.");
+    SPDLOG_DEBUG(msg);
+    throw RuntimeError("Undefined variable '" + varaible_token->lexeme + "'.");
   }
   if (!reslove->is_inited) {
     ErrorAt(previous, "Can not use uninitialized variable here.");
@@ -451,7 +460,6 @@ void Compiler::BreakOrContinueStmt() {
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
   if (cu_->loop_infos.empty()) {
     ErrorAt(previous, "Can not break/continue here");
-    return;
   }
   int clear_size = cu_->locals.size() - cu_->loop_infos.back().initial_stack_size;
   if (previous->type == TokenType::BREAK) {
@@ -644,7 +652,6 @@ void Compiler::EmitPrefix() {
     case TokenType::THIS: {
       if (currentClass == nullptr) {
         ErrorAt(previous, "Can't use 'this' outside of a class.");
-        return;
       }
       GetNamedValue(previous);
       break;
@@ -679,7 +686,6 @@ void Compiler::EmitInfix() {
     }
     case TokenType::EQUAL: {
       ErrorAt(previous, "Invalid assignment target.");
-      break;
     }
     case TokenType::MINUS:
       [[fallthrough]];

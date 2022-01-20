@@ -15,18 +15,18 @@ namespace lox {
 
 std::string LoxInterpreter::CLIHelpString() { return std::string(); }
 
-LoxError LoxInterpreter::RunFile(const std::string &file_path) {
+void LoxInterpreter::RunFile(const std::string &file_path) {
   std::ifstream infile(file_path);
   GlobalSetting().interactive_mode = false;
   return RunStream(&infile);
 }
 
-LoxError LoxInterpreter::RunPrompt() {
+void LoxInterpreter::RunPrompt() {
   GlobalSetting().interactive_mode = true;
   return RunStream(&std::cin);
 }
 
-LoxError LoxInterpreter::RunStream(std::istream *istream) {
+void LoxInterpreter::RunStream(std::istream *istream) {
   LoxError err;
   if (GlobalSetting().interactive_mode) {
     std::string one_line;
@@ -35,18 +35,16 @@ LoxError LoxInterpreter::RunStream(std::istream *istream) {
       if (one_line == "exit()") {
         break;
       }
-      err.Merge(Eval(one_line));
+      Eval(one_line);
       std::cout << ">> ";
     }
   } else {
     std::string all_line((std::istreambuf_iterator<char>(*istream)), std::istreambuf_iterator<char>());
-    err = Eval(all_line);
+    Eval(all_line);
   }
-
-  return err;
 }
 
-LoxError LoxInterpreter::Eval(const std::string &code) {
+void LoxInterpreter::Eval(const std::string &code) {
   Scanner scanner(code);
   return back_end_->Run(scanner);
 }

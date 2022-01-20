@@ -8,30 +8,25 @@
 #include <string>
 #include <vector>
 
+#include <sysexits.h>
+
 namespace lox {
+/**
+ * Our implementation uses a c++ style error handling system. We throw an LoxError when we encounter something that
+ * can't be handled.
+ */
 class LoxError : public std::exception {
  public:
-  using ErrorNode = std::shared_ptr<LoxError>;
-  LoxError();
-  explicit LoxError(const std::string &message);
-  std::string Message() const;
+  LoxError() = default;
+  explicit LoxError(const std::string& what, uint8_t exit_code = EX_SOFTWARE) : what_(what), exit_code(exit_code){};
+  explicit LoxError(std::string&& what, uint8_t exit_code = EX_SOFTWARE)
+      : what_(std::move(what)), exit_code(exit_code){};
 
-  const char *what() const noexcept override {
-    what_ = Message();
-    return what_.c_str();
-  }
+  const char* what() const noexcept override { return what_.c_str(); }
 
-  int ToErrCode() const;
-  void Merge(const LoxError &new_err);
-  bool NoError();
-
+  uint8_t exit_code = EX_SOFTWARE;  // if error should cause exit, this should be used.
  protected:
   mutable std::string what_;
-
- private:
-  std::string message_{};
-  std::string RecursiveMessage(int level) const;
-  std::vector<ErrorNode> sub_errors;
 };
 }  // namespace lox
 

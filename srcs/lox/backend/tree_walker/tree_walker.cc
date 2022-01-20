@@ -26,35 +26,24 @@ TreeWalker::TreeWalker() {
   evaluator_ = std::make_shared<Evaluator>(global_env_);
   evaluator_->SetActiveResolveMap(resolve_map_);
 }
-LoxError TreeWalker::Run(Scanner &scanner) {
-  std::vector<Token> tokens;
-  auto err = scanner.ScanAll(&tokens);
+void TreeWalker::Run(Scanner &scanner) {
+  std::vector<Token> tokens = scanner.ScanAll();
   Parser parser(tokens);
   auto statements = parser.Parse();
 
   PassManager pass_mgr;
   pass_mgr.Append(std::make_shared<SemanticCheck>());
   pass_mgr.Append(std::make_shared<EnvResovlePass>(resolve_map_));
-  try {
-    statements = pass_mgr.Run(statements);
-  } catch (std::exception &pass_err) {
-    std::cout << pass_err.what() << std::endl;
-    return LoxError();
-  }
 
-  try {
-    for (auto &stmt : statements) {
-      if (GlobalSetting().debug) {
-        static AstPrinter printer;
-        std::cout << "Debug Stmt: `" << printer.Print(stmt) << "`" << std::endl;
-      }
-      evaluator_->Eval(stmt);
+  statements = pass_mgr.Run(statements);
+
+  for (auto &stmt : statements) {
+    if (GlobalSetting().debug) {
+      static AstPrinter printer;
+      std::cout << "Debug Stmt: `" << printer.Print(stmt) << "`" << std::endl;
     }
-  } catch (RuntimeError &rt_err) {
-    std::cout << rt_err.what() << std::endl;
-    err.Merge(rt_err);
+    evaluator_->Eval(stmt);
   }
-  return LoxError();
 }
 
 }  // namespace lox

@@ -27,7 +27,6 @@
 #include <functional>
 
 #include "lox/backend/virtual_machine/core/function_unit.h"
-#include "lox/err_code.h"
 #include "lox/frontend/scanner.h"
 #include "lox/object/gc.h"
 #include "lox/object/value.h"
@@ -56,7 +55,7 @@ enum class InfixAssociativity {
 class Compiler {
  public:
   Compiler();
-  ObjFunction* Compile(Scanner* scanner);
+  ObjFunction* Compile(Scanner* scanner, std::string* err_msg);
 
  private:
   void Advance();
@@ -67,6 +66,7 @@ class Compiler {
   void Synchronize();
 
   void AnyStatement();
+  void DoAnyStatement();
 
   void BlockStmt();
   void BreakOrContinueStmt();
@@ -132,11 +132,11 @@ class Compiler {
   }* currentClass = nullptr;
   Token previous;  // previous is the last consumed token
   Token current;   // current is the next might to be consumed token.
-  bool had_error = false;
-  bool panic_mode = false;
   Scanner* scanner_;
   InfixPrecedence last_expr_lower_bound = InfixPrecedence::ASSIGNMENT;
   friend struct ScopeGuard;
+  std::vector<std::string> err_msgs;
+  std::string CreateErrMsg(const Token& token, const char* message) const;
 };
 
 }  // namespace lox::vm

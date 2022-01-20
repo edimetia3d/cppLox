@@ -23,7 +23,7 @@ class BackEnd {
 
   static void Register(const std::string name, BackEndCreateFn fn) { GetRegistry()[name] = fn; }
 
-  virtual LoxError Run(Scanner &scanner) = 0;
+  virtual void Run(Scanner &scanner) = 0;
 
   static void LoadBuiltinBackEnd();
 

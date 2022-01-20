@@ -130,7 +130,6 @@ struct FunctionUnit {
   bool IsGlobalScope() const;
 
   LineInfoCB line_info;
-  bool had_error = false;
 };
 
 }  // namespace lox::vm

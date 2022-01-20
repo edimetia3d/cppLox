@@ -1,13 +1,15 @@
 //
 // LICENSE: MIT
 //
-#include "function_unit.h"
+#include "lox/backend/virtual_machine/core/function_unit.h"
 
+#include "lox/backend/virtual_machine/errors.h"
 #include <spdlog/spdlog.h>
 
-#define _FUNC_CU_ERROR(...)  \
-  SPDLOG_ERROR(__VA_ARGS__); \
-  had_error = true;
+static void Error(const std::string &msg) {
+  SPDLOG_ERROR(msg);
+  throw lox::vm::CompilationError(msg);
+}
 
 namespace lox::vm {
 FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std::string &name, LineInfoCB line_info)
@@ -25,6 +27,7 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
 
   if (type == FunctionType::METHOD || type == FunctionType::INITIALIZER) {
     function_self.name = "this";
+    function_self.is_inited = true;  // a hack that treat `this` as always inited
   } else {
     function_self.name = name;
   }
@@ -41,8 +44,7 @@ FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingStack(Local *some_va
   }
 
   if (upvalues.size() == UPVALUE_LOOKUP_MAX) {
-    _FUNC_CU_ERROR("Upvalue limit reached.");
-    return nullptr;
+    Error("Upvalue limit reached.");
   }
   upvalues.resize(upvalues.size() + 1);
   upvalues.back().is_on_stack_at_begin = true;
@@ -61,8 +63,7 @@ FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingUpValue(FunctionUnit
   }
 
   if (upvalues.size() == UPVALUE_LOOKUP_MAX) {
-    _FUNC_CU_ERROR("Upvalue limit reached.");
-    return nullptr;
+    Error("Upvalue limit reached.");
   }
 
   upvalues.resize(upvalues.size() + 1);
@@ -121,7 +122,7 @@ void FunctionUnit::EmitJumpBack(int start) {
   int offset = -1 * (ip_target - ip_from);  // always use a positive number to get longer jump range, that's why we
                                             // create a new OP_JUMP_BACK instruction
   if (offset > UINT16_MAX) {
-    _FUNC_CU_ERROR("Jump back too far.");
+    Error("Jump back too far.");
   }
 
   EmitByte((offset >> 8) & 0xff);
@@ -143,7 +144,7 @@ void FunctionUnit::JumpHerePatch(FunctionUnit::JumpDownHole hole) {
   int jump_diff = ip_target - ip_from;
 
   if (jump_diff > UINT16_MAX) {
-    _FUNC_CU_ERROR("Jump too far.");
+    Error("Jump too far.");
   }
 
   Chunk()->code[beg_addr] = (uint8_t)hole.jump_type;
@@ -169,7 +170,7 @@ uint8_t FunctionUnit::AddStrConstant(Token token) { return AddValueConstant(Valu
 uint8_t FunctionUnit::AddValueConstant(Value value) {
   int constant = Chunk()->AddConstant(value);
   if (constant > CONSTANT_LOOKUP_MAX) {
-    _FUNC_CU_ERROR("Too many constants in one chunk.");
+    Error("Too many constants in one chunk.");
   }
   return (uint8_t)constant;
 }
@@ -192,7 +193,7 @@ void FunctionUnit::EmitUnary(const TokenType &token_type) {
       EmitByte(OpCode::OP_NOT);
       break;
     default:
-      _FUNC_CU_ERROR("Unknown unary operator.");
+      Error("Unknown unary operator.");
       return;  // Unreachable.
   }
 }
@@ -229,7 +230,7 @@ void FunctionUnit::EmitBinary(const TokenType &token_type) {
       EmitByte(OpCode::OP_DIVIDE);
       break;
     default:
-      _FUNC_CU_ERROR("Unknown binary operator.");
+      Error("Unknown binary operator.");
       return;  // Unreachable.
   }
 }
@@ -246,7 +247,7 @@ void FunctionUnit::EmitLiteral(TokenType token_type) {
       EmitByte(OpCode::OP_TRUE);
       break;
     default:
-      _FUNC_CU_ERROR("Unknown literal.");
+      Error("Unknown literal.");
       return;  // Unreachable.
   }
 }
@@ -257,14 +258,12 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
     // check redifinition
     for (auto &global : globals) {
       if (global.name == var_name->lexeme) {
-        _FUNC_CU_ERROR("Redefine global not allowed.");
-        return nullptr;
+        Error("Redefine global not allowed.");
       }
     }
 
     if (globals.size() == GLOBAL_LOOKUP_MAX) {
-      _FUNC_CU_ERROR("Too many global variables in script");
-      return nullptr;
+      Error("Too many global variables in script");
     }
 
     globals.resize(globals.size() + 1);
@@ -281,14 +280,12 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
         break;
       } else {
         if (var_name->lexeme == r_iter->name) {
-          _FUNC_CU_ERROR("Re-definition in same scope not allowed");
-          return nullptr;
+          Error("Re-definition in same scope not allowed");
         }
       }
     }
     if (locals.size() == STACK_LOOKUP_MAX) {
-      _FUNC_CU_ERROR("Too many local variables in function.");
-      return nullptr;
+      Error("Too many local variables in function.");
     }
     locals.resize(locals.size() + 1);
     Local *new_local = &locals.back();
@@ -301,7 +298,9 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
 
 void FunctionUnit::DefineNamedValue(NamedValue *value) {
   if (IsGlobalScope()) {
-    assert(value->position < GLOBAL_LOOKUP_MAX);
+    if (value->position >= GLOBAL_LOOKUP_MAX) {
+      Error("Too many global variables in script");
+    }
     // move the stack top to vm's global by it's name
     EmitBytes(OpCode::OP_DEFINE_GLOBAL, value->position);
 
@@ -327,7 +326,9 @@ FunctionUnit::Global *FunctionUnit::TryResolveGlobal(Token varaible_name) {
 void FunctionUnit::EmitConstant(Value value) { EmitBytes(OpCode::OP_CONSTANT, AddValueConstant(value)); }
 void FunctionUnit::EmitOpClosure(ObjFunction *func, std::vector<UpValue> upvalues_of_func) {
   EmitBytes(OpCode::OP_CLOSURE, AddValueConstant(Value(func)));
-  assert(upvalues_of_func.size() < UPVALUE_LOOKUP_MAX);
+  if (upvalues_of_func.size() >= UPVALUE_LOOKUP_MAX) {
+    Error("Too many upvalues in closure");
+  }
   EmitByte((uint8_t)upvalues_of_func.size());
   for (auto &upvalue : upvalues_of_func) {
     EmitByte(upvalue.is_on_stack_at_begin ? 1 : 0);

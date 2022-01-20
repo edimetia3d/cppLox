@@ -5,7 +5,6 @@
 #ifndef CLOX_SRCS_CLOX_VM_VM_H_
 #define CLOX_SRCS_CLOX_VM_VM_H_
 
-#include "lox/err_code.h"
 #include "lox/object/gc.h"
 
 #include "lox/backend/virtual_machine/object/object.h"
@@ -50,9 +49,9 @@ class VM {
   VM();
   ~VM();
   static VM *Instance();
-  ErrCode Interpret(ObjFunction *function);  // interpret a script
+  void Interpret(ObjFunction *function);  // interpret a script
  private:
-  ErrCode Run();  // the core vm dispatch loop.
+  void Run();  // the core vm dispatch loop.
 
   inline void Push(Value value);
   inline Value Peek(int distance = 0);
@@ -61,16 +60,16 @@ class VM {
   inline void ResetStack();
   void DefineBuiltins();
 
-  void RuntimeError(const char *format, ...);
-  bool CallValue(Value callee, int arg_count);
-  bool CallClosure(ObjClosure *callee, int arg_count);
+  void Error(const char *format, ...);
+  void CallValue(Value callee, int arg_count);
+  void CallClosure(ObjClosure *callee, int arg_count);
 
   ObjUpvalue *MarkValueNeedToClose(Value *local_value_stack_pos);
   void CloseValuesFromStackPosition(Value *stack_position);
 
   bool TryGetBoundMethod(ObjClass *klass, Symbol *name);
-  bool DispatchInvoke(Symbol *method_name, int arg_count);  // just a dispatcher of `ClassName.foo()`/`instance.foo()`
-  bool InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count);
+  void DispatchInvoke(Symbol *method_name, int arg_count);  // just a dispatcher of `ClassName.foo()`/`instance.foo()`
+  void InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count);
 
   static void MarkGCRoots(void *vm);
   void TryGC() const;  // only vm will trigger gc at a suitable time.

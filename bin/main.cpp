@@ -9,6 +9,7 @@
 #include "lox/global_setting.h"
 #include "lox/lox.h"
 #include "lox/version.h"
+#include "lox/lox_error.h"
 
 using namespace lox;
 
@@ -38,7 +39,6 @@ int main(int argn, char* argv[]) {
   ArgsDef(app, args);
   CLI11_PARSE(app, argn, argv);
 
-  LoxError ret;
   LoxInterpreter interpreter;
 
   if (args.just_man) {
@@ -55,13 +55,16 @@ int main(int argn, char* argv[]) {
     spdlog::set_level(spdlog::level::err);
 #endif
   }
-  if (!args.input_file.empty()) {
-    ret = interpreter.RunFile(args.input_file);
-  } else {
-    ret = interpreter.RunPrompt();
+  try {
+    if (!args.input_file.empty()) {
+      interpreter.RunFile(args.input_file);
+    } else {
+      interpreter.RunPrompt();
+    }
+  } catch (const lox::LoxError& e) {
+    std::cerr << e.what() << std::endl;
+    return e.exit_code;
   }
-  if(ret.ToErrCode()){
-    return EX_SOFTWARE;
-  }
+
   return 0;
 }

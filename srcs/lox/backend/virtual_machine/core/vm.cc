@@ -4,19 +4,17 @@
 
 #include <spdlog/spdlog.h>
 
+#include "lox/backend/virtual_machine/errors.h"
 #include "lox/backend/virtual_machine/core/vm.h"
-
 #include "lox/backend/virtual_machine/builtins/builtin_fn.h"
 #include "lox/backend/virtual_machine/object/object.h"
-#include "lox/err_code.h"
 
 #define CHUNK_READ_BYTE() (*ip_++)
 #define CHUNK_READ_SHORT() (ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))
 #define CHEK_STACK_TOP_NUMBER(MSG)             \
   do {                                         \
     if (!Peek().IsNumber()) {                  \
-      RuntimeError(MSG);                       \
-      return ErrCode::INTERPRET_RUNTIME_ERROR; \
+      Error(MSG);                              \
     }                                          \
   } while (0)
 #define CHUNK_READ_CONSTANT() (active_frame_->closure->function->chunk->constants[CHUNK_READ_BYTE()])
@@ -35,7 +33,7 @@ VM *VM::Instance() {
   static VM object;
   return &object;
 }
-ErrCode VM::Run() {
+void VM::Run() {
   for (;;) {
     switch (static_cast<OpCode>(CHUNK_READ_BYTE())) {
       case OpCode::OP_CONSTANT: {
@@ -68,8 +66,7 @@ ErrCode VM::Run() {
       case OpCode::OP_GET_GLOBAL: {
         Symbol *name = CHUNK_READ_STRING();
         if (!globals_.contains(name)) {
-          RuntimeError("Undefined global variable '%s'.", name->c_str());
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
+          Error("Undefined global variable '%s'.", name->c_str());
         }
         Push(globals_[name]);
         break;
@@ -83,8 +80,7 @@ ErrCode VM::Run() {
       case OpCode::OP_SET_GLOBAL: {
         Symbol *name = CHUNK_READ_STRING();
         if (!globals_.contains(name)) {
-          RuntimeError("Undefined variable '%s'.", name->c_str());
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
+          Error("Undefined variable '%s'.", name->c_str());
         }
         globals_[name] = Peek(0);
         break;
@@ -121,8 +117,7 @@ ErrCode VM::Run() {
           Value a = Pop();
           Push(Value(Symbol::Intern(a.AsObject()->DynAs<Symbol>()->Str() + b.AsObject()->DynAs<Symbol>()->Str())));
         } else {
-          RuntimeError("Operands must be two numbers or two strings.");
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
+          Error("Operands must be two numbers or two strings.");
         }
         break;
       case OpCode::OP_SUBTRACT:
@@ -166,9 +161,7 @@ ErrCode VM::Run() {
       }
       case OpCode::OP_CALL: {
         int argCount = CHUNK_READ_BYTE();
-        if (!CallValue(Peek(argCount), argCount)) {
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
-        }
+        CallValue(Peek(argCount), argCount);
         break;
       }
       case OpCode::OP_CLOSURE: {
@@ -214,8 +207,7 @@ ErrCode VM::Run() {
             break;
           }
           if (!TryGetBoundMethod(instance->klass, name)) {
-            RuntimeError("Undefined attr '%s'.", name->c_str());
-            return ErrCode::INTERPRET_RUNTIME_ERROR;
+            Error("Undefined attr '%s'.", name->c_str());
           }
           break;
         }
@@ -224,25 +216,21 @@ ErrCode VM::Run() {
           auto possible_instance = *active_frame_->slots;
           if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
               !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
-            RuntimeError("class method cannot access", klass);
-            return ErrCode::INTERPRET_RUNTIME_ERROR;
+            Error("class method cannot access", klass);
           }
           sp_[-1] = possible_instance;  // a hack that replace class with instance
           Symbol *name = CHUNK_READ_STRING();
           if (!TryGetBoundMethod(klass, name)) {
-            RuntimeError("Undefined method '%s'.", name->c_str());
-            return ErrCode::INTERPRET_RUNTIME_ERROR;
+            Error("Undefined method '%s'.", name->c_str());
           }
           break;
         }
-        RuntimeError("Only instances have attrs. Only class have methods.");
-        return ErrCode::INTERPRET_RUNTIME_ERROR;
+        Error("Only instances have attrs. Only class have methods.");
       }
       case OpCode::OP_SET_ATTR: {
         auto top_v_1 = Peek(1);
         if (!top_v_1.IsObject() || !top_v_1.AsObject()->DynAs<ObjInstance>()) {
-          RuntimeError("Only instances have attr.");
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
+          Error("Only instances have attr.");
         }
         ObjInstance *instance = top_v_1.AsObject()->DynAs<ObjInstance>();
         Symbol *name = CHUNK_READ_STRING();
@@ -256,15 +244,12 @@ ErrCode VM::Run() {
       case OpCode::OP_INVOKE: {
         auto *method = CHUNK_READ_STRING();
         int argCount = CHUNK_READ_BYTE();
-        if (!DispatchInvoke(method, argCount)) {
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
-        }
+        DispatchInvoke(method, argCount);
         break;
       }
       case OpCode::OP_INHERIT: {
         if (!Peek(1).AsObject()->DynAs<ObjClass>()) {
-          RuntimeError("Superclass must be a class.");
-          return ErrCode::INTERPRET_RUNTIME_ERROR;
+          Error("Superclass must be a class.");
         }
         auto superclass = Peek(1).AsObject()->DynAs<ObjClass>();
         auto subclass = Peek(0).AsObject()->DynAs<ObjClass>();
@@ -285,7 +270,7 @@ ErrCode VM::Run() {
     }
   }
 EXIT:
-  return ErrCode::NO_ERROR;
+  return;
 }
 void VM::TryGC() const {
   if (Object::AllCreatedObj().size() > GC::Instance().gc_threashold) {
@@ -297,7 +282,7 @@ void VM::TryGC() const {
 void VM::ResetStack() { sp_ = stack_; }
 void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
-ErrCode VM::Interpret(ObjFunction *function) {
+void VM::Interpret(ObjFunction *function) {
   Push(Value(function));
   auto rt_fn = new ObjClosure(function);
   Pop();
@@ -306,12 +291,13 @@ ErrCode VM::Interpret(ObjFunction *function) {
   return Run();
 }
 
-void VM::RuntimeError(const char *format, ...) {
+void VM::Error(const char *format, ...) {
+  std::vector<char> buf(256);
   va_list args;
   va_start(args, format);
-  vfprintf(stderr, format, args);
+  vsnprintf(buf.data(), 256, format, args);
   va_end(args);
-  fputs("\n", stderr);
+  fprintf(stderr, "%s\n", buf.data());
 #ifndef NDEBUG
   for (auto fp = frames_; fp <= active_frame_; ++fp) {
     ObjFunction *function = fp->closure->function;
@@ -320,6 +306,7 @@ void VM::RuntimeError(const char *format, ...) {
   }
 #endif
   ResetStack();
+  throw RuntimeError(std::string(buf.data()));
 }
 Value VM::Peek(int distance) {
   assert(distance >= 0);
@@ -335,7 +322,7 @@ VM::~VM() {
     SPDLOG_DEBUG("VM destroyed {} CLoxObject at exit.", count);
   }
 }
-bool VM::CallValue(Value callee, int arg_count) {
+void VM::CallValue(Value callee, int arg_count) {
   if (callee.IsObject()) {
     if (ObjClass *klass = callee.AsObject()->DynAs<ObjClass>()) {
       auto new_instance = new ObjInstance(klass);
@@ -344,11 +331,10 @@ bool VM::CallValue(Value callee, int arg_count) {
       if (klass->methods.contains(SYMBOL_INIT)) {
         return CallClosure(klass->methods[SYMBOL_INIT]->DynAs<ObjClosure>(), arg_count);
       } else if (arg_count != 0) {
-        RuntimeError("Expected 0 arguments but got %d.", arg_count);
-        return false;
+        Error("Expected 0 arguments but got %d.", arg_count);
       }
       // if codes goes here, no init is called , we just leave the instance on stack
-      return true;
+      return;
     }
     if (ObjBoundMethod *bound = callee.AsObject()->DynAs<ObjBoundMethod>()) {
       sp_[-arg_count - 1] = bound->receiver;  // a hack that replace bounded method with self
@@ -361,23 +347,20 @@ bool VM::CallValue(Value callee, int arg_count) {
       Value result = native(arg_count, sp_ - arg_count);
       sp_ -= (arg_count + 1);
       Push(result);
-      return true;
+      return;
     }
   }
-  RuntimeError("Can only CallClosure functions and classes.");
-  return false;
+  Error("Can only CallClosure functions and classes.");
 }
-bool VM::CallClosure(ObjClosure *callee, int arg_count) {
+void VM::CallClosure(ObjClosure *callee, int arg_count) {
   if (arg_count != callee->function->arity) {
-    RuntimeError("Expected %d arguments but got %d.", callee->function->arity, arg_count);
-    return false;
+    Error("Expected %d arguments but got %d.", callee->function->arity, arg_count);
   }
   if ((active_frame_ - frames_ + 1) == VM_FRAMES_MAX) {
-    RuntimeError("Too many stack frames");
-    return false;
+    Error("Too many stack frames");
   }
   PushFrame(callee);
-  return true;
+  return;
 }
 VM::VM() : marker_register_guard(&MarkGCRoots, this) {
   active_frame_ = &frames_[0] - 1;  // to make the active_frame_ comparable, init with a dummy value
@@ -463,7 +446,7 @@ void VM::MarkGCRoots(void *vm_p) {
 bool VM::TryGetBoundMethod(ObjClass *klass, Symbol *name) {
   Value method;
   if (!klass->methods.contains(name)) {
-    RuntimeError("Undefined property '%s'.", name->c_str());
+    Error("Undefined property '%s'.", name->c_str());
     return false;
   }
 
@@ -472,7 +455,7 @@ bool VM::TryGetBoundMethod(ObjClass *klass, Symbol *name) {
   Push(Value(bound));  // replace with new attr value
   return true;
 }
-bool VM::DispatchInvoke(Symbol *method_name, int arg_count) {
+void VM::DispatchInvoke(Symbol *method_name, int arg_count) {
   Value receiver = Peek(arg_count);
   if (receiver.AsObject()->DynAs<ObjInstance>()) {
     ObjInstance *instance = receiver.AsObject()->DynAs<ObjInstance>();
@@ -487,21 +470,18 @@ bool VM::DispatchInvoke(Symbol *method_name, int arg_count) {
     auto possible_instance = *active_frame_->slots;
     if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
         !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
-      RuntimeError("class method cannot access", klass);
-      return false;
+      Error("class method cannot access", klass);
     }
     // a hack that change class to the instance
     sp_[-arg_count - 1] = possible_instance;
     return InvokeMethod(klass, method_name, arg_count);
   }
-  RuntimeError("Only instances / class have methods.");
-  return false;
+  Error("Only instances / class have methods.");
 }
 
-bool VM::InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count) {
+void VM::InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count) {
   if (!klass->methods.contains(method_name)) {
-    RuntimeError("Undefined property '%s'.", method_name->c_str());
-    return false;
+    Error("Undefined property '%s'.", method_name->c_str());
   }
   return CallClosure(klass->methods[method_name], arg_count);
 }

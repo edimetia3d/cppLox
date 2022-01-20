@@ -12,13 +12,18 @@
 #include "lox/token/token.h"
 
 namespace lox {
+
+class ScannerError : public LoxError {
+  using LoxError::LoxError;
+};
+
 class Scanner {
  public:
   explicit Scanner(const std::string& srcs) : srcs_(&srcs) {}
 
-  LoxError ScanAll(std::vector<Token>* output);
+  std::vector<Token> ScanAll();
 
-  LoxError ScanOne(Token* output);
+  Token ScanOne();
 
   void Reset() { Reset(*srcs_); }
 
@@ -28,13 +33,11 @@ class Scanner {
   }
 
  private:
-  bool ScanOne();
-
-  bool Match(char expected);
+  bool MatchAndAdvance(char expected);
 
   char Peek(int offseet = 0);
 
-  void AddStringToken();
+  Token AddStringToken();
 
   static bool IsDigit(char c) { return c >= '0' && c <= '9'; }
 
@@ -42,25 +45,22 @@ class Scanner {
 
   static bool IsAlphaNumeric(char c) { return IsAlpha(c) || IsDigit(c); }
 
-  void AddNumToken();
+  Token AddNumToken();
 
-  void AddToken(TokenType type);
+  Token AddToken(TokenType type);
 
   bool IsAtEnd() { return current_lex_pos_ >= srcs_->size(); }
+  char LastChar();
 
   char Advance();
 
-  void AddIdentifierToken();
+  Token AddIdentifierToken();
 
   const std::string* srcs_;
   int start_lex_pos_ = 0;
   int current_lex_pos_ = 0;
-  Token last_scan_;
-  bool new_token_scaned_ = false;
-  LoxError err_;
   int line_ = 0;
   void ResetTokenBeg();
-  void ResetErr();
 };
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_SCANNER_H_

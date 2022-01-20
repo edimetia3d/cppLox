@@ -4,127 +4,113 @@
 
 #include "lox/frontend/scanner.h"
 
+#include "lox/lox_error.h"
+
 namespace lox {
-LoxError Scanner::ScanAll(std::vector<Token>* output) {
-  ResetErr();
-  while (!IsAtEnd()) {
-    if (ScanOne()) {
-      output->push_back(last_scan_);
-    }
+
+std::vector<Token> Scanner::ScanAll() {
+  std::vector<Token> output;
+  while (output.empty() || output.back()->type != TokenType::EOF_TOKEN) {
+    output.push_back(ScanOne());
   }
-  output->push_back(MakeToken(TokenType::EOF_TOKEN, "EOF", line_));
-  return err_;
+  return output;
 }
 
-LoxError Scanner::ScanOne(Token* output) {
-  ResetErr();
-  if (!IsAtEnd() && ScanOne()) {
-    *output = last_scan_;
-  } else {
-    if (IsAtEnd()) {
-      *output = MakeToken(TokenType::EOF_TOKEN, "EOF", line_);
-    } else {
-      err_.Merge(LoxError("Scan failed for unknown reason"));
-    }
+Token Scanner::ScanOne() {
+  if (IsAtEnd()) {
+    return MakeToken(TokenType::EOF_TOKEN, "EOF", line_);
   }
-
-  return err_;
-}
-
-bool Scanner::ScanOne() {
-  new_token_scaned_ = false;
-TRY_SCAN:
+  ResetTokenBeg();
   char c = Advance();
   // clang-format off
   switch (c) {
-    case '(': AddToken(TokenType::LEFT_PAREN); break;
-    case ')': AddToken(TokenType::RIGHT_PAREN); break;
-    case '{': AddToken(TokenType::LEFT_BRACE); break;
-    case '}': AddToken(TokenType::RIGHT_BRACE); break;
-    case ',': AddToken(TokenType::COMMA); break;
-    case '.': AddToken(TokenType::DOT); break;
-    case '-': AddToken(TokenType::MINUS); break;
-    case '+': AddToken(TokenType::PLUS); break;
-    case ';': AddToken(TokenType::SEMICOLON); break;
-    case '*': AddToken(TokenType::STAR); break;
-    case '!': AddToken(Match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);break;
-    case '=': AddToken(Match('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);break;
-    case '<': AddToken(Match('=') ? TokenType::LESS_EQUAL : TokenType::LESS);break;
-    case '>': AddToken(Match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);break;
-    case '/':
-      if (Match('/')) {
-        // A comment goes until the end of the line.
-        while (Peek() != '\n' && !IsAtEnd()) Advance();
-      } else {
-        AddToken(TokenType::SLASH);
+    case '(': return AddToken(TokenType::LEFT_PAREN);
+    case ')': return AddToken(TokenType::RIGHT_PAREN);
+    case '{': return AddToken(TokenType::LEFT_BRACE);
+    case '}': return AddToken(TokenType::RIGHT_BRACE);
+    case ',': return AddToken(TokenType::COMMA);
+    case '.': return AddToken(TokenType::DOT);
+    case '-': return AddToken(TokenType::MINUS);
+    case '+': return AddToken(TokenType::PLUS);
+    case ';': return AddToken(TokenType::SEMICOLON);
+    case '*': return AddToken(TokenType::STAR);
+    case '!': return AddToken(MatchAndAdvance('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
+    case '=': return AddToken(MatchAndAdvance('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);
+    case '<': return AddToken(MatchAndAdvance('=') ? TokenType::LESS_EQUAL : TokenType::LESS);
+    case '>': return AddToken(MatchAndAdvance('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);
+    case '/':{
+        if (MatchAndAdvance('/')) {
+          // A comment goes until the end of the line.
+          while (Peek() != '\n' && !IsAtEnd()) Advance();
+          return ScanOne();
+        } else {
+          return AddToken(TokenType::SLASH);
+        }
       }
     case ' ':
     case '\r':
     case '\t':
-      // Ignore whitespace.
-      ResetTokenBeg();
-      break;
+      return ScanOne();
     case '\n':
       line_++;
-      ResetTokenBeg();
-      break;
+      return ScanOne();
     case '"':
-      AddStringToken();
-      break;
+      return AddStringToken();
     default:
       if (IsDigit(c)) {
-        AddNumToken();
+        return AddNumToken();
       }
       else if (IsAlpha(c)) {
-        AddIdentifierToken();
+        return AddIdentifierToken();
       }
       else{
-        err_.Merge(LoxError("Unknwon char at line "+std::to_string(line_)));return false;
+        throw ScannerError("Unknwon char at line "+std::to_string(line_));
       }
   }
   // clang-format on
-  if (!new_token_scaned_ && !IsAtEnd()) {
-    goto TRY_SCAN;
-  }
-  return new_token_scaned_;
 }
-void Scanner::AddToken(TokenType type) {
-  last_scan_ =
-      MakeToken(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);
-  new_token_scaned_ = true;
+Token Scanner::AddToken(TokenType type) {
+  auto ret = MakeToken(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);
   ResetTokenBeg();
+  return ret;
+  ;
 }
 void Scanner::ResetTokenBeg() { start_lex_pos_ = current_lex_pos_; }
 
-char Scanner::Advance() { return srcs_->at(current_lex_pos_++); }
-bool Scanner::Match(char expected) {
-  if (IsAtEnd()) return false;
-  if (srcs_->at(current_lex_pos_) != expected) return false;
+char Scanner::Advance() {
+  auto ret = LastChar();
+  ++current_lex_pos_;
+  return ret;
+}
 
-  current_lex_pos_++;
+bool Scanner::MatchAndAdvance(char expected) {
+  if (IsAtEnd()) return false;
+  if (LastChar() != expected) return false;
+  Advance();
   return true;
 }
+
 char Scanner::Peek(int offset) {
   if (IsAtEnd()) return '\0';
   return srcs_->at(current_lex_pos_ + offset);
 }
-void Scanner::AddStringToken() {
+
+Token Scanner::AddStringToken() {
   while (Peek() != '"' && !IsAtEnd()) {
     if (Peek() == '\n') line_++;
     Advance();
   }
 
   if (IsAtEnd()) {
-    err_.Merge(LoxError("Unterminated string @line" + std::to_string(line_)));
-    return;
+    throw ScannerError("Unterminated string @line" + std::to_string(line_));
   }
 
   // The closing ".
   Advance();
 
-  AddToken(TokenType::STRING);
+  return AddToken(TokenType::STRING);
 }
-void Scanner::AddNumToken() {
+Token Scanner::AddNumToken() {
   while (IsDigit(Peek())) Advance();
 
   // Look for a fractional part.
@@ -135,20 +121,22 @@ void Scanner::AddNumToken() {
 
       while (IsDigit(Peek())) Advance();
 
-      AddToken(TokenType::NUMBER);
+      return AddToken(TokenType::NUMBER);
     } else {
-      err_.Merge(LoxError("wrong number format @line" + std::to_string(line_)));
+      throw ScannerError("wrong number format @line" + std::to_string(line_));
     }
   } else {
-    AddToken(TokenType::NUMBER);
+    return AddToken(TokenType::NUMBER);
   }
 }
-void Scanner::AddIdentifierToken() {
+
+Token Scanner::AddIdentifierToken() {
   while (IsAlphaNumeric(Peek())) Advance();
 
-  AddToken(
+  return AddToken(
       TokenBase::GetIdentifierType(std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_)));
 }
-void Scanner::ResetErr() { err_ = LoxError(); }
+
+char Scanner::LastChar() { return srcs_->at(current_lex_pos_); }
 
 }  // namespace lox
