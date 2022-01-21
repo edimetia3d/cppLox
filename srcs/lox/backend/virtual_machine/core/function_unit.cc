@@ -12,6 +12,8 @@ static void Error(const std::string &msg) {
 }
 
 namespace lox::vm {
+std::vector<FunctionUnit::Global> FunctionUnit::globals;
+
 FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std::string &name, LineInfoCB line_info)
     : enclosing(enclosing), type(type), line_info(line_info) {
   func = new ObjFunction(name);  // object function will get gc cleaned, so we only new , not delete
@@ -34,11 +36,10 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
   function_self.semantic_scope_depth = current_semantic_scope_level;
 }
 
-FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingStack(Local *some_value) {
-  // check if upvalue is already added
+FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, bool is_on_stack_at_begin) {
   for (auto &uv : upvalues) {
     FunctionUnit::UpValue *upvalue = &uv;
-    if (upvalue->position == some_value->position && upvalue->is_on_stack_at_begin) {
+    if (upvalue->position_at_begin == some_value->position && upvalue->is_on_stack_at_begin == is_on_stack_at_begin) {
       return upvalue;
     }
   }
@@ -47,30 +48,18 @@ FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingStack(Local *some_va
     Error("Upvalue limit reached.");
   }
   upvalues.resize(upvalues.size() + 1);
-  upvalues.back().is_on_stack_at_begin = true;
-  upvalues.back().position = some_value->position;
-  upvalues.back().offset_in_upvalues = upvalues.size() - 1;
+  upvalues.back().is_on_stack_at_begin = is_on_stack_at_begin;
+  upvalues.back().position = upvalues.size() - 1;
+  upvalues.back().position_at_begin = some_value->position;
+  upvalues.back().is_inited = true;  // all upvalues are already inited
   return &upvalues.back();
+}
+FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingStack(Local *some_value) {
+  return DoAddUpValue(some_value, true);
 }
 
 FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingUpValue(FunctionUnit::UpValue *some_value) {
-  // check if upvalue is already added
-  for (auto &uv : upvalues) {
-    FunctionUnit::UpValue *upvalue = &uv;
-    if (upvalue->position == some_value->position && !upvalue->is_on_stack_at_begin) {
-      return upvalue;
-    }
-  }
-
-  if (upvalues.size() == UPVALUE_LOOKUP_MAX) {
-    Error("Upvalue limit reached.");
-  }
-
-  upvalues.resize(upvalues.size() + 1);
-  upvalues.back().is_on_stack_at_begin = false;
-  upvalues.back().position = some_value->offset_in_upvalues;
-  upvalues.back().offset_in_upvalues = upvalues.size() - 1;
-  return &upvalues.back();
+  return DoAddUpValue(some_value, false);
 }
 
 FunctionUnit::UpValue *FunctionUnit::TryResolveUpValue(Token varaible_name) {
@@ -165,14 +154,14 @@ void FunctionUnit::CleanUpNLocalFromTail(int local_var_num) {
   }
 }
 
-uint8_t FunctionUnit::AddStrConstant(Token token) { return AddValueConstant(Value(Symbol::Intern(token->lexeme))); }
-
 uint8_t FunctionUnit::AddValueConstant(Value value) {
-  int constant = Chunk()->AddConstant(value);
-  if (constant > CONSTANT_LOOKUP_MAX) {
+  if ((value.IsObject() && value.AsObject()->DynAs<Symbol>())) {
+    return GetSymbolConstant(value.AsObject()->DynAs<Symbol>()->c_str());
+  }
+  if (Chunk()->constants.size() == (CONSTANT_LOOKUP_MAX - 1)) {
     Error("Too many constants in one chunk.");
   }
-  return (uint8_t)constant;
+  return Chunk()->AddConstant(value);
 }
 
 void FunctionUnit::EmitDefaultReturn() {
@@ -269,7 +258,7 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
     globals.resize(globals.size() + 1);
     Global *new_global = &globals.back();
     new_global->name = var_name->lexeme;
-    new_global->position = AddStrConstant(var_name);
+    GetSymbolConstant(var_name->lexeme);
     return new_global;
   } else {
     // check redifinition
@@ -302,10 +291,10 @@ void FunctionUnit::DefineNamedValue(NamedValue *value) {
       Error("Too many global variables in script");
     }
     // move the stack top to vm's global by it's name
-    EmitBytes(OpCode::OP_DEFINE_GLOBAL, value->position);
+    EmitBytes(OpCode::OP_DEFINE_GLOBAL, GetSymbolConstant(value->name));
 
     // global var def and decl must be paired.
-    assert(value->position == (globals.size() - 1));
+    assert(value == &globals.back());
 
   } else {
     // stack var will just leave on stack
@@ -315,10 +304,15 @@ void FunctionUnit::DefineNamedValue(NamedValue *value) {
   }
   value->is_inited = true;
 }
-FunctionUnit::Global *FunctionUnit::TryResolveGlobal(Token varaible_name) {
+std::unique_ptr<FunctionUnit::GlobalAccessGuard> FunctionUnit::TryResolveGlobal(Token varaible_name) {
   for (auto &global : globals) {
     if (global.name == varaible_name->lexeme) {
-      return &global;
+      if (global.position != -1) {
+        Error("Unknown global access error");
+      }
+      global.position = GetSymbolConstant(varaible_name->lexeme);
+      return std::make_unique<FunctionUnit::GlobalAccessGuard>(&global);
+      ;
     }
   }
   return nullptr;
@@ -332,7 +326,18 @@ void FunctionUnit::EmitOpClosure(ObjFunction *func, std::vector<UpValue> upvalue
   EmitByte((uint8_t)upvalues_of_func.size());
   for (auto &upvalue : upvalues_of_func) {
     EmitByte(upvalue.is_on_stack_at_begin ? 1 : 0);
-    EmitByte(upvalue.position);
+    EmitByte(upvalue.position_at_begin);
   }
+}
+uint8_t FunctionUnit::GetSymbolConstant(const std::string &str) {
+  if (!used_symbol_constants.contains(str)) {
+    if (Chunk()->constants.size() == (CONSTANT_LOOKUP_MAX - 1)) {
+      Error("Too many constants in one chunk.");
+    }
+    auto constant = Chunk()->AddConstant(Value(Symbol::Intern(str)));
+    used_symbol_constants[str] = constant;
+    return constant;
+  }
+  return used_symbol_constants[str];
 }
 }  // namespace lox::vm

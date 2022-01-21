@@ -6,6 +6,7 @@
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_FUNCTION_UNIT_H
 
 #include <string>
+#include <map>
 
 #include "lox/backend/virtual_machine/core/chunk.h"
 #include "lox/backend/virtual_machine/object/object.h"
@@ -70,16 +71,22 @@ struct FunctionUnit {
     //   1. offset in caller's stack slot, if it is is_on_stack_at_begin
     //   2. offset in caller's upvalues, if it is not is_on_stack_at_begin
     bool is_on_stack_at_begin = false;
-    int offset_in_upvalues = -1;
+    int position_at_begin = -1;
   };
   std::vector<UpValue> upvalues;  // contains upvalues current function will used
   UpValue* TryResolveUpValue(Token varaible_name);
 
   struct Global : public NamedValue {
-    // position of global is its name's offset in constant table.
+    // position of global is dynamic is its name's offset in constant table, and is a dynamic value. the offset
+    // might be different in different compilation unit.
   };
-  std::vector<Global> globals;  // contains globals current function will used
-  Global* TryResolveGlobal(Token varaible_name);
+  struct GlobalAccessGuard {
+    explicit GlobalAccessGuard(Global* target) : target(target) {}
+    ~GlobalAccessGuard() { target->position = -1; }
+    Global* target = nullptr;
+  };
+  static std::vector<Global> globals;  // contains globals current function will used
+  std::unique_ptr<FunctionUnit::GlobalAccessGuard> TryResolveGlobal(Token varaible_name);
 
   ///////////////////////////////////////////// NAME RESOLVE SUPPORT END////////////////////////////////////////////////
   struct JumpDownHole {
@@ -101,11 +108,13 @@ struct FunctionUnit {
   FunctionUnit* enclosing = nullptr;
   ObjFunction* func;  // func is created by us, and managed by GC
   FunctionType type = FunctionType::UNKNOWN;
+  std::map<std::string, uint8_t> used_symbol_constants;
   int current_semantic_scope_level = 0;  // the current tokens semantic scope depth, 0 means the global scope.
   // Note that 1. function name belongs to outer scope, function body is in the inner scope. 2. In our implementation,
   // class do not create new scope, and class can only define methods, and these methods will not be populated as named
   // value in scope.
 
+  FunctionUnit::UpValue* DoAddUpValue(NamedValue* some_value, bool is_on_stack_at_begin);
   UpValue* AddUpValueFromEnclosingStack(Local* some_value);
   UpValue* AddUpValueFromEnclosingUpValue(UpValue* some_value);
   Chunk* Chunk() { return func->chunk.get(); }
@@ -115,13 +124,12 @@ struct FunctionUnit {
   void EmitBytes(OpCode opcode0, OpCode opcode1);
   void EmitDefaultReturn();
   uint8_t AddValueConstant(Value value);
+  uint8_t GetSymbolConstant(const std::string& str);
   void EmitConstant(Value value);
   JumpDownHole CreateJumpDownHole(OpCode jump_cmd);
   void JumpHerePatch(JumpDownHole hole);
   void EmitJumpBack(int start);
   void CleanUpNLocalFromTail(int local_var_num);
-
-  uint8_t AddStrConstant(Token token);
 
   void EmitUnary(const TokenType& token_type);
   void EmitBinary(const TokenType& token_type);

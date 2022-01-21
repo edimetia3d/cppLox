@@ -35,6 +35,10 @@ pushd craftinginterpreters
 echo "Testing with virtual machine"
 dart tool/bin/test.dart clox operator --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox assignment --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox block --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox bool --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox call --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox class --interpreter "$BINARY_PATH" --loose_mode
 echo "Testing with tree walker"
 dart tool/bin/test.dart clox operator/add.lox --interpreter "$BINARY_PATH" --loose_mode --arguments --backend="TreeWalker"
 popd

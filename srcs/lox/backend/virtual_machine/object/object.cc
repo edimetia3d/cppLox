@@ -81,7 +81,7 @@ std::vector<Object *> ObjClass::References() {
   }
   return ret;
 }
-std::string ObjClass::Str() const { return string_sprint("<class %s>", name.c_str()); }
+std::string ObjClass::Str() const { return name; }
 ObjClass::ObjClass(std::string name) : name(std::move(name)) {}
 std::vector<Object *> ObjInstance::References() {
   std::vector<Object *> ret;

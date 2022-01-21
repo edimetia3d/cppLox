@@ -26,11 +26,9 @@ class ChunkDump {
   }
 
   void DumpAllCode() {
-    SPDLOG_DEBUG("=========== CODE BEGIN ===========");
     for (int offset = 0; offset < chunk->ChunkSize();) {
       offset = DumpCodeAt(offset);
     }
-    SPDLOG_DEBUG("=========== CODE END ===========");
   }
 
   void DumpConstant() {
@@ -154,13 +152,13 @@ class ChunkDump {
   int ClosureInstruction(int offset) {
     offset++;
     uint8_t constant = chunk->code[offset++];
-    AppendLatestLine("\n%-16s %4d->[%s]\n", "OP_CLOSURE", constant, chunk->constants[constant].Str().c_str());
+    AppendLatestLine(" %-16s %4d->[%s]", "OP_CLOSURE", constant, chunk->constants[constant].Str().c_str());
     auto function = chunk->constants[constant].AsObject()->DynAs<ObjFunction>();
     int upvalue_count = chunk->code[offset++];
     for (int j = 0; j < upvalue_count; j++) {
       int isLocal = chunk->code[offset++];
       int index = chunk->code[offset++];
-      AppendLatestLine("%04d      |                     %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
+      AppendLatestLine("\n%04d      |                     %s %d", offset - 2, isLocal ? "local" : "upvalue", index);
     }
     return offset;
   };

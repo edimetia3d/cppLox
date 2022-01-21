@@ -4,8 +4,10 @@
 
 #include "lox/backend/virtual_machine/core/compiler.h"
 
-#include <map>
 #include <spdlog/spdlog.h>
+
+#include <map>
+#include <memory>
 
 #include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/errors.h"
@@ -150,8 +152,12 @@ void Compiler::ErrorAt(Token token, const char *message) { throw CompilationErro
 std::string Compiler::CreateErrMsg(const Token &token, const char *message) const {
   std::vector<char> buf(256);
   int offset = 0;
-  offset += snprintf(buf.data() + offset, 256, "[line %d] Error at '%s': %s\n", token->line + 1, token->lexeme.c_str(),
-                     message);
+  if (token->type == TokenType::EOF_TOKEN) {
+    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at end: %s\n", token->line + 1, message);
+  } else {
+    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at '%s': %s\n", token->line + 1,
+                       token->lexeme.c_str(), message);
+  }
   return std::string(buf.data());
 }
 void Compiler::Consume(TokenType type, const char *message) {
@@ -242,7 +248,6 @@ void Compiler::ExpressionStmt() {
   cu_->EmitByte(OpCode::OP_POP);
 }
 void Compiler::Synchronize() {
-
   while (current->type != TokenType::EOF_TOKEN) {
     if (previous->type == TokenType::SEMICOLON) return;
     switch (current->type) {
@@ -324,6 +329,7 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
    */
   OpCode getOp, setOp;
   FunctionUnit::NamedValue *reslove = nullptr;
+  std::unique_ptr<FunctionUnit::GlobalAccessGuard> global_guard;
   if ((reslove = cu_->TryResolveLocal(varaible_token))) {
     getOp = OpCode::OP_GET_LOCAL;
     setOp = OpCode::OP_SET_LOCAL;
@@ -333,10 +339,14 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
     setOp = OpCode::OP_SET_UPVALUE;
     assert(reslove->position < UPVALUE_LOOKUP_MAX);
   } else {
-    reslove = cu_->TryResolveGlobal(varaible_token);
     getOp = OpCode::OP_GET_GLOBAL;
     setOp = OpCode::OP_SET_GLOBAL;
-    assert(reslove->position < GLOBAL_LOOKUP_MAX);
+    auto global = cu_->TryResolveGlobal(varaible_token);
+    global_guard = std::move(global);
+    if (global_guard) {
+      reslove = global_guard.get()->target;
+      assert(reslove->position < GLOBAL_LOOKUP_MAX);
+    }
   }
   if (!reslove) {
     // upstream lox compiler will not check undefined variable at compile time, we use a hack to throw a runtime error.
@@ -365,7 +375,7 @@ void Compiler::BlockStmt() {
     AnyStatement();
   }
 
-  Consume(TokenType::RIGHT_BRACE, "Expect '}' after BlockStmt.");
+  Consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
 }
 
 void Compiler::IfStmt() {
@@ -558,9 +568,11 @@ void Compiler::ClassDefStmt() {
   Token className = previous;
   auto handle = cu_->DeclNamedValue(className);
 
-  cu_->EmitBytes(OpCode::OP_CLASS, handle->position);  // create a objClass on stack
-  cu_->DefineNamedValue(
-      handle);  // most class def are in global scope, so here we will move the created class obj to global at runtime.
+  // use OP_CLASS to leave a value on the stack, to init the named value we just created.
+  uint8_t name_const = cu_->GetSymbolConstant(className->lexeme);
+  cu_->EmitBytes(OpCode::OP_CLASS, name_const);
+
+  cu_->DefineNamedValue(handle);
 
   ClassLevel nest_class(currentClass);
   currentClass = &nest_class;
@@ -582,7 +594,7 @@ void Compiler::ClassDefStmt() {
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
     Consume(TokenType::IDENTIFIER, "Expect Method name.");
-    uint8_t fn_name_cst = cu_->AddStrConstant(previous);
+    uint8_t fn_name_cst = cu_->GetSymbolConstant(previous->lexeme);
     FunctionType Type = FunctionType::METHOD;
     if (previous->lexeme == "init") {
       Type = FunctionType::INITIALIZER;
@@ -599,14 +611,17 @@ void Compiler::PushCU(FunctionType type, const std::string &name) {
   cu_ = new FunctionUnit(cu_, type, name, [this]() { return this->previous->line; });
 }
 std::unique_ptr<FunctionUnit> Compiler::PopCU() {
-  auto old_cu = cu_;
   cu_->EmitDefaultReturn();  // always inject a default return to make sure the function ends
 #ifndef NDEBUG
+  SPDLOG_DEBUG("=========== {:^20} CODE  ===========", cu_->func->name);
   DumpChunkCode(cu_->Chunk());
+  SPDLOG_DEBUG("=========== {:^20} CONST ===========", cu_->func->name);
   DumpChunkConstant(cu_->Chunk());
+  SPDLOG_DEBUG("=========== {:^20} END   ===========", cu_->func->name);
 #endif
+  auto latest_cu = cu_;
   cu_ = cu_->enclosing;
-  return std::unique_ptr<FunctionUnit>(old_cu);
+  return std::unique_ptr<FunctionUnit>(latest_cu);
 }
 
 void Compiler::GetNamedValue(Token name) { return GetOrSetNamedValue(name, false); }
@@ -670,7 +685,7 @@ void Compiler::EmitInfix() {
     case TokenType::DOT: {
       // todo : check only method can use class method at compile time
       Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
-      uint8_t attr_name = cu_->AddStrConstant(previous);
+      uint8_t attr_name = cu_->GetSymbolConstant(previous->lexeme);
 
       if (CanAssign() && MatchAndAdvance(TokenType::EQUAL)) {
         AnyExpression();

@@ -86,13 +86,13 @@ void VM::Run() {
         break;
       }
       case OpCode::OP_GET_UPVALUE: {
-        uint8_t slot = CHUNK_READ_BYTE();
-        Push(*active_frame_->closure->upvalues[slot]->location);
+        uint8_t offset_in_upvalue = CHUNK_READ_BYTE();
+        Push(*active_frame_->closure->upvalues[offset_in_upvalue]->location);
         break;
       }
       case OpCode::OP_SET_UPVALUE: {
-        uint8_t slot = CHUNK_READ_BYTE();
-        *active_frame_->closure->upvalues[slot]->location = Peek(0);
+        uint8_t offset_in_upvalue = CHUNK_READ_BYTE();
+        *active_frame_->closure->upvalues[offset_in_upvalue]->location = Peek(0);
         break;
       }
       case OpCode::OP_EQUAL: {
@@ -168,13 +168,14 @@ void VM::Run() {
         auto closure = new ObjClosure(CHUNK_READ_CONSTANT().AsObject()->DynAs<ObjFunction>());
         Push(Value(closure));
         uint8_t upvalue_count = CHUNK_READ_BYTE();
+        closure->upvalues.resize(upvalue_count, nullptr);
         for (int i = 0; i < upvalue_count; i++) {
-          uint8_t isLocal = CHUNK_READ_BYTE();
-          uint8_t index = CHUNK_READ_BYTE();
-          if (isLocal) {
-            closure->upvalues[i] = MarkValueNeedToClose(active_frame_->slots + index);
+          uint8_t is_on_stack_at_begin = CHUNK_READ_BYTE();
+          uint8_t position_at_begin = CHUNK_READ_BYTE();
+          if (is_on_stack_at_begin) {
+            closure->upvalues[i] = MarkValueNeedToClose(active_frame_->slots + position_at_begin);
           } else {
-            closure->upvalues[i] = active_frame_->closure->upvalues[index];
+            closure->upvalues[i] = active_frame_->closure->upvalues[position_at_begin];
           }
         }
         break;
@@ -297,7 +298,6 @@ void VM::Error(const char *format, ...) {
   va_start(args, format);
   vsnprintf(buf.data(), 256, format, args);
   va_end(args);
-  fprintf(stderr, "%s\n", buf.data());
 #ifndef NDEBUG
   for (auto fp = frames_; fp <= active_frame_; ++fp) {
     ObjFunction *function = fp->closure->function;
@@ -343,14 +343,14 @@ void VM::CallValue(Value callee, int arg_count) {
     if (ObjClosure *closure = callee.AsObject()->DynAs<ObjClosure>()) {
       return CallClosure(closure, arg_count);
     }
-    if (auto native = callee.AsObject()->DynAs<ObjNativeFunction>()->function) {
-      Value result = native(arg_count, sp_ - arg_count);
+    if (auto native = callee.AsObject()->DynAs<ObjNativeFunction>()) {
+      Value result = native->function(arg_count, sp_ - arg_count);
       sp_ -= (arg_count + 1);
       Push(result);
       return;
     }
   }
-  Error("Can only CallClosure functions and classes.");
+  Error("Can only call functions and classes.");
 }
 void VM::CallClosure(ObjClosure *callee, int arg_count) {
   if (arg_count != callee->function->arity) {
