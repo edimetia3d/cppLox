@@ -23,14 +23,13 @@ namespace lox::vm {
  * Note that some data like immediate value, or jump offset, will be stored in the chunk's code directly.
  */
 struct Chunk {
-  using ConstatntIndex = uint8_t;
   std::vector<uint8_t> code;
   std::vector<Value> constants;
   std::vector<int> lines;
 
   void WriteUInt8(uint8_t data, int line_number);
-  int ChunkSize() const;
-  ConstatntIndex AddConstant(Value value);
+  [[nodiscard]] std::size_t ChunkSize() const;
+  std::size_t AddConstant(Value value);
 };
 }  // namespace lox::vm
 #endif  // CLOX_SRCS_CLOX_CHUNK_H_
