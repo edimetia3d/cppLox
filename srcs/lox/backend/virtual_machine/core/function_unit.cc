@@ -29,10 +29,11 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
 
   if (type == FunctionType::METHOD || type == FunctionType::INITIALIZER) {
     function_self.name = "this";
-    function_self.is_inited = true;  // a hack that treat `this` as always inited
   } else {
     function_self.name = name;
   }
+  function_self.is_inited = true;  // a hack that treat `this` as always inited, so we can reference it in method.
+  function_self.position = locals.size() - 1;
   function_self.semantic_scope_depth = current_semantic_scope_level;
 }
 
