@@ -249,7 +249,7 @@ void VM::Run() {
         break;
       }
       case OpCode::OP_INHERIT: {
-        if (!Peek(1).AsObject()->DynAs<ObjClass>()) {
+        if (!Peek(1).IsObject() || !Peek(1).AsObject()->DynAs<ObjClass>()) {
           Error("Superclass must be a class.");
         }
         auto superclass = Peek(1).AsObject()->DynAs<ObjClass>();
@@ -357,7 +357,7 @@ void VM::CallClosure(ObjClosure *callee, int arg_count) {
     Error("Expected %d arguments but got %d.", callee->function->arity, arg_count);
   }
   if ((active_frame_ - frames_) == (VM_FRAMES_LIMIT - 1)) {
-    Error("Too many stack frames");
+    Error("Stack overflow.");
   }
   PushFrame(callee);
   return;

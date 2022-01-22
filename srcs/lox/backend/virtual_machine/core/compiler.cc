@@ -127,7 +127,7 @@ struct ScopeGuard {
   ScopeType type;
 };
 
-ObjFunction *Compiler::Compile(Scanner *scanner, std::string *err_msg) noexcept {
+ObjFunction *Compiler::Compile(Scanner *scanner, std::string *err_msg) {
   err_msgs.clear();
   PushCU(FunctionType::SCRIPT, "<script>");
 
@@ -161,6 +161,7 @@ void Compiler::ErrorAt(Token token, const char *message) {
   }
 #else
   auto err_msg = CreateErrMsg(token, message);
+  err_msgs.emplace_back(err_msg);
   throw CompilationError(err_msg);
 #endif
 }
@@ -258,6 +259,7 @@ void Compiler::DoAnyStatement(const std::vector<TokenType> &not_allowed_stmt, co
   } else if (MatchAndAdvance(TokenType::RETURN)) {
     ReturnStmt();
   } else if (MatchAndAdvance(TokenType::LEFT_BRACE)) {
+    ScopeGuard guard(cu_, ScopeType::BLOCK);
     BlockStmt();
   } else {
     ExpressionStmt();
@@ -389,7 +391,7 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
   }
 
   if (!p_resolve->is_inited) {
-    ErrorAt(previous, "Can not use uninitialized variable here.");
+    ErrorAt(previous, "Can't read local variable in its own initializer.");
   }
   if (MatchAndAdvance(TokenType::EQUAL)) {
     if (can_assign) {
@@ -404,7 +406,7 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
 }
 bool Compiler::CanAssign() { return last_expr_lower_bound <= InfixPrecedence::ASSIGNMENT; }
 void Compiler::BlockStmt() {
-  ScopeGuard guard(cu_, ScopeType::BLOCK);
+  // Note that block stmt do not create a new scope, the scope for block stmt is created by caller.
   while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
     AnyStatement();
   }
@@ -420,12 +422,14 @@ void Compiler::IfStmt() {
 
   auto jump_to_else = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
   cu_->EmitByte(OpCode::OP_POP);  // discard the condition
-  AnyStatement();
+  // these expressions are allowed technically, but lox disable them on purpose
+  AnyStatement({TokenType::CLASS, TokenType::FUN, TokenType::VAR}, "Expect expression.");
   auto jump_to_exit = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
   cu_->JumpHerePatch(jump_to_else);
   cu_->EmitByte(OpCode::OP_POP);  // discard the condition
   if (MatchAndAdvance(TokenType::ELSE)) {
-    AnyStatement();
+    // these expressions are allowed technically, but lox disable them on purpose
+    AnyStatement({TokenType::CLASS, TokenType::FUN, TokenType::VAR}, "Expect expression.");
   }
   cu_->JumpHerePatch(jump_to_exit);
 }
@@ -441,7 +445,8 @@ void Compiler::WhileStmt() {
 
   auto exitJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
   cu_->EmitByte(OpCode::OP_POP);  // discard the condition
-  AnyStatement();
+  // these expressions are allowed technically, but lox disable them on purpose
+  AnyStatement({TokenType::CLASS, TokenType::FUN, TokenType::VAR}, "Expect expression.");
   cu_->EmitJumpBack(loop_begin_offset);
   cu_->JumpHerePatch(exitJump);
   cu_->EmitByte(OpCode::OP_POP);  // discard the condition

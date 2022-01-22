@@ -42,7 +42,7 @@ FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, bool i
   }
 
   if (upvalues.size() == UPVALUE_COUNT_LIMIT) {
-    Error("Upvalue limit reached.");
+    Error("Too many closure variables in function.");
   }
   upvalues.resize(upvalues.size() + 1);
   upvalues.back().is_on_stack_at_begin = is_on_stack_at_begin;
@@ -108,7 +108,7 @@ void FunctionUnit::EmitJumpBack(int start) {
   int offset = -1 * (ip_target - ip_from);  // always use a positive number to get longer jump range, that's why we
                                             // create a new OP_JUMP_BACK instruction
   if (offset > UINT16_MAX) {
-    Error("Jump back too far.");
+    Error("Loop body too large.");
   }
 
   EmitByte((offset >> 8) & 0xff);
@@ -244,7 +244,7 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
     // check redifinition
     for (auto &global : globals) {
       if (global.name == var_name->lexeme) {
-        Error("Redefine global not allowed.");
+        SPDLOG_DEBUG("Redefine global of {} detected.", var_name->lexeme);
       }
     }
 
@@ -255,7 +255,6 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
     globals.resize(globals.size() + 1);
     Global *new_global = &globals.back();
     new_global->name = var_name->lexeme;
-    GetSymbolConstant(var_name->lexeme);
     return new_global;
   } else {
     // check redifinition
@@ -266,12 +265,12 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
         break;
       } else {
         if (var_name->lexeme == r_iter->name) {
-          Error("Re-definition in same scope not allowed");
+          Error("Already a variable with this name in this scope.");
         }
       }
     }
     if (locals.size() == STACK_COUNT_LIMIT) {
-      Error("Too many local variables in local.");
+      Error("Too many local variables in function.");
     }
     locals.resize(locals.size() + 1);
     Local *new_local = &locals.back();

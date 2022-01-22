@@ -13,8 +13,8 @@
 
 namespace lox {
 
-class ScannerError : public LoxError {
-  using LoxError::LoxError;
+class ScannerError : public LoxErrorWithExitCode<EX_DATAERR> {
+  using LoxErrorWithExitCode<EX_DATAERR>::LoxErrorWithExitCode;
 };
 
 class Scanner {
@@ -48,6 +48,8 @@ class Scanner {
   Token AddNumToken();
 
   Token AddToken(TokenType type);
+
+  void Error(const std::string& msg);
 
   bool IsAtEnd() { return current_lex_pos_ >= srcs_->size(); }
   char LastChar();

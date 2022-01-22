@@ -66,7 +66,7 @@ std::string ObjClosure::Str() const {
 }
 std::vector<Object *> ObjBoundMethod::References() { return {receiver.AsObject(), method}; }
 ObjBoundMethod::ObjBoundMethod(Value val, ObjClosure *method) : receiver(val), method(method) {}
-std::string ObjBoundMethod::Str() const { return string_sprint("<bound method %s>", method->function->name.c_str()); }
+std::string ObjBoundMethod::Str() const { return string_sprint("<fn %s>", method->function->name.c_str()); }
 std::vector<Object *> ObjNativeFunction::References() { return {}; }
 ObjNativeFunction::ObjNativeFunction(ObjNativeFunction::NativeFn fn) : function(fn) {}
 std::string ObjNativeFunction::Str() const { return "<native fn>"; }

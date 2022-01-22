@@ -55,7 +55,7 @@ enum class InfixAssociativity {
 class Compiler {
  public:
   Compiler();
-  ObjFunction* Compile(Scanner* scanner, std::string* err_msg) noexcept;
+  ObjFunction* Compile(Scanner* scanner, std::string* err_msg);
 
  private:
   void Advance();

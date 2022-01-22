@@ -12,7 +12,7 @@ void VirtualMachine::Run(Scanner& scanner) {
   std::string err_msg;
   ObjFunction* script = compiler.Compile(&scanner, &err_msg);
   if (!script) {
-    throw CompilationError(err_msg, EX_DATAERR);
+    throw CompilationError(err_msg);
   }
   VM::Instance()->Interpret(script);
 }

@@ -64,7 +64,7 @@ Token Scanner::ScanOne() {
         return AddIdentifierToken();
       }
       else{
-        throw ScannerError("Unknwon char at line "+std::to_string(line_));
+         Error("Unexpected character.");
       }
   }
   // clang-format on
@@ -91,7 +91,7 @@ bool Scanner::MatchAndAdvance(char expected) {
 }
 
 char Scanner::Peek(int offset) {
-  if (IsAtEnd()) return '\0';
+  if ((current_lex_pos_ + offset) >= srcs_->size()) return '\0';
   return srcs_->at(current_lex_pos_ + offset);
 }
 
@@ -102,7 +102,7 @@ Token Scanner::AddStringToken() {
   }
 
   if (IsAtEnd()) {
-    throw ScannerError("Unterminated string @line" + std::to_string(line_));
+    Error("Unterminated string.");
   }
 
   // The closing ".
@@ -134,5 +134,11 @@ Token Scanner::AddIdentifierToken() {
 }
 
 char Scanner::LastChar() { return srcs_->at(current_lex_pos_); }
+
+void Scanner::Error(const std::string &msg) {
+  std::vector<char> buf(100);
+  snprintf(buf.data(), buf.size(), "[line %d] Error: %s", line_ + 1, msg.c_str());
+  throw ScannerError(buf.data());
+}
 
 }  // namespace lox

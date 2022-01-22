@@ -7,12 +7,12 @@
 
 #include "lox/lox_error.h"
 namespace lox::vm {
-class CompilationError : public LoxError {
-  using LoxError::LoxError;
+class CompilationError : public LoxErrorWithExitCode<EX_DATAERR> {
+  using LoxErrorWithExitCode<EX_DATAERR>::LoxErrorWithExitCode;
 };
 
-class RuntimeError : public LoxError {
-  using LoxError::LoxError;
+class RuntimeError : public LoxErrorWithExitCode<EX_SOFTWARE> {
+  using LoxErrorWithExitCode<EX_SOFTWARE>::LoxErrorWithExitCode;
 };
 }  // namespace lox::vm
 

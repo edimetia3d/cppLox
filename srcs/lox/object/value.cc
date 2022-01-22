@@ -30,14 +30,9 @@ std::string Value::Str() const {
     case ValueType::BOOL:
       return AsBool() ? "true" : "false";
     case ValueType::NUMBER: {
-      auto num = AsNumber();
-      if (std::trunc(num) == num) {
-        return std::to_string((int64_t)num);
-      } else {
-        char buf[20];
-        snprintf(buf, 20, "%g", num);
-        return buf;
-      }
+      char buf[20];
+      snprintf(buf, 20, "%g", AsNumber());
+      return buf;
     }
     case ValueType::NIL:
       return "nil";
