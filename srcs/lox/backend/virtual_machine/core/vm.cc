@@ -2,20 +2,21 @@
 // LICENSE: MIT
 //
 
+#include "lox/backend/virtual_machine/core/vm.h"
+
 #include <spdlog/spdlog.h>
 
-#include "lox/backend/virtual_machine/errors.h"
-#include "lox/backend/virtual_machine/core/vm.h"
 #include "lox/backend/virtual_machine/builtins/builtin_fn.h"
+#include "lox/backend/virtual_machine/errors.h"
 #include "lox/backend/virtual_machine/object/object.h"
 
 #define CHUNK_READ_BYTE() (*ip_++)
 #define CHUNK_READ_SHORT() (ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))
-#define CHEK_STACK_TOP_NUMBER(MSG)             \
-  do {                                         \
-    if (!Peek().IsNumber()) {                  \
-      Error(MSG);                              \
-    }                                          \
+#define CHEK_STACK_TOP_NUMBER(MSG) \
+  do {                             \
+    if (!Peek().IsNumber()) {      \
+      Error(MSG);                  \
+    }                              \
   } while (0)
 #define CHUNK_READ_CONSTANT() (active_frame_->closure->function->chunk->constants[CHUNK_READ_BYTE()])
 #define CHUNK_READ_STRING() ((CHUNK_READ_CONSTANT()).AsObject()->DynAs<Symbol>())
@@ -166,18 +167,31 @@ void VM::Run() {
       }
       case OpCode::OP_CLOSURE: {
         auto closure = new ObjClosure(CHUNK_READ_CONSTANT().AsObject()->DynAs<ObjFunction>());
-        Push(Value(closure));
         uint8_t upvalue_count = CHUNK_READ_BYTE();
+        uint8_t extra_closed_value = CHUNK_READ_BYTE();
         closure->upvalues.resize(upvalue_count, nullptr);
         for (int i = 0; i < upvalue_count; i++) {
-          uint8_t is_on_stack_at_begin = CHUNK_READ_BYTE();
+          uint8_t src = CHUNK_READ_BYTE();
           uint8_t position_at_begin = CHUNK_READ_BYTE();
-          if (is_on_stack_at_begin) {
-            closure->upvalues[i] = MarkValueNeedToClose(active_frame_->slots + position_at_begin);
-          } else {
-            closure->upvalues[i] = active_frame_->closure->upvalues[position_at_begin];
+          switch (src) {
+            case 0:  // on stack
+              closure->upvalues[i] = MarkValueNeedToClose(active_frame_->slots + position_at_begin);
+              break;
+            case 1:  // on enclosing function, that is , current active function
+              closure->upvalues[i] = active_frame_->closure->upvalues[position_at_begin];
+              break;
+            case 2: {  // on stack tail
+              closure->upvalues[i] = new ObjUpvalue(nullptr);
+              closure->upvalues[i]->closed = Peek(extra_closed_value - position_at_begin - 1);
+              closure->upvalues[i]->location = &closure->upvalues[i]->closed;
+              break;
+            }
+            default:
+              Error("Invalid upvalue.");
           }
         }
+        sp_ -= extra_closed_value;
+        Push(Value(closure));  // the slot had been pre-occupied by the compiler
         break;
       }
       case OpCode::OP_CLOSE_UPVALUE:
@@ -198,54 +212,57 @@ void VM::Run() {
         }
       }
       case OpCode::OP_GET_ATTR: {
-        auto top_v = Peek(0);
-        if (top_v.IsObject() && top_v.AsObject()->DynAs<ObjInstance>()) {
-          ObjInstance *instance = top_v.AsObject()->DynAs<ObjInstance>();
-          Symbol *name = CHUNK_READ_STRING();
-          if (instance->dict.contains(name)) {
-            Pop();  // Instance.
-            Push(Value(instance->dict[name]));
-            break;
-          }
-          if (!TryGetBoundMethod(instance->klass, name)) {
-            Error("Undefined attr '%s'.", name->c_str());
-          }
-          break;
+        auto instnce_value = Peek(0);
+        if (!instnce_value.IsObject() || !instnce_value.AsObject()->DynAs<ObjInstance>()) {
+          Error("Only instances have properties.");
         }
-        if (top_v.IsObject() && top_v.AsObject()->DynAs<ObjClass>()) {
-          ObjClass *klass = top_v.AsObject()->DynAs<ObjClass>();
-          auto possible_instance = *active_frame_->slots;
-          if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
-              !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
-            Error("Only instances have properties.", klass);
-          }
-          sp_[-1] = possible_instance;  // a hack that replace class with instance
-          Symbol *name = CHUNK_READ_STRING();
-          if (!TryGetBoundMethod(klass, name)) {
-            Error("Undefined method '%s'.", name->c_str());
-          }
-          break;
+
+        auto *instance = instnce_value.AsObject()->DynAs<ObjInstance>();
+        Symbol *name = CHUNK_READ_STRING();
+        Value final_attr;
+        if (instance->dict().contains(name)) {
+          final_attr = Value(instance->dict()[name]);
+        } else if (instance->klass->methods.contains(name)) {
+          auto *bound = new ObjBoundMethod(instance, instance->klass->methods[name]->As<ObjClosure>());
+          final_attr = Value(bound);
+        } else {
+          Error("Undefined property '%s'.", name->c_str());
         }
-        Error("Only instances have properties.");
+        Pop();             // Pop instance
+        Push(final_attr);  // replace with new attr value
+        break;
       }
       case OpCode::OP_SET_ATTR: {
-        auto top_v_1 = Peek(1);
-        if (!top_v_1.IsObject() || !top_v_1.AsObject()->DynAs<ObjInstance>()) {
+        auto instance_value = Peek(1);
+        if (!instance_value.IsObject() || !instance_value.AsObject()->DynAs<ObjInstance>()) {
           Error("Only instances have fields.");
         }
-        ObjInstance *instance = top_v_1.AsObject()->DynAs<ObjInstance>();
+
+        auto *instance = instance_value.AsObject()->DynAs<ObjInstance>();
         Symbol *name = CHUNK_READ_STRING();
-        instance->dict[name] = Peek();
-        // stack need to be [... instance, attr_new_value] -> [...,attr_new_value]
-        Value value = Pop();  // expression value temporay discarded
-        Pop();                // pop instance
-        Push(value);          // push expression value back
+        instance->dict()[name] = Peek();
+        Value value = Pop();  // pop rvalue
+        Pop();                // pop lvalue
+        Push(value);          // push rvalue back
         break;
       }
       case OpCode::OP_INVOKE: {
-        auto *method = CHUNK_READ_STRING();
-        int argCount = CHUNK_READ_BYTE();
-        DispatchInvoke(method, argCount);
+        auto *method_name = CHUNK_READ_STRING();
+        int arg_count = CHUNK_READ_BYTE();
+        Value instance_value = Peek(arg_count);
+        if (!instance_value.IsObject() || !instance_value.AsObject()->DynAs<ObjInstance>()) {
+          Error("Only instances have methods.");
+        }
+
+        ObjInstance *instance = instance_value.AsObject()->DynAs<ObjInstance>();
+        if (instance->dict().contains(method_name)) {
+          CallValue(instance->dict()[method_name], arg_count);
+        } else {
+          if (!instance->klass->methods.contains(method_name)) {
+            Error("Undefined property '%s'.", method_name->c_str());
+          }
+          CallClosure(instance, instance->klass->methods[method_name], arg_count);
+        }
         break;
       }
       case OpCode::OP_INHERIT: {
@@ -268,6 +285,14 @@ void VM::Run() {
         Pop();
         break;
       }
+      case OpCode::OP_INSTANCE_TYPE_CAST: {
+        // todo: safety checks
+        auto target_class = Peek(1).AsObject()->DynAs<ObjClass>();
+        auto instance = Peek(0).AsObject()->DynAs<ObjInstance>();
+        Pop();
+        *(sp_ - 1) = Value(instance->Cast(target_class));  // replace stack top with new value
+        break;
+      }
     }
   }
 EXIT:
@@ -288,7 +313,7 @@ void VM::Interpret(ObjFunction *function) {
   auto rt_fn = new ObjClosure(function);
   Pop();
   Push(Value(rt_fn));
-  CallClosure(rt_fn, 0);
+  CallClosure(nullptr, rt_fn, 0);
   return Run();
 }
 
@@ -327,21 +352,21 @@ void VM::CallValue(Value callee, int arg_count) {
     if (ObjClass *klass = callee.AsObject()->DynAs<ObjClass>()) {
       auto new_instance = new ObjInstance(klass);
       Value instance_value(new_instance);
-      sp_[-arg_count - 1] = instance_value;  // a hack replace the class object with self
       if (klass->methods.contains(SYMBOL_INIT)) {
-        return CallClosure(klass->methods[SYMBOL_INIT]->DynAs<ObjClosure>(), arg_count);
+        // call init will leave `this` on the stack.
+        return CallClosure(new_instance, klass->methods[SYMBOL_INIT]->DynAs<ObjClosure>(), arg_count);
       } else if (arg_count != 0) {
         Error("Expected 0 arguments but got %d.", arg_count);
+      } else {
+        Push(instance_value);
       }
-      // if codes goes here, no init is called , we just leave the instance on stack
       return;
     }
     if (ObjBoundMethod *bound = callee.AsObject()->DynAs<ObjBoundMethod>()) {
-      sp_[-arg_count - 1] = bound->receiver;  // a hack that replace bounded method with self
-      return CallClosure(bound->method, arg_count);
+      return CallClosure(bound->bounded_this, bound->method, arg_count);
     }
     if (ObjClosure *closure = callee.AsObject()->DynAs<ObjClosure>()) {
-      return CallClosure(closure, arg_count);
+      return CallClosure(nullptr, closure, arg_count);
     }
     if (auto native = callee.AsObject()->DynAs<ObjNativeFunction>()) {
       Value result = native->function(arg_count, sp_ - arg_count);
@@ -352,7 +377,7 @@ void VM::CallValue(Value callee, int arg_count) {
   }
   Error("Can only call functions and classes.");
 }
-void VM::CallClosure(ObjClosure *callee, int arg_count) {
+void VM::CallClosure(ObjInstance *this_instance, ObjClosure *callee, int arg_count) {
   if (arg_count != callee->function->arity) {
     Error("Expected %d arguments but got %d.", callee->function->arity, arg_count);
   }
@@ -360,7 +385,11 @@ void VM::CallClosure(ObjClosure *callee, int arg_count) {
     Error("Stack overflow.");
   }
   PushFrame(callee);
-  return;
+  if (this_instance) {
+    active_frame_->slots[0] = Value(this_instance);  // a hack to replace slots[0] to this_instance
+  } else {
+    active_frame_->slots[0] = Value(callee);
+  }
 }
 VM::VM() : marker_register_guard(&MarkGCRoots, this) {
   active_frame_ = &frames_[0] - 1;  // to make the active_frame_ comparable, init with a dummy value
@@ -442,48 +471,6 @@ void VM::MarkGCRoots(void *vm_p) {
   for (ObjUpvalue *upvalue = vm->open_upvalues; upvalue != nullptr; upvalue = upvalue->next) {
     GC::Instance().RecursiveMark((Object *)upvalue);
   }
-}
-bool VM::TryGetBoundMethod(ObjClass *klass, Symbol *name) {
-  Value method;
-  if (!klass->methods.contains(name)) {
-    Error("Undefined property '%s'.", name->c_str());
-    return false;
-  }
-
-  ObjBoundMethod *bound = new ObjBoundMethod(Peek(0), klass->methods[name]->DynAs<ObjClosure>());
-  Pop();               // Pop instance
-  Push(Value(bound));  // replace with new attr value
-  return true;
-}
-void VM::DispatchInvoke(Symbol *method_name, int arg_count) {
-  Value receiver = Peek(arg_count);
-  if (receiver.AsObject()->DynAs<ObjInstance>()) {
-    ObjInstance *instance = receiver.AsObject()->DynAs<ObjInstance>();
-    if (instance->dict.contains(method_name)) {
-      sp_[-arg_count - 1] = instance->dict[method_name];
-      return CallValue(instance->dict[method_name], arg_count);
-    }
-    return InvokeMethod(instance->klass, method_name, arg_count);
-  }
-  if (receiver.AsObject()->DynAs<ObjClass>()) {
-    ObjClass *klass = receiver.AsObject()->DynAs<ObjClass>();
-    auto possible_instance = *active_frame_->slots;
-    if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
-        !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
-      Error("Only instances have properties.", klass);
-    }
-    // a hack that change class to the instance
-    sp_[-arg_count - 1] = possible_instance;
-    return InvokeMethod(klass, method_name, arg_count);
-  }
-  Error("Only instances / class have methods.");
-}
-
-void VM::InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count) {
-  if (!klass->methods.contains(method_name)) {
-    Error("Undefined property '%s'.", method_name->c_str());
-  }
-  return CallClosure(klass->methods[method_name], arg_count);
 }
 
 void VM::PushFrame(ObjClosure *closure) {

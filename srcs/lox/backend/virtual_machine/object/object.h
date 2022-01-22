@@ -5,12 +5,11 @@
 #ifndef LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_OBJECT_H
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_OBJECT_H
 
-#include "lox/object/object.h"
-
 #include <set>
 #include <string>
 #include <unordered_map>
 
+#include "lox/object/object.h"
 #include "lox/object/value.h"
 
 namespace lox::vm {
@@ -48,13 +47,6 @@ struct ObjClosure : public lox::Object {
   std::vector<Object*> References() override;
 };
 
-struct ObjBoundMethod : public lox::Object {
-  ObjBoundMethod(Value val, ObjClosure* method);
-  Value receiver;  // the bounded `this`
-  ObjClosure* method;
-  [[nodiscard]] std::string Str() const override;
-  std::vector<Object*> References() override;
-};
 struct ObjNativeFunction : public lox::Object {
   using NativeFn = Value (*)(int argCount, Value* args);
   explicit ObjNativeFunction(NativeFn fn);
@@ -90,14 +82,37 @@ struct ObjClass : public lox::Object {
 };
 
 struct ObjInstance : public lox::Object {
-  explicit ObjInstance(ObjClass* klass) : klass(klass){};
+  explicit ObjInstance(ObjClass* klass)
+      : klass(klass), dict_data(std::make_shared<std::unordered_map<Symbol*, Value>>()){};
   ObjClass* klass;
   bool IsInstance(ObjClass* target) const;
   [[nodiscard]] std::string Str() const override;
-  std::unordered_map<Symbol*, Value> dict;
+  std::unordered_map<Symbol*, Value>& dict() { return *dict_data; }
+  std::vector<Object*> References() override;
+  ObjInstance* Cast(ObjClass* target) {
+    if (klass == target) return this;
+    if (IsInstance(target)) {
+      auto ret = new ObjInstance(target);
+      ret->dict_data = dict_data;
+      ret->is_cast = true;
+      return ret;
+    }
+    return nullptr;
+  }
+
+ private:
+  std::shared_ptr<std::unordered_map<Symbol*, Value>> dict_data;
+  bool is_cast = false;
+};
+
+struct ObjBoundMethod : public lox::Object {
+  ObjBoundMethod(ObjInstance* this_instance, ObjClosure* method);
+  ObjInstance* bounded_this;  // the bounded `this`
+  ObjClosure* method;
+  [[nodiscard]] std::string Str() const override;
   std::vector<Object*> References() override;
 };
 
-}  // namespace lox
+}  // namespace lox::vm
 
 #endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_OBJECT_H

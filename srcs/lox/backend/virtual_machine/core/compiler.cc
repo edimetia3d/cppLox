@@ -11,6 +11,7 @@
 
 #include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/errors.h"
+#include "lox/common/finally.h"
 
 // there is always a stack used by function pointer
 namespace lox::vm {
@@ -84,7 +85,7 @@ struct InfixOpInfoMap {
   };
 };
 
-enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION };
+enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION, CLASS };
 
 /**
  * ScopeGuard is a helper to emit some scope related code.
@@ -153,7 +154,7 @@ void Compiler::Advance() {
   current = scanner_->ScanOne();
 }
 void Compiler::ErrorAt(Token token, const char *message) {
-#ifdef UPSTREAM_STYLE_SYNCHRONIZE
+#ifdef UPSTREAM_STYLE_ERROR_MSG
   if (!panic_mode) {
     auto err_msg = CreateErrMsg(token, message);
     err_msgs.emplace_back(err_msg);
@@ -200,10 +201,12 @@ void Compiler::AnyExpression(InfixPrecedence lower_bound) {
    */
   auto bak = last_expr_lower_bound;
   last_expr_lower_bound = lower_bound;
+  Advance();
   EmitPrefix();
   while (auto op_info = InfixOpInfoMap::Get(current)) {
     if ((op_info->precedence > lower_bound ||
          (op_info->precedence == lower_bound && op_info->associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
+      Advance();
       EmitInfix();
     } else {
       break;
@@ -213,30 +216,30 @@ void Compiler::AnyExpression(InfixPrecedence lower_bound) {
 }
 
 bool Compiler::MatchAndAdvance(TokenType type) {
-  if (!Check(type)) return false;
+  if (!CheckCurrentTokenType(type)) return false;
   Advance();
   return true;
 }
 
 void Compiler::AnyStatement(const std::vector<TokenType> &not_allowed_stmt, const char *not_allowed_msg) {
-#ifndef UPSTREAM_STYLE_SYNCHRONIZE
-  try {
-    DoAnyStatement(not_allowed_stmt, not_allowed_msg);
-  } catch (const CompilationError &e) {
-    Synchronize();
-  }
-#else
+#ifdef UPSTREAM_STYLE_ERROR_MSG
   DoAnyStatement(not_allowed_stmt, not_allowed_msg);
   if (panic_mode) {
     Synchronize();
     panic_mode = false;
+  }
+#else
+  try {
+    DoAnyStatement(not_allowed_stmt, not_allowed_msg);
+  } catch (const CompilationError &e) {
+    Synchronize();
   }
 #endif
 }
 
 void Compiler::DoAnyStatement(const std::vector<TokenType> &not_allowed_stmt, const char *not_allowed_msg) {
   for (auto t : not_allowed_stmt) {
-    if (Check(t)) {
+    if (CheckCurrentTokenType(t)) {
       ErrorAt(current, not_allowed_msg);
     }
   }
@@ -270,7 +273,7 @@ void Compiler::PrintStmt() {
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
   cu_->EmitByte(OpCode::OP_PRINT);
 }
-bool Compiler::Check(TokenType type) { return current->type == type; }
+bool Compiler::CheckCurrentTokenType(TokenType type) { return current->type == type; }
 void Compiler::ExpressionStmt() {
   AnyExpression();
   Consume(TokenType::SEMICOLON, "Expect ';' after expression.");
@@ -316,7 +319,7 @@ void Compiler::VarDefStmt() {
   cu_->DefineNamedValue(new_var);
 }
 
-void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
+void Compiler::GetOrSetNamedValue(FunctionUnit *cu, Token varaible_token, bool can_assign) {
   /**
    * About UpValue:
    *
@@ -364,15 +367,15 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
   OpCode get_op, set_op;
   FunctionUnit::NamedValue *p_resolve = nullptr;
   std::unique_ptr<FunctionUnit::Global> global_resolve;
-  if ((p_resolve = cu_->TryResolveLocal(varaible_token))) {
+  if ((p_resolve = cu->TryResolveLocal(varaible_token))) {
     get_op = OpCode::OP_GET_LOCAL;
     set_op = OpCode::OP_SET_LOCAL;
     assert(p_resolve->position < STACK_COUNT_LIMIT);
-  } else if ((p_resolve = cu_->TryResolveUpValue(varaible_token))) {
+  } else if ((p_resolve = cu->TryResolveUpValue(varaible_token))) {
     get_op = OpCode::OP_GET_UPVALUE;
     set_op = OpCode::OP_SET_UPVALUE;
     assert(p_resolve->position < UPVALUE_COUNT_LIMIT);
-  } else if ((global_resolve = cu_->TryResolveGlobal(varaible_token))) {
+  } else if ((global_resolve = cu->TryResolveGlobal(varaible_token))) {
     get_op = OpCode::OP_GET_GLOBAL;
     set_op = OpCode::OP_SET_GLOBAL;
     p_resolve = global_resolve.get();
@@ -385,7 +388,7 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
     set_op = OpCode::OP_SET_GLOBAL;
     global_resolve = std::make_unique<FunctionUnit::Global>();
     global_resolve->is_inited = true;
-    global_resolve->position = cu_->GetSymbolConstant(varaible_token->lexeme);
+    global_resolve->position = cu->GetSymbolConstant(varaible_token->lexeme);
     assert(global_resolve->position < CONSTANT_COUNT_LIMIT);
     p_resolve = global_resolve.get();
   }
@@ -396,18 +399,18 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
   if (MatchAndAdvance(TokenType::EQUAL)) {
     if (can_assign) {
       AnyExpression();
-      cu_->EmitBytes(set_op, p_resolve->position);
+      cu->EmitBytes(set_op, p_resolve->position);
     } else {
       ErrorAt(previous, "Invalid assignment target.");
     }
   } else {
-    cu_->EmitBytes(get_op, p_resolve->position);
+    cu->EmitBytes(get_op, p_resolve->position);
   }
 }
 bool Compiler::CanAssign() { return last_expr_lower_bound <= InfixPrecedence::ASSIGNMENT; }
 void Compiler::BlockStmt() {
   // Note that block stmt do not create a new scope, the scope for block stmt is created by caller.
-  while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
+  while (!CheckCurrentTokenType(TokenType::RIGHT_BRACE) && !CheckCurrentTokenType(TokenType::EOF_TOKEN)) {
     AnyStatement();
   }
 
@@ -531,9 +534,6 @@ void Compiler::FunStmt() {
   Consume(TokenType::IDENTIFIER, "Expect function name.");
   Token function_name = previous;
   auto named_value = cu_->DeclNamedValue(function_name);
-  named_value->is_inited = true;
-  // a hack to make the function name could be resolved later in function definition, to support recursion
-  // this impl is limited for we only have a 1 token ahead compiler
   CreateFunc(FunctionType::FUNCTION);
   cu_->DefineNamedValue(named_value);
 }
@@ -542,7 +542,7 @@ void Compiler::CreateFunc(FunctionType type) {
   ScopeGuard guard(cu_, ScopeType::FUNCTION);  // function and method share the same scope type
 
   Consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
-  if (!Check(TokenType::RIGHT_PAREN)) {
+  if (!CheckCurrentTokenType(TokenType::RIGHT_PAREN)) {
     do {
       // parameter count is limited to STACK_COUNT_LIMIT-1
       if (cu_->func->arity == (STACK_COUNT_LIMIT - 1)) {
@@ -563,12 +563,12 @@ void Compiler::CreateFunc(FunctionType type) {
   auto new_cu = PopCU();
   // We will create a closure at runtime for the function, OP_CLOSURE will update the newly created closure's upvalue,
   // to make them in a valid state.
-  cu_->EmitOpClosure(new_cu->func, new_cu->upvalues);
+  cu_->EmitOpClosure(new_cu->func, new_cu->upvalues, new_cu->force_closed_values.size());
 }
 
 uint8_t Compiler::ArgumentList() {
   int argCount = 0;
-  if (!Check(TokenType::RIGHT_PAREN)) {
+  if (!CheckCurrentTokenType(TokenType::RIGHT_PAREN)) {
     do {
       AnyExpression();
       // argument/parameter count is limited to STACK_COUNT_LIMIT-1
@@ -612,34 +612,38 @@ Compiler::Compiler() : marker_register_guard(&MarkRoots, this) {}
 
 void Compiler::ClassDefStmt() {
   Consume(TokenType::IDENTIFIER, "Expect class name.");
-  Token className = previous;
-  auto handle = cu_->DeclNamedValue(className);
+  Token class_name = previous;
+  auto handle = cu_->DeclNamedValue(class_name);
 
   // use OP_CLASS to leave a value on the stack, to init the named value we just created.
-  uint8_t name_const = cu_->GetSymbolConstant(className->lexeme);
+  uint8_t name_const = cu_->GetSymbolConstant(class_name->lexeme);
   cu_->EmitBytes(OpCode::OP_CLASS, name_const);
 
   cu_->DefineNamedValue(handle);
 
-  ClassLevel nest_class(currentClass);
-  currentClass = &nest_class;
+  all_classes[class_name->lexeme] =
+      ClassInfo{.name_token = class_name, .superclass = nullptr, .enclosing = current_class};
+  current_class = &all_classes[class_name->lexeme];
+  Finally reset_current_class_guard([this]() { this->current_class = this->current_class->enclosing; });
 
   if (MatchAndAdvance(TokenType::LESS)) {
     Consume(TokenType::IDENTIFIER, "Expect superclass name.");
     Token superclass_name = previous;
     GetNamedValue(superclass_name);
-    if (className->lexeme == superclass_name->lexeme) {
+    if (class_name->lexeme == superclass_name->lexeme) {
       ErrorAt(superclass_name, "A class can't inherit from itself.");
     }
-    currentClass->hasSuperclass = true;
-    GetNamedValue(className);
+    current_class->superclass = &all_classes[superclass_name->lexeme];
+    GetNamedValue(class_name);
     cu_->EmitByte(OpCode::OP_INHERIT);  // inherit will consume the two class object on stack, and leaves nothing on
                                         // stack, so stmt rule will be followed
   }
-
-  GetNamedValue(className);  // put the class object on stack, so later method define could use it
+  // we give a new semantic scope to class, so it could be treated as a local scope, to enable the ability to close
+  // values
+  ScopeGuard guard(cu_, ScopeType::CLASS);
+  GetNamedValue(class_name);  // put the class object on stack, so later method define could use it
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
-  while (!Check(TokenType::RIGHT_BRACE) && !Check(TokenType::EOF_TOKEN)) {
+  while (!CheckCurrentTokenType(TokenType::RIGHT_BRACE) && !CheckCurrentTokenType(TokenType::EOF_TOKEN)) {
     Consume(TokenType::IDENTIFIER, "Expect Method name.");
     uint8_t fn_name_cst = cu_->GetSymbolConstant(previous->lexeme);
     FunctionType Type = FunctionType::METHOD;
@@ -651,7 +655,6 @@ void Compiler::ClassDefStmt() {
   }
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
   cu_->EmitByte(OpCode::OP_POP);  // pop the class object, for class def is always a stmt.
-  currentClass = currentClass->enclosing;
 }
 
 void Compiler::PushCU(FunctionType type, const std::string &name) {
@@ -673,10 +676,9 @@ std::unique_ptr<FunctionUnit> Compiler::PopCU() {
   return std::unique_ptr<FunctionUnit>(latest_cu);
 }
 
-void Compiler::GetNamedValue(Token name) { return GetOrSetNamedValue(name, false); }
+void Compiler::GetNamedValue(Token name) { return GetOrSetNamedValue(cu_, name, false); }
 
 void Compiler::EmitPrefix() {
-  Advance();  // advance to consume the current token
   switch (previous->type) {
     case TokenType::LEFT_PAREN: {
       AnyExpression();
@@ -692,7 +694,11 @@ void Compiler::EmitPrefix() {
       break;
     }
     case TokenType::IDENTIFIER: {
-      GetOrSetNamedValue(previous, CanAssign());
+      if (IsAccessingClassAttr(previous, current)) {
+        EmitClassAttrAccess(previous);
+      } else {
+        GetOrSetNamedValue(cu_, previous, CanAssign());
+      }
       break;
     }
     case TokenType::STRING: {
@@ -714,25 +720,80 @@ void Compiler::EmitPrefix() {
       break;
     }
     case TokenType::THIS: {
-      if (currentClass == nullptr) {
+      if (current_class == nullptr) {
         ErrorAt(previous, "Can't use 'this' outside of a class.");
       }
       GetNamedValue(previous);
+      break;
+    }
+    case TokenType::SUPER: {
+      if (!current_class) {
+        ErrorAt(previous, "Can't use 'super' outside of a class.");
+      } else if (!current_class->superclass) {
+        ErrorAt(previous, "Can't use 'super' in a class with no superclass.");
+      } else {
+        EmitClassAttrAccess(current_class->superclass->name_token);
+        if (!CheckCurrentTokenType(TokenType::DOT)) {
+          ErrorAt(current, "Expect '.' after 'super'.");
+        }
+#ifdef UPSTREAM_STYLE_ERROR_MSG
+        if (auto op_info = InfixOpInfoMap::Get(current)) {
+          if ((op_info->precedence > last_expr_lower_bound ||
+               (op_info->precedence == last_expr_lower_bound &&
+                op_info->associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
+            Advance();
+            if (!CheckCurrentTokenType(TokenType::IDENTIFIER)) {
+              ErrorAt(current, "Expect superclass method name.");
+            }
+            EmitInfix();
+          } else {
+            ErrorAt(current, "Unexpected precedence");
+          }
+        }
+#endif
+      }
+
       break;
     }
     default:
       ErrorAt(previous, "Expect expression.");
   }
 }
+void Compiler::EmitClassAttrAccess(Token class_token) {
+  ForceCloseValue(class_token);
+  GetNamedValue(MakeToken(TokenType::THIS, "this", previous->line));
+  cu_->EmitByte(OpCode::OP_INSTANCE_TYPE_CAST);
+}
+bool Compiler::IsAccessingClassAttr(Token class_name, Token next_token) {
+  if (all_classes.contains(class_name->lexeme) && next_token->type == TokenType::DOT) {
+    if (!current_class) {
+#ifdef UPSTREAM_STYLE_ERROR_MSG
+      return false;
+#else
+      ErrorAt(class_name, "Can't access class attr outside of a method.");
+#endif
+    }
+
+    // check if class_name is a base class of current class
+    auto p = current_class;
+    while (p && p->name_token->lexeme != class_name->lexeme) {
+      p = p->superclass;
+    }
+    if (!p) {
+      ErrorAt(class_name, "Can't access attr of class that is not the base class.");
+    }
+    return true;
+  }
+  return false;
+}
+
 void Compiler::EmitInfix() {
-  Advance();  // advance to consume the current token
   switch (previous->type) {
     case TokenType::LEFT_PAREN: {
       cu_->EmitBytes(OpCode::OP_CALL, ArgumentList());
       break;
     }
     case TokenType::DOT: {
-      // todo : check only method can use class method at compile time
       Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
       uint8_t attr_name = cu_->GetSymbolConstant(previous->lexeme);
 
@@ -798,5 +859,35 @@ void Compiler::EmitInfix() {
     default:
       ErrorAt(previous, "Expect expression.");
   }
+}
+void Compiler::ForceCloseValue(Token name_in_outer_scope) {
+  // force the enclosing scope to get a value into the stack with a new_name, to force "capture global by value"
+  //
+  // this will make extra values pushed onto stack, that make outer function stack broken
+  // outer function will reset this invalid state in EmitOpClosure by discarding the extra value. see
+  // FunctionUnit::EmitOpClosure
+  //
+  // For now, this feature is used to support `super.attr` and `ClassName.attr`, in future, we might add a new feature
+  // "capture by value" beside capture by reference.
+
+  Token new_name = MakeToken(TokenType::IDENTIFIER, "__closed_" + name_in_outer_scope->lexeme, previous->line);
+  if (!cu_->force_closed_values.contains(name_in_outer_scope->lexeme)) {
+    if (!cu_->enclosing || cu_->enclosing->current_semantic_scope_level >= cu_->current_semantic_scope_level ||
+        cu_->enclosing->current_semantic_scope_level == 0) {
+      ErrorAt(name_in_outer_scope, "Outer scope does not support value close");
+    }
+    auto value = cu_->enclosing->DeclNamedValue(new_name);
+    GetOrSetNamedValue(cu_->enclosing, name_in_outer_scope, false);
+    cu_->enclosing->DefineNamedValue(value);
+
+    auto p_resolve = cu_->TryResolveUpValue(new_name);
+    if (!p_resolve || p_resolve->src_at_begin != FunctionUnit::UpValueSrc::ON_SLOT_BEGIN) {
+      ErrorAt(name_in_outer_scope, "Unkown error, please report");
+    }
+    p_resolve->src_at_begin = FunctionUnit::UpValueSrc::ON_STACK_TAIL;
+    p_resolve->position_at_begin = cu_->force_closed_values.size();
+    cu_->force_closed_values[name_in_outer_scope->lexeme] = 1;
+  }
+  GetOrSetNamedValue(cu_, new_name, false);
 }
 }  // namespace lox::vm

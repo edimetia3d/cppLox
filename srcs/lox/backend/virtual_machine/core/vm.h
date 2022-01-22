@@ -62,14 +62,10 @@ class VM {
 
   void Error(const char *format, ...);
   void CallValue(Value callee, int arg_count);
-  void CallClosure(ObjClosure *callee, int arg_count);
+  void CallClosure(ObjInstance *this_instance, ObjClosure *callee, int arg_count);
 
   ObjUpvalue *MarkValueNeedToClose(Value *local_value_stack_pos);
   void CloseValuesFromStackPosition(Value *stack_position);
-
-  bool TryGetBoundMethod(ObjClass *klass, Symbol *name);
-  void DispatchInvoke(Symbol *method_name, int arg_count);  // just a dispatcher of `ClassName.foo()`/`instance.foo()`
-  void InvokeMethod(ObjClass *klass, Symbol *method_name, int arg_count);
 
   static void MarkGCRoots(void *vm);
   void TryGC() const;  // only vm will trigger gc at a suitable time.

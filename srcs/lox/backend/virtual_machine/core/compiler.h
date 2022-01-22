@@ -62,7 +62,7 @@ class Compiler {
   void ErrorAt(Token token, const char* message);
   void Consume(TokenType type, const char* message);
   bool MatchAndAdvance(TokenType type);
-  bool Check(TokenType type);
+  bool CheckCurrentTokenType(TokenType type);
   void Synchronize();
 
   void AnyStatement(const std::vector<TokenType>& not_allowed_stmt = {},
@@ -96,12 +96,13 @@ class Compiler {
   void EmitInfix();
 
   void GetNamedValue(Token name);
+  void ForceCloseValue(Token name_in_outer_scope);
 
   /**
    * When can_assign is false, this function could only be used to get named value.
    * When doing a assignment, the assigned value will be leaves on stack
    */
-  void GetOrSetNamedValue(Token varaible_token, bool can_assign);
+  void GetOrSetNamedValue(FunctionUnit* cu, Token varaible_token, bool can_assign);
   bool CanAssign();
 
   /**
@@ -126,11 +127,13 @@ class Compiler {
    * @return
    */
   std::unique_ptr<FunctionUnit> PopCU();
-  struct ClassLevel {
-    explicit ClassLevel(ClassLevel* encolsing) : enclosing(encolsing) {}
-    ClassLevel* enclosing = nullptr;
-    bool hasSuperclass = false;
-  }* currentClass = nullptr;
+  struct ClassInfo {
+    Token name_token;
+    ClassInfo* superclass = nullptr;
+    ClassInfo* enclosing = nullptr;  // nested class
+  };
+  std::map<std::string, ClassInfo> all_classes;
+  ClassInfo* current_class = nullptr;
   Token previous;  // previous is the last consumed token
   Token current;   // current is the next might to be consumed token.
   Scanner* scanner_;
@@ -138,9 +141,11 @@ class Compiler {
   friend struct ScopeGuard;
   std::vector<std::string> err_msgs;
   std::string CreateErrMsg(const Token& token, const char* message) const;
-#ifdef UPSTREAM_STYLE_SYNCHRONIZE
+#ifdef UPSTREAM_STYLE_ERROR_MSG
   bool panic_mode = false;
 #endif
+  bool IsAccessingClassAttr(Token class_name, Token next_token);
+  void EmitClassAttrAccess(Token class_token);
 };
 
 }  // namespace lox::vm

@@ -55,8 +55,7 @@ std::vector<Object *> ObjClosure::References() {
   }
   return ret;
 }
-ObjClosure::ObjClosure(ObjFunction *func) : function(func) {
-}
+ObjClosure::ObjClosure(ObjFunction *func) : function(func) {}
 std::string ObjClosure::Str() const {
   if (isClosure()) {
     return string_sprint("<closure %s>", function->name.c_str());
@@ -64,8 +63,9 @@ std::string ObjClosure::Str() const {
     return string_sprint("<fn %s>", function->name.c_str());
   }
 }
-std::vector<Object *> ObjBoundMethod::References() { return {receiver.AsObject(), method}; }
-ObjBoundMethod::ObjBoundMethod(Value val, ObjClosure *method) : receiver(val), method(method) {}
+std::vector<Object *> ObjBoundMethod::References() { return {bounded_this, method}; }
+ObjBoundMethod::ObjBoundMethod(ObjInstance *this_instance, ObjClosure *method)
+    : bounded_this(this_instance), method(method) {}
 std::string ObjBoundMethod::Str() const { return string_sprint("<fn %s>", method->function->name.c_str()); }
 std::vector<Object *> ObjNativeFunction::References() { return {}; }
 ObjNativeFunction::ObjNativeFunction(ObjNativeFunction::NativeFn fn) : function(fn) {}
@@ -84,8 +84,11 @@ std::vector<Object *> ObjClass::References() {
 std::string ObjClass::Str() const { return name; }
 ObjClass::ObjClass(std::string name) : name(std::move(name)) {}
 std::vector<Object *> ObjInstance::References() {
+  if (is_cast) {
+    return {};
+  }
   std::vector<Object *> ret;
-  for (auto pair : dict) {
+  for (auto pair : dict()) {
     InjectValueToObjVec(ret, pair.second);
     ret.push_back(pair.first);
   }

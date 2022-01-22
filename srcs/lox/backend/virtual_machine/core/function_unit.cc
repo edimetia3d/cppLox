@@ -12,6 +12,11 @@ std::vector<FunctionUnit::Global> FunctionUnit::globals;
 FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std::string &name, LineInfoCB line_info,
                            ErrorCB error_cb)
     : enclosing(enclosing), type(type), line_info_callback(line_info), error_callback(error_cb) {
+  // these three reserve are very important, because se will use pointer to point to the elements
+  // we must use reserve to avoid dangled pointer caused by reallocation.
+  locals.reserve(STACK_COUNT_LIMIT);
+  upvalues.reserve(UPVALUE_COUNT_LIMIT);
+  globals.reserve(CONSTANT_COUNT_LIMIT);
   func = new ObjFunction(name);  // object function will get gc cleaned, so we only new , not delete
   if (enclosing) {
     current_semantic_scope_level = enclosing->current_semantic_scope_level;
@@ -28,15 +33,22 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
   } else {
     function_self.name = name;
   }
-  function_self.is_inited = true;  // a hack that treat `this` as always inited, so we can reference it in method.
+  function_self.is_inited = true;  // a hack that treat `this` as always inited, so we can reference self recursively.
   function_self.position = locals.size() - 1;
   function_self.semantic_scope_depth = current_semantic_scope_level;
 }
 
-FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, bool is_on_stack_at_begin) {
+FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, UpValueSrc beg_src) {
   for (auto &uv : upvalues) {
     FunctionUnit::UpValue *upvalue = &uv;
-    if (upvalue->position_at_begin == some_value->position && upvalue->is_on_stack_at_begin == is_on_stack_at_begin) {
+    if (upvalue->name == some_value->name && upvalue->src_at_begin == UpValueSrc::ON_STACK_TAIL) {
+      return upvalue;
+    }
+  }
+
+  for (auto &uv : upvalues) {
+    FunctionUnit::UpValue *upvalue = &uv;
+    if (upvalue->position_at_begin == some_value->position && upvalue->src_at_begin == beg_src) {
       return upvalue;
     }
   }
@@ -45,18 +57,19 @@ FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, bool i
     Error("Too many closure variables in function.");
   }
   upvalues.resize(upvalues.size() + 1);
-  upvalues.back().is_on_stack_at_begin = is_on_stack_at_begin;
+  upvalues.back().name = some_value->name;
+  upvalues.back().src_at_begin = beg_src;
   upvalues.back().position = upvalues.size() - 1;
   upvalues.back().position_at_begin = some_value->position;
   upvalues.back().is_inited = true;  // all upvalues are already inited
   return &upvalues.back();
 }
 FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingStack(Local *some_value) {
-  return DoAddUpValue(some_value, true);
+  return DoAddUpValue(some_value, UpValueSrc::ON_SLOT_BEGIN);
 }
 
 FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingUpValue(FunctionUnit::UpValue *some_value) {
-  return DoAddUpValue(some_value, false);
+  return DoAddUpValue(some_value, UpValueSrc::ON_ENCLOSING_UPVALUE);
 }
 
 FunctionUnit::UpValue *FunctionUnit::TryResolveUpValue(Token varaible_name) {
@@ -311,13 +324,15 @@ std::unique_ptr<FunctionUnit::Global> FunctionUnit::TryResolveGlobal(Token varai
   return nullptr;
 }
 void FunctionUnit::EmitConstant(Value value) { EmitBytes(OpCode::OP_CONSTANT, AddValueConstant(value)); }
-void FunctionUnit::EmitOpClosure(ObjFunction *func, std::vector<UpValue> upvalues_of_func) {
+void FunctionUnit::EmitOpClosure(ObjFunction *func, std::vector<UpValue> upvalues_of_func, int extra_closed_value) {
   EmitBytes(OpCode::OP_CLOSURE, AddValueConstant(Value(func)));
   EmitByte((uint8_t)upvalues_of_func.size());
+  EmitByte(extra_closed_value);
   for (auto &upvalue : upvalues_of_func) {
-    EmitByte(upvalue.is_on_stack_at_begin ? 1 : 0);
+    EmitByte(static_cast<uint8_t>(upvalue.src_at_begin));
     EmitByte(upvalue.position_at_begin);
   }
+  locals.resize(locals.size() - extra_closed_value);
 }
 uint8_t FunctionUnit::GetSymbolConstant(const std::string &str) {
   if (!used_symbol_constants.contains(str)) {

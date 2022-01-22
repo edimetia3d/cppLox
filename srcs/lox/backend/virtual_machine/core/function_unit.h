@@ -66,14 +66,24 @@ struct FunctionUnit {
     int semantic_scope_depth;
     bool is_captured = false;  // if the local is captured by a closure, it will get closed when it goes out of scope.
   };
-  std::vector<Local> locals;  // contains currently active local vars, that is, not destroyed by "out of scoped" yet
+  std::vector<Local> locals;  // contains named local vars, which will be destroyed at the end of scope.
+                              // that is, only var/func/class stmt is able to create a new local var.
+                              // Note that not all stack changes are tracked, though most statement will leave
+                              // nothing on stack after execution, during the execution, there will be unnamed stack
+                              // values created/destroyed on stack.
   Local* TryResolveLocal(Token varaible_name);
 
+  enum class UpValueSrc {
+    UNKOWN = -1,
+    ON_SLOT_BEGIN,
+    ON_ENCLOSING_UPVALUE,
+    ON_STACK_TAIL,  // force captured
+  };
   struct UpValue : public NamedValue {
     // position of upvalue is :
     //   1. offset in caller's stack slot, if it is is_on_stack_at_begin
     //   2. offset in caller's upvalues, if it is not is_on_stack_at_begin
-    bool is_on_stack_at_begin = false;
+    UpValueSrc src_at_begin = UpValueSrc::UNKOWN;
     int position_at_begin = -1;
   };
   std::vector<UpValue> upvalues;  // contains upvalues current function will used
@@ -111,8 +121,8 @@ struct FunctionUnit {
   // Note that 1. function name belongs to outer scope, function body is in the inner scope. 2. In our implementation,
   // class do not create new scope, and class can only define methods, and these methods will not be populated as named
   // value in scope.
-
-  FunctionUnit::UpValue* DoAddUpValue(NamedValue* some_value, bool is_on_stack_at_begin);
+  std::map<std::string, int> force_closed_values;
+  FunctionUnit::UpValue* DoAddUpValue(NamedValue* some_value, UpValueSrc beg_src);
   UpValue* AddUpValueFromEnclosingStack(Local* some_value);
   UpValue* AddUpValueFromEnclosingUpValue(UpValue* some_value);
   Chunk* Chunk() { return func->chunk.get(); }
@@ -132,7 +142,7 @@ struct FunctionUnit {
   void EmitUnary(const TokenType& token_type);
   void EmitBinary(const TokenType& token_type);
   void EmitLiteral(TokenType token_type);
-  void EmitOpClosure(ObjFunction* func, std::vector<UpValue> upvalues_of_func);
+  void EmitOpClosure(ObjFunction* func, std::vector<UpValue> upvalues_of_func, int extra_closed_value);
   bool IsGlobalScope() const;
   void Error(const std::string& msg);
 

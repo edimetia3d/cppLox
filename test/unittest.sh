@@ -18,7 +18,7 @@ cd $TEST_CACHE_DIR
 
 mkdir -p build
 pushd build
-cmake $SRC_DIR -DCMAKE_CXX_COMPILER=clang++-13 -DCMAKE_BUILD_TYPE=Release -DUPSTREAM_STYLE_SYNCHRONIZE=ON
+cmake $SRC_DIR -DCMAKE_CXX_COMPILER=clang++-13 -DCMAKE_BUILD_TYPE=Release -DUPSTREAM_STYLE_ERROR_MSG=ON
 make -j4
 BINARY_PATH=$PWD/bin/lox
 popd
@@ -35,7 +35,7 @@ pushd craftinginterpreters
 echo "Testing with virtual machine"
 
 dart tool/bin/test.dart clox assignment --interpreter "$BINARY_PATH" --loose_mode
-#dart tool/bin/test.dart clox benchmark --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox benchmark --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox block --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox bool --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox call --interpreter "$BINARY_PATH" --loose_mode
@@ -60,13 +60,14 @@ dart tool/bin/test.dart clox regression --interpreter "$BINARY_PATH" --loose_mod
 dart tool/bin/test.dart clox return --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox scanning --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox string --interpreter "$BINARY_PATH" --loose_mode
-#dart tool/bin/test.dart clox super --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox super --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox this --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox variable --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox while --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox empty_file.lox --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox precedence.lox --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox unexpected_character.lox --interpreter "$BINARY_PATH" --loose_mode
+
 echo "Testing with tree walker"
 dart tool/bin/test.dart clox operator/add.lox --interpreter "$BINARY_PATH" --loose_mode --arguments --backend="TreeWalker"
 popd

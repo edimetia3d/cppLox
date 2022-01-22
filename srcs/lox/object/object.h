@@ -24,6 +24,16 @@ struct Object {
     return dynamic_cast<const T*>(this);
   }
 
+  template <class T>
+  T* As() {
+    return static_cast<T*>(this);
+  }
+
+  template <class T>
+  const T* As() const {
+    return static_cast<const T*>(this);
+  }
+
   virtual bool Equal(const Object* rhs) const { return rhs == this; }
   [[nodiscard]] virtual std::string Str() const = 0;
   virtual std::vector<Object*> References() = 0;

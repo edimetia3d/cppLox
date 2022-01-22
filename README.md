@@ -32,16 +32,30 @@ check [cppreference](https://en.cppreference.com/w/cpp/compiler_support/20) to s
 
 **Locally**:
 
-If you want to run the test cases in native environment, they need to install [dart-sdk](https://dart.dev/tools/sdk).
+If you want to run the test cases in native environment, [dart-sdk](https://dart.dev/tools/sdk) is required.
 
 **Dockerized**:
 
 If you had docker installed, you can run the test cases in docker environment.
 
+## Build Instructions
+
+```bash
+mkdir build
+cmake ..
+make
+```
+
+### CMAKE Options
+
+1. `-DUPSTREAM_STYLE_ERROR_MSG=ON`. This impl's parsing(compiling)/err-handling logic is a little different from
+   upstream. Enable this flag will make error messages behaves like upstream. It is OFF by default, but for the unit
+   tests, it is set to ON.
+
 # Test
 
-This project leverages test from [Crafting Interpreters](https://craftinginterpreters.com/), so you can check the test
-cases from there.
+This project leverages test from [Crafting Interpreters GitHub](https://github.com/munificent/craftinginterpreters), so
+you can check the test cases from there.
 
 To launch the test, you can use either docker or native machine.
 
