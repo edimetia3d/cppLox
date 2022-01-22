@@ -10,8 +10,8 @@
 #include "lox/backend/virtual_machine/object/object.h"
 #include "lox/backend/virtual_machine/core/chunk.h"
 
-#define VM_FRAMES_MAX 64
-#define VM_STACK_MAX (VM_FRAMES_MAX * STACK_LOOKUP_MAX)
+#define VM_FRAMES_LIMIT 64
+#define VM_STACK_LIMIT (VM_FRAMES_LIMIT * STACK_COUNT_LIMIT)
 
 // todo: clean up error system
 // todo: clean up log/ptrintf
@@ -81,9 +81,9 @@ class VM {
   friend void DumpGlobal(const VM *vm);
 
  private:
-  CallFrame frames_[VM_FRAMES_MAX];
+  CallFrame frames_[VM_FRAMES_LIMIT];
   CallFrame *active_frame_ = nullptr;  // point to the current active frame
-  Value stack_[VM_STACK_MAX];
+  Value stack_[VM_STACK_LIMIT];
   Value *sp_ = nullptr;    // the pointer point to global stack top.(also the top of last call-frame's local stack)
   uint8_t *ip_ = nullptr;  // pointer to the next instruction to be executed
   std::unordered_map<Symbol *, Value> globals_;

@@ -12,6 +12,7 @@
 #include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/errors.h"
 
+// there is always a stack used by function pointer
 namespace lox::vm {
 
 struct InfixOpInfoMap {
@@ -126,7 +127,7 @@ struct ScopeGuard {
   ScopeType type;
 };
 
-ObjFunction *Compiler::Compile(Scanner *scanner, std::string *err_msg) {
+ObjFunction *Compiler::Compile(Scanner *scanner, std::string *err_msg) noexcept {
   err_msgs.clear();
   PushCU(FunctionType::SCRIPT, "<script>");
 
@@ -138,25 +139,39 @@ ObjFunction *Compiler::Compile(Scanner *scanner, std::string *err_msg) {
   auto top_level_cu = PopCU();
   if (err_msgs.size() > 0) {
     for (auto &msg : err_msgs) {
-      *err_msg += msg;
+      *err_msg += (msg + "\n");
     }
     return nullptr;
   }
   return top_level_cu->func;
 }
 void Compiler::Advance() {
+  if (previous && previous->type == TokenType::EOF_TOKEN) {
+    throw CompilationError("Unexpected EOF");
+  }
   previous = current;
   current = scanner_->ScanOne();
 }
-void Compiler::ErrorAt(Token token, const char *message) { throw CompilationError(CreateErrMsg(token, message)); }
+void Compiler::ErrorAt(Token token, const char *message) {
+#ifdef UPSTREAM_STYLE_SYNCHRONIZE
+  if (!panic_mode) {
+    auto err_msg = CreateErrMsg(token, message);
+    err_msgs.emplace_back(err_msg);
+    panic_mode = true;
+  }
+#else
+  auto err_msg = CreateErrMsg(token, message);
+  throw CompilationError(err_msg);
+#endif
+}
 std::string Compiler::CreateErrMsg(const Token &token, const char *message) const {
   std::vector<char> buf(256);
   int offset = 0;
   if (token->type == TokenType::EOF_TOKEN) {
-    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at end: %s\n", token->line + 1, message);
+    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at end: %s", token->line + 1, message);
   } else {
-    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at '%s': %s\n", token->line + 1,
-                       token->lexeme.c_str(), message);
+    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at '%s': %s", token->line + 1, token->lexeme.c_str(),
+                       message);
   }
   return std::string(buf.data());
 }
@@ -202,16 +217,28 @@ bool Compiler::MatchAndAdvance(TokenType type) {
   return true;
 }
 
-void Compiler::AnyStatement() {
+void Compiler::AnyStatement(const std::vector<TokenType> &not_allowed_stmt, const char *not_allowed_msg) {
+#ifndef UPSTREAM_STYLE_SYNCHRONIZE
   try {
-    DoAnyStatement();
+    DoAnyStatement(not_allowed_stmt, not_allowed_msg);
   } catch (const CompilationError &e) {
     Synchronize();
-    err_msgs.emplace_back(e.what());
   }
+#else
+  DoAnyStatement(not_allowed_stmt, not_allowed_msg);
+  if (panic_mode) {
+    Synchronize();
+    panic_mode = false;
+  }
+#endif
 }
 
-void Compiler::DoAnyStatement() {
+void Compiler::DoAnyStatement(const std::vector<TokenType> &not_allowed_stmt, const char *not_allowed_msg) {
+  for (auto t : not_allowed_stmt) {
+    if (Check(t)) {
+      ErrorAt(current, not_allowed_msg);
+    }
+  }
   if (MatchAndAdvance(TokenType::CLASS)) {
     ClassDefStmt();
   } else if (MatchAndAdvance(TokenType::FUN)) {
@@ -249,7 +276,12 @@ void Compiler::ExpressionStmt() {
 }
 void Compiler::Synchronize() {
   while (current->type != TokenType::EOF_TOKEN) {
-    if (previous->type == TokenType::SEMICOLON) return;
+    switch (previous->type) {
+      case TokenType::SEMICOLON:
+        return;
+      default:
+        break;  // do nothing
+    };
     switch (current->type) {
       case TokenType::CLASS:
       case TokenType::FUN:
@@ -260,8 +292,8 @@ void Compiler::Synchronize() {
       case TokenType::PRINT:
       case TokenType::RETURN:
         return;
-
-      default:;  // Do nothing.
+      default:
+        break;  // Do nothing.
     }
 
     Advance();
@@ -327,45 +359,47 @@ void Compiler::GetOrSetNamedValue(Token varaible_token, bool can_assign) {
    * all these tracking will be done by the TryResolveUpValue, obviously, upvalue is only known by compiler, user code
    * will not decl/define upvalue.
    */
-  OpCode getOp, setOp;
-  FunctionUnit::NamedValue *reslove = nullptr;
-  std::unique_ptr<FunctionUnit::GlobalAccessGuard> global_guard;
-  if ((reslove = cu_->TryResolveLocal(varaible_token))) {
-    getOp = OpCode::OP_GET_LOCAL;
-    setOp = OpCode::OP_SET_LOCAL;
-    assert(reslove->position < STACK_LOOKUP_MAX);
-  } else if ((reslove = cu_->TryResolveUpValue(varaible_token))) {
-    getOp = OpCode::OP_GET_UPVALUE;
-    setOp = OpCode::OP_SET_UPVALUE;
-    assert(reslove->position < UPVALUE_LOOKUP_MAX);
+  OpCode get_op, set_op;
+  FunctionUnit::NamedValue *p_resolve = nullptr;
+  std::unique_ptr<FunctionUnit::Global> global_resolve;
+  if ((p_resolve = cu_->TryResolveLocal(varaible_token))) {
+    get_op = OpCode::OP_GET_LOCAL;
+    set_op = OpCode::OP_SET_LOCAL;
+    assert(p_resolve->position < STACK_COUNT_LIMIT);
+  } else if ((p_resolve = cu_->TryResolveUpValue(varaible_token))) {
+    get_op = OpCode::OP_GET_UPVALUE;
+    set_op = OpCode::OP_SET_UPVALUE;
+    assert(p_resolve->position < UPVALUE_COUNT_LIMIT);
+  } else if ((global_resolve = cu_->TryResolveGlobal(varaible_token))) {
+    get_op = OpCode::OP_GET_GLOBAL;
+    set_op = OpCode::OP_SET_GLOBAL;
+    p_resolve = global_resolve.get();
+    assert(p_resolve->position < CONSTANT_COUNT_LIMIT);
   } else {
-    getOp = OpCode::OP_GET_GLOBAL;
-    setOp = OpCode::OP_SET_GLOBAL;
-    auto global = cu_->TryResolveGlobal(varaible_token);
-    global_guard = std::move(global);
-    if (global_guard) {
-      reslove = global_guard.get()->target;
-      assert(reslove->position < GLOBAL_LOOKUP_MAX);
-    }
+    // We will treat all unknown variable as global variable, and delay the error to runtime.
+    // because new global variable might be created at runtime before we actually access it.
+    SPDLOG_DEBUG(CreateErrMsg(varaible_token, "Compiler detected a undefined variable."));
+    get_op = OpCode::OP_GET_GLOBAL;
+    set_op = OpCode::OP_SET_GLOBAL;
+    global_resolve = std::make_unique<FunctionUnit::Global>();
+    global_resolve->is_inited = true;
+    global_resolve->position = cu_->GetSymbolConstant(varaible_token->lexeme);
+    assert(global_resolve->position < CONSTANT_COUNT_LIMIT);
+    p_resolve = global_resolve.get();
   }
-  if (!reslove) {
-    // upstream lox compiler will not check undefined variable at compile time, we use a hack to throw a runtime error.
-    auto msg = CreateErrMsg(varaible_token, "Undefined variable.");
-    SPDLOG_DEBUG(msg);
-    throw RuntimeError("Undefined variable '" + varaible_token->lexeme + "'.");
-  }
-  if (!reslove->is_inited) {
+
+  if (!p_resolve->is_inited) {
     ErrorAt(previous, "Can not use uninitialized variable here.");
   }
   if (MatchAndAdvance(TokenType::EQUAL)) {
     if (can_assign) {
       AnyExpression();
-      cu_->EmitBytes(setOp, reslove->position);
+      cu_->EmitBytes(set_op, p_resolve->position);
     } else {
       ErrorAt(previous, "Invalid assignment target.");
     }
   } else {
-    cu_->EmitBytes(getOp, reslove->position);
+    cu_->EmitBytes(get_op, p_resolve->position);
   }
 }
 bool Compiler::CanAssign() { return last_expr_lower_bound <= InfixPrecedence::ASSIGNMENT; }
@@ -449,7 +483,9 @@ void Compiler::ForStmt() {
     loop_begin_offset = incrementStart;
     cu_->JumpHerePatch(bodyJump);
   }
-  AnyStatement();
+  // these expressions are allowed technically, but lox disable them on purpose
+  AnyStatement({TokenType::CLASS, TokenType::FUN, TokenType::VAR}, "Expect expression.");
+
   cu_->EmitJumpBack(loop_begin_offset);
   if (exitJump.beg_offset != -1) {
     cu_->JumpHerePatch(exitJump);
@@ -503,10 +539,13 @@ void Compiler::CreateFunc(FunctionType type) {
   Consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
   if (!Check(TokenType::RIGHT_PAREN)) {
     do {
-      cu_->func->arity++;
-      if (cu_->func->arity > (ARG_COUNT_MAX - cu_->locals.size())) {
-        ErrorAt(current, "Stack can not hold this much arguments");
+      // parameter count is limited to STACK_COUNT_LIMIT-1
+      if (cu_->func->arity == (STACK_COUNT_LIMIT - 1)) {
+        std::vector<char> buf(100);
+        snprintf(buf.data(), buf.size(), "Can't have more than %d parameters.", (STACK_COUNT_LIMIT - 1));
+        ErrorAt(current, buf.data());
       }
+      cu_->func->arity++;
       Consume(TokenType::IDENTIFIER, "Expect parameter name.");
       auto arg = cu_->DeclNamedValue(previous);
       cu_->DefineNamedValue(arg);
@@ -523,12 +562,15 @@ void Compiler::CreateFunc(FunctionType type) {
 }
 
 uint8_t Compiler::ArgumentList() {
-  uint8_t argCount = 0;
+  int argCount = 0;
   if (!Check(TokenType::RIGHT_PAREN)) {
     do {
       AnyExpression();
-      if (argCount == (ARG_COUNT_MAX - 1)) {
-        ErrorAt(previous, "Too many arguments.");
+      // argument/parameter count is limited to STACK_COUNT_LIMIT-1
+      if (argCount == (STACK_COUNT_LIMIT - 1)) {
+        std::vector<char> buf(100);
+        snprintf(buf.data(), buf.size(), "Can't have more than %d arguments.", (STACK_COUNT_LIMIT - 1));
+        ErrorAt(previous, buf.data());
       }
       argCount++;
     } while (MatchAndAdvance(TokenType::COMMA));
@@ -608,7 +650,9 @@ void Compiler::ClassDefStmt() {
 }
 
 void Compiler::PushCU(FunctionType type, const std::string &name) {
-  cu_ = new FunctionUnit(cu_, type, name, [this]() { return this->previous->line; });
+  cu_ = new FunctionUnit(
+      cu_, type, name, [this]() { return this->previous->line; },
+      [this](const char *msg) { this->ErrorAt(this->previous, msg); });
 }
 std::unique_ptr<FunctionUnit> Compiler::PopCU() {
   cu_->EmitDefaultReturn();  // always inject a default return to make sure the function ends
@@ -672,7 +716,7 @@ void Compiler::EmitPrefix() {
       break;
     }
     default:
-      ErrorAt(previous, "Expect valid prefix expression.");
+      ErrorAt(previous, "Expect expression.");
   }
 }
 void Compiler::EmitInfix() {
@@ -747,7 +791,7 @@ void Compiler::EmitInfix() {
       break;
     }
     default:
-      ErrorAt(previous, "Expect valid infix expression.");
+      ErrorAt(previous, "Expect expression.");
   }
 }
 }  // namespace lox::vm

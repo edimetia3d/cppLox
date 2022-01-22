@@ -114,17 +114,13 @@ Token Scanner::AddNumToken() {
   while (IsDigit(Peek())) Advance();
 
   // Look for a fractional part.
-  if (Peek() == '.') {
-    if (IsDigit(Peek(1))) {
-      // Consume the "."
-      Advance();
+  if ((Peek() == '.') && IsDigit(Peek(1))) {
+    // Consume the "."
+    Advance();
 
-      while (IsDigit(Peek())) Advance();
+    while (IsDigit(Peek())) Advance();
 
-      return AddToken(TokenType::NUMBER);
-    } else {
-      throw ScannerError("wrong number format @line" + std::to_string(line_));
-    }
+    return AddToken(TokenType::NUMBER);
   } else {
     return AddToken(TokenType::NUMBER);
   }

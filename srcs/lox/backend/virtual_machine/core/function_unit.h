@@ -15,6 +15,8 @@
 namespace lox::vm {
 
 using LineInfoCB = std::function<int()>;
+using ErrorCB = std::function<void(const char* message)>;
+
 enum class FunctionType { UNKNOWN, FUNCTION, METHOD, INITIALIZER, SCRIPT };
 
 /**
@@ -24,7 +26,8 @@ enum class FunctionType { UNKNOWN, FUNCTION, METHOD, INITIALIZER, SCRIPT };
  * time.
  */
 struct FunctionUnit {
-  FunctionUnit(FunctionUnit* enclosing, FunctionType type, const std::string& name, LineInfoCB line_info);
+  FunctionUnit(FunctionUnit* enclosing, FunctionType type, const std::string& name, LineInfoCB line_info,
+               ErrorCB error_cb);
 
   ///////////////////////////////////////////// NAME RESOLVE SUPPORT BEG////////////////////////////////////////////////
 
@@ -80,13 +83,8 @@ struct FunctionUnit {
     // position of global is dynamic is its name's offset in constant table, and is a dynamic value. the offset
     // might be different in different compilation unit.
   };
-  struct GlobalAccessGuard {
-    explicit GlobalAccessGuard(Global* target) : target(target) {}
-    ~GlobalAccessGuard() { target->position = -1; }
-    Global* target = nullptr;
-  };
   static std::vector<Global> globals;  // contains globals current function will used
-  std::unique_ptr<FunctionUnit::GlobalAccessGuard> TryResolveGlobal(Token varaible_name);
+  std::unique_ptr<Global> TryResolveGlobal(Token varaible_name);
 
   ///////////////////////////////////////////// NAME RESOLVE SUPPORT END////////////////////////////////////////////////
   struct JumpDownHole {
@@ -136,8 +134,10 @@ struct FunctionUnit {
   void EmitLiteral(TokenType token_type);
   void EmitOpClosure(ObjFunction* func, std::vector<UpValue> upvalues_of_func);
   bool IsGlobalScope() const;
+  void Error(const std::string& msg);
 
-  LineInfoCB line_info;
+  LineInfoCB line_info_callback;
+  ErrorCB error_callback;
 };
 
 }  // namespace lox::vm

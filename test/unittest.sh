@@ -18,7 +18,7 @@ cd $TEST_CACHE_DIR
 
 mkdir -p build
 pushd build
-cmake $SRC_DIR -DCMAKE_CXX_COMPILER=clang++-13 -DCMAKE_BUILD_TYPE=Release
+cmake $SRC_DIR -DCMAKE_CXX_COMPILER=clang++-13 -DCMAKE_BUILD_TYPE=Release -DUPSTREAM_STYLE_SYNCHRONIZE=ON
 make -j4
 BINARY_PATH=$PWD/bin/lox
 popd
@@ -42,6 +42,10 @@ dart tool/bin/test.dart clox class --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox closure --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox comments --interpreter "$BINARY_PATH" --loose_mode
 dart tool/bin/test.dart clox constructor --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox expressions --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox field --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox for --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox function --interpreter "$BINARY_PATH" --loose_mode
 echo "Testing with tree walker"
 dart tool/bin/test.dart clox operator/add.lox --interpreter "$BINARY_PATH" --loose_mode --arguments --backend="TreeWalker"
 popd

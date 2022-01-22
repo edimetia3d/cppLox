@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -stdlib=libc++")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSPDLOG_ACTIVE_LEVEL=1")
 
+include(cmake/build_options.cmake)
+
 add_subdirectory(third_party)
 include_directories(${CLI11_DIR}/include)
 include_directories(${SPDLOG_DIR}/include)

@@ -33,8 +33,21 @@ class ChunkDump {
 
   void DumpConstant() {
     AppendLatestLine("Constant: ");
-    for (const Value *p = chunk->constants.data(); p != chunk->constants.data() + chunk->constants.size(); ++p) {
-      AppendLatestLine("[ %s ]", p->Str().c_str());
+    int id = 0;
+    for (const auto &v : chunk->constants) {
+      if (!(v.IsObject() && v.AsObject()->DynAs<Symbol>())) {
+        AppendLatestLine("[ %2d | %s ]", id, v.Str().c_str());
+      }
+      ++id;
+    }
+    SPDLOG_DEBUG(ReleaseLatestLine());
+    AppendLatestLine("String: ");
+    id = 0;
+    for (const auto &v : chunk->constants) {
+      if (v.IsObject() && v.AsObject()->DynAs<Symbol>()) {
+        AppendLatestLine("[ %2d | %s ]", id, v.Str().c_str());
+      }
+      ++id;
     }
     SPDLOG_DEBUG(ReleaseLatestLine());
   }

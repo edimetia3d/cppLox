@@ -55,7 +55,7 @@ enum class InfixAssociativity {
 class Compiler {
  public:
   Compiler();
-  ObjFunction* Compile(Scanner* scanner, std::string* err_msg);
+  ObjFunction* Compile(Scanner* scanner, std::string* err_msg) noexcept;
 
  private:
   void Advance();
@@ -65,8 +65,9 @@ class Compiler {
   bool Check(TokenType type);
   void Synchronize();
 
-  void AnyStatement();
-  void DoAnyStatement();
+  void AnyStatement(const std::vector<TokenType>& not_allowed_stmt = {},
+                    const char* not_allowed_msg = "Statement not allowed here.");
+  void DoAnyStatement(const std::vector<TokenType>& not_allowed_stmt, const char* not_allowed_msg);
 
   void BlockStmt();
   void BreakOrContinueStmt();
@@ -137,6 +138,9 @@ class Compiler {
   friend struct ScopeGuard;
   std::vector<std::string> err_msgs;
   std::string CreateErrMsg(const Token& token, const char* message) const;
+#ifdef UPSTREAM_STYLE_SYNCHRONIZE
+  bool panic_mode = false;
+#endif
 };
 
 }  // namespace lox::vm

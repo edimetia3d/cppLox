@@ -61,7 +61,7 @@ std::string ObjClosure::Str() const {
   if (isClosure()) {
     return string_sprint("<closure %s>", function->name.c_str());
   } else {
-    return string_sprint("<runtime_fn %s>", function->name.c_str());
+    return string_sprint("<fn %s>", function->name.c_str());
   }
 }
 std::vector<Object *> ObjBoundMethod::References() { return {receiver.AsObject(), method}; }

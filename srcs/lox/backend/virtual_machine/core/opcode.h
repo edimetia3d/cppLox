@@ -53,16 +53,11 @@ enum class OpCode : uint8_t {
 }  // namespace lox::vm
 
 // Macros that directly related to OpCode
-#define U8_LOOKUP_MAX (UINT8_MAX + 1)
-#define U16_LOOKUP_MAX (UINT16_MAX + 1)
+#define U8_LOOKUP_UP_LIMIT (UINT8_MAX + 1)
+#define U16_LOOKUP_LIMIT (UINT16_MAX + 1)
 
-#define STACK_LOOKUP_MAX U8_LOOKUP_MAX
-#define CONSTANT_LOOKUP_MAX U8_LOOKUP_MAX
-
-#define UPVALUE_LOOKUP_MAX STACK_LOOKUP_MAX
-#define ARG_COUNT_MAX STACK_LOOKUP_MAX
-#define GLOBAL_LOOKUP_MAX CONSTANT_LOOKUP_MAX
-// Stack uses relative address , and command has a 256 limit,
-// so a command can find only in [frame_pointer,frame_pointer+256]
+#define STACK_COUNT_LIMIT U8_LOOKUP_UP_LIMIT
+#define CONSTANT_COUNT_LIMIT U8_LOOKUP_UP_LIMIT
+#define UPVALUE_COUNT_LIMIT U8_LOOKUP_UP_LIMIT
 
 #endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_BYTECODE_OPCODE_H

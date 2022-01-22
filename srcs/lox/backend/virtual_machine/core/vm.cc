@@ -66,7 +66,7 @@ void VM::Run() {
       case OpCode::OP_GET_GLOBAL: {
         Symbol *name = CHUNK_READ_STRING();
         if (!globals_.contains(name)) {
-          Error("Undefined global variable '%s'.", name->c_str());
+          Error("Undefined variable '%s'.", name->c_str());
         }
         Push(globals_[name]);
         break;
@@ -217,7 +217,7 @@ void VM::Run() {
           auto possible_instance = *active_frame_->slots;
           if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
               !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
-            Error("class method cannot access", klass);
+            Error("Only instances have properties.", klass);
           }
           sp_[-1] = possible_instance;  // a hack that replace class with instance
           Symbol *name = CHUNK_READ_STRING();
@@ -226,12 +226,12 @@ void VM::Run() {
           }
           break;
         }
-        Error("Only instances have attrs. Only class have methods.");
+        Error("Only instances have properties.");
       }
       case OpCode::OP_SET_ATTR: {
         auto top_v_1 = Peek(1);
         if (!top_v_1.IsObject() || !top_v_1.AsObject()->DynAs<ObjInstance>()) {
-          Error("Only instances have attr.");
+          Error("Only instances have fields.");
         }
         ObjInstance *instance = top_v_1.AsObject()->DynAs<ObjInstance>();
         Symbol *name = CHUNK_READ_STRING();
@@ -356,7 +356,7 @@ void VM::CallClosure(ObjClosure *callee, int arg_count) {
   if (arg_count != callee->function->arity) {
     Error("Expected %d arguments but got %d.", callee->function->arity, arg_count);
   }
-  if ((active_frame_ - frames_ + 1) == VM_FRAMES_MAX) {
+  if ((active_frame_ - frames_) == (VM_FRAMES_LIMIT - 1)) {
     Error("Too many stack frames");
   }
   PushFrame(callee);
@@ -470,7 +470,7 @@ void VM::DispatchInvoke(Symbol *method_name, int arg_count) {
     auto possible_instance = *active_frame_->slots;
     if (!possible_instance.IsObject() || !possible_instance.AsObject()->DynAs<ObjInstance>() ||
         !possible_instance.AsObject()->DynAs<ObjInstance>()->IsInstance(klass)) {
-      Error("class method cannot access", klass);
+      Error("Only instances have properties.", klass);
     }
     // a hack that change class to the instance
     sp_[-arg_count - 1] = possible_instance;

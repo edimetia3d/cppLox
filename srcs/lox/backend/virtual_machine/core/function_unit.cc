@@ -6,16 +6,12 @@
 #include "lox/backend/virtual_machine/errors.h"
 #include <spdlog/spdlog.h>
 
-static void Error(const std::string &msg) {
-  SPDLOG_ERROR(msg);
-  throw lox::vm::CompilationError(msg);
-}
-
 namespace lox::vm {
 std::vector<FunctionUnit::Global> FunctionUnit::globals;
 
-FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std::string &name, LineInfoCB line_info)
-    : enclosing(enclosing), type(type), line_info(line_info) {
+FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std::string &name, LineInfoCB line_info,
+                           ErrorCB error_cb)
+    : enclosing(enclosing), type(type), line_info_callback(line_info), error_callback(error_cb) {
   func = new ObjFunction(name);  // object function will get gc cleaned, so we only new , not delete
   if (enclosing) {
     current_semantic_scope_level = enclosing->current_semantic_scope_level;
@@ -45,7 +41,7 @@ FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, bool i
     }
   }
 
-  if (upvalues.size() == UPVALUE_LOOKUP_MAX) {
+  if (upvalues.size() == UPVALUE_COUNT_LIMIT) {
     Error("Upvalue limit reached.");
   }
   upvalues.resize(upvalues.size() + 1);
@@ -95,7 +91,7 @@ FunctionUnit::Local *FunctionUnit::TryResolveLocal(Token varaible_name) {
   return nullptr;
 }
 
-void FunctionUnit::EmitByte(uint8_t byte) { Chunk()->WriteUInt8(byte, line_info()); }
+void FunctionUnit::EmitByte(uint8_t byte) { Chunk()->WriteUInt8(byte, line_info_callback()); }
 
 void FunctionUnit::EmitBytes(OpCode byte1, uint8_t byte2) {
   EmitByte(byte1);
@@ -159,7 +155,7 @@ uint8_t FunctionUnit::AddValueConstant(Value value) {
   if ((value.IsObject() && value.AsObject()->DynAs<Symbol>())) {
     return GetSymbolConstant(value.AsObject()->DynAs<Symbol>()->c_str());
   }
-  if (Chunk()->constants.size() == (CONSTANT_LOOKUP_MAX - 1)) {
+  if (Chunk()->constants.size() == CONSTANT_COUNT_LIMIT) {
     Error("Too many constants in one chunk.");
   }
   return Chunk()->AddConstant(value);
@@ -252,7 +248,7 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
       }
     }
 
-    if (globals.size() == GLOBAL_LOOKUP_MAX) {
+    if (globals.size() == CONSTANT_COUNT_LIMIT) {
       Error("Too many global variables in script");
     }
 
@@ -274,8 +270,8 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
         }
       }
     }
-    if (locals.size() == STACK_LOOKUP_MAX) {
-      Error("Too many local variables in function.");
+    if (locals.size() == STACK_COUNT_LIMIT) {
+      Error("Too many local variables in local.");
     }
     locals.resize(locals.size() + 1);
     Local *new_local = &locals.back();
@@ -288,9 +284,6 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
 
 void FunctionUnit::DefineNamedValue(NamedValue *value) {
   if (IsGlobalScope()) {
-    if (value->position >= GLOBAL_LOOKUP_MAX) {
-      Error("Too many global variables in script");
-    }
     // move the stack top to vm's global by it's name
     EmitBytes(OpCode::OP_DEFINE_GLOBAL, GetSymbolConstant(value->name));
 
@@ -305,15 +298,15 @@ void FunctionUnit::DefineNamedValue(NamedValue *value) {
   }
   value->is_inited = true;
 }
-std::unique_ptr<FunctionUnit::GlobalAccessGuard> FunctionUnit::TryResolveGlobal(Token varaible_name) {
+std::unique_ptr<FunctionUnit::Global> FunctionUnit::TryResolveGlobal(Token varaible_name) {
   for (auto &global : globals) {
     if (global.name == varaible_name->lexeme) {
       if (global.position != -1) {
         Error("Unknown global access error");
       }
-      global.position = GetSymbolConstant(varaible_name->lexeme);
-      return std::make_unique<FunctionUnit::GlobalAccessGuard>(&global);
-      ;
+      auto ret = std::make_unique<FunctionUnit::Global>();
+      *ret = global;
+      ret->position = GetSymbolConstant(varaible_name->lexeme);
     }
   }
   return nullptr;
@@ -321,9 +314,6 @@ std::unique_ptr<FunctionUnit::GlobalAccessGuard> FunctionUnit::TryResolveGlobal(
 void FunctionUnit::EmitConstant(Value value) { EmitBytes(OpCode::OP_CONSTANT, AddValueConstant(value)); }
 void FunctionUnit::EmitOpClosure(ObjFunction *func, std::vector<UpValue> upvalues_of_func) {
   EmitBytes(OpCode::OP_CLOSURE, AddValueConstant(Value(func)));
-  if (upvalues_of_func.size() >= UPVALUE_LOOKUP_MAX) {
-    Error("Too many upvalues in closure");
-  }
   EmitByte((uint8_t)upvalues_of_func.size());
   for (auto &upvalue : upvalues_of_func) {
     EmitByte(upvalue.is_on_stack_at_begin ? 1 : 0);
@@ -332,7 +322,7 @@ void FunctionUnit::EmitOpClosure(ObjFunction *func, std::vector<UpValue> upvalue
 }
 uint8_t FunctionUnit::GetSymbolConstant(const std::string &str) {
   if (!used_symbol_constants.contains(str)) {
-    if (Chunk()->constants.size() == (CONSTANT_LOOKUP_MAX - 1)) {
+    if (Chunk()->constants.size() == CONSTANT_COUNT_LIMIT) {
       Error("Too many constants in one chunk.");
     }
     auto constant = Chunk()->AddConstant(Value(Symbol::Intern(str)));
@@ -341,4 +331,10 @@ uint8_t FunctionUnit::GetSymbolConstant(const std::string &str) {
   }
   return used_symbol_constants[str];
 }
+
+void FunctionUnit::Error(const std::string &msg) {
+  SPDLOG_DEBUG(msg);
+  error_callback(msg.c_str());
+}
+
 }  // namespace lox::vm
