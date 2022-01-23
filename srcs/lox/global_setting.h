@@ -11,6 +11,7 @@ struct _GlobalSetting {
   bool interactive_mode = true;
   bool debug = false;
   bool single_step_mode = false;
+  bool per_line_debug = true;
   std::string backend = "VirtualMachine";
 };
 

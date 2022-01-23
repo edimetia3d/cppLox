@@ -38,9 +38,11 @@ VM *VM::Instance() {
 }
 void VM::Run() {
 #ifndef NDEBUG
-  if (lox::GlobalSetting().single_step_mode) {
-    printf("Press Enter to start/continue execution.\n");
-    getchar();
+  if (lox::GlobalSetting().per_line_debug) {
+    if (lox::GlobalSetting().single_step_mode) {
+      printf("Press Enter to start/continue execution.\n");
+      getchar();
+    }
     SPDLOG_DEBUG("===============================================");
   }
   int before_line = 0;
@@ -50,13 +52,15 @@ void VM::Run() {
   for (;;) {
 #ifndef NDEBUG
     offset = ip_ - active_frame_->closure->function->chunk->code.data();
-    if (lox::GlobalSetting().single_step_mode) {
+    if (lox::GlobalSetting().per_line_debug) {
       current_line = active_frame_->closure->function->chunk->lines[offset];
       if (current_line != before_line) {
         before_line = current_line;
         DumpStack(this);
         DumpGlobal(this);
-        getchar();
+        if (lox::GlobalSetting().single_step_mode) {
+          getchar();
+        }
         SPDLOG_DEBUG("===============================================");
       }
       DumpInstruction(active_frame_->closure->function->chunk.get(), offset);
