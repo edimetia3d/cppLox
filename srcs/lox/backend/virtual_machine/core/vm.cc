@@ -6,8 +6,10 @@
 
 #include <spdlog/spdlog.h>
 
+#include "lox/global_setting.h"
 #include "lox/backend/virtual_machine/builtins/builtin_fn.h"
 #include "lox/backend/virtual_machine/errors.h"
+#include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/object/object.h"
 
 #define CHUNK_READ_BYTE() (*ip_++)
@@ -35,8 +37,33 @@ VM *VM::Instance() {
   return &object;
 }
 void VM::Run() {
+#ifndef NDEBUG
+  if (lox::GlobalSetting().single_step_mode) {
+    printf("Press Enter to start/continue execution.\n");
+    getchar();
+    SPDLOG_DEBUG("===============================================");
+  }
+  int before_line = 0;
+  int current_line = 0;
+  int offset = 0;
+#endif
   for (;;) {
-    switch (static_cast<OpCode>(CHUNK_READ_BYTE())) {
+#ifndef NDEBUG
+    offset = ip_ - active_frame_->closure->function->chunk->code.data();
+    if (lox::GlobalSetting().single_step_mode) {
+      current_line = active_frame_->closure->function->chunk->lines[offset];
+      if (current_line != before_line) {
+        before_line = current_line;
+        DumpStack(this);
+        DumpGlobal(this);
+        getchar();
+        SPDLOG_DEBUG("===============================================");
+      }
+      DumpInstruction(active_frame_->closure->function->chunk.get(), offset);
+    }
+#endif
+    auto instruction = static_cast<OpCode>(CHUNK_READ_BYTE());
+    switch (instruction) {
       case OpCode::OP_CONSTANT: {
         Value constant = CHUNK_READ_CONSTANT();
         Push(constant);
