@@ -733,10 +733,10 @@ void Compiler::EmitPrefix() {
         ErrorAt(previous, "Can't use 'super' in a class with no superclass.");
       } else {
         EmitClassAttrAccess(current_class->superclass->name_token);
+#ifdef UPSTREAM_STYLE_ERROR_MSG
         if (!CheckCurrentTokenType(TokenType::DOT)) {
           ErrorAt(current, "Expect '.' after 'super'.");
         }
-#ifdef UPSTREAM_STYLE_ERROR_MSG
         if (auto op_info = InfixOpInfoMap::Get(current)) {
           if ((op_info->precedence > last_expr_lower_bound ||
                (op_info->precedence == last_expr_lower_bound &&
