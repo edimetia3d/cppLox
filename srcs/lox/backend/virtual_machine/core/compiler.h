@@ -97,11 +97,6 @@ class Compiler {
 
   void GetNamedValue(Token name);
 
-  /**
-   * When can_assign is false, this function could only be used to get named value.
-   * When doing a assignment, the assigned value will be leaves on stack
-   */
-  void GetOrSetNamedValue(FunctionUnit* cu, Token varaible_token, bool can_assign);
   bool CanAssign();
 
   /**

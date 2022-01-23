@@ -319,19 +319,6 @@ void Compiler::VarDefStmt() {
   cu_->DefineNamedValue(new_var);
 }
 
-void Compiler::GetOrSetNamedValue(FunctionUnit *cu, Token varaible_token, bool can_assign) {
-  auto handle = cu_->ResolveNamedValue(varaible_token);
-  if (MatchAndAdvance(TokenType::EQUAL)) {
-    if (can_assign) {
-      AnyExpression();
-      cu->EmitBytes(handle.set_op, handle.reslove.position);
-    } else {
-      ErrorAt(previous, "Invalid assignment target.");
-    }
-  } else {
-    cu->EmitBytes(handle.get_op, handle.reslove.position);
-  }
-}
 bool Compiler::CanAssign() { return last_expr_lower_bound <= InfixPrecedence::ASSIGNMENT; }
 void Compiler::BlockStmt() {
   // Note that block stmt do not create a new scope, the scope for block stmt is created by caller.
@@ -601,7 +588,10 @@ std::unique_ptr<FunctionUnit> Compiler::PopCU() {
   return std::unique_ptr<FunctionUnit>(latest_cu);
 }
 
-void Compiler::GetNamedValue(Token name) { return GetOrSetNamedValue(cu_, name, false); }
+void Compiler::GetNamedValue(Token name) {
+  auto handle = cu_->ResolveNamedValue(name);
+  cu_->EmitBytes(handle.get_op, handle.reslove.position);
+}
 
 void Compiler::EmitPrefix() {
   switch (previous->type) {
@@ -622,7 +612,17 @@ void Compiler::EmitPrefix() {
       if (IsAccessingClassAttr(previous, current)) {
         EmitClassAttrAccess(previous);
       } else {
-        GetOrSetNamedValue(cu_, previous, CanAssign());
+        auto handle = cu_->ResolveNamedValue(previous);
+        if (MatchAndAdvance(TokenType::EQUAL)) {
+          if (CanAssign()) {
+            AnyExpression();
+            cu_->EmitBytes(handle.set_op, handle.reslove.position);
+          } else {
+            ErrorAt(previous, "Invalid assignment target.");
+          }
+        } else {
+          cu_->EmitBytes(handle.get_op, handle.reslove.position);
+        }
       }
       break;
     }
