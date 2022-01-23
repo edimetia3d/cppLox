@@ -3,3 +3,4 @@
 // todo: clean up gc / malloc system push / pop
 // todo: fix stack print to avoid loose mode
 // todo: fix object creation controll
+// todo: fix interactive mode from top to down
