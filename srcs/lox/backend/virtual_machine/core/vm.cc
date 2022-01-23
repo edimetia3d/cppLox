@@ -385,7 +385,8 @@ void VM::CallValue(Value callee, int arg_count) {
       } else if (arg_count != 0) {
         Error("Expected 0 arguments but got %d.", arg_count);
       } else {
-        Push(instance_value);
+        Pop();                 // pop the callee, which is the class
+        Push(instance_value);  // leave instance on stack
       }
       return;
     }

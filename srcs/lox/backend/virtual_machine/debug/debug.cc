@@ -206,6 +206,9 @@ void DumpStack(const VM *vm) {
   std::vector<char> buf(1000);
   auto head = snprintf(buf.data(), buf.size(), "Stack: ");
   for (const Value *slot = vm->stack_; slot != vm->sp_; ++slot) {
+    if (vm->active_frame_->slots == slot) {
+      head += snprintf(buf.data() + head, buf.size() - head, "|Frame|>");
+    }
     head += snprintf(buf.data() + head, buf.size() - head, "[ %s ]", slot->Str().c_str());
   }
   SPDLOG_DEBUG(buf.data());
