@@ -41,13 +41,6 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
 FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, UpValueSrc beg_src) {
   for (auto &uv : upvalues) {
     FunctionUnit::UpValue *upvalue = &uv;
-    if (upvalue->name == some_value->name && upvalue->src_at_begin == UpValueSrc::ON_STACK_TAIL) {
-      return upvalue;
-    }
-  }
-
-  for (auto &uv : upvalues) {
-    FunctionUnit::UpValue *upvalue = &uv;
     if (upvalue->position_at_begin == some_value->position && upvalue->src_at_begin == beg_src) {
       return upvalue;
     }
@@ -319,20 +312,27 @@ std::unique_ptr<FunctionUnit::Global> FunctionUnit::TryResolveGlobal(Token varai
       auto ret = std::make_unique<FunctionUnit::Global>();
       *ret = global;
       ret->position = GetSymbolConstant(varaible_name->lexeme);
+      return ret;
     }
   }
   return nullptr;
 }
 void FunctionUnit::EmitConstant(Value value) { EmitBytes(OpCode::OP_CONSTANT, AddValueConstant(value)); }
-void FunctionUnit::EmitOpClosure(ObjFunction *func, std::vector<UpValue> upvalues_of_func, int extra_closed_value) {
+void FunctionUnit::EmitOpClosure(ObjFunction *func, const std::vector<UpValue> &upvalues_of_func,
+                                 std::map<std::string, UpValue *> value_need_to_force_closed) {
+  int extra_count = 0;
+  for (auto &pair : value_need_to_force_closed) {
+    auto handle = ResolveNamedValue(MakeToken(TokenType::IDENTIFIER, pair.first, -1));
+    EmitBytes(handle.get_op, handle.reslove.position);
+    pair.second->position_at_begin = value_need_to_force_closed.size() - extra_count - 1;
+    ++extra_count;
+  }
   EmitBytes(OpCode::OP_CLOSURE, AddValueConstant(Value(func)));
   EmitByte((uint8_t)upvalues_of_func.size());
-  EmitByte(extra_closed_value);
   for (auto &upvalue : upvalues_of_func) {
     EmitByte(static_cast<uint8_t>(upvalue.src_at_begin));
     EmitByte(upvalue.position_at_begin);
   }
-  locals.resize(locals.size() - extra_closed_value);
 }
 uint8_t FunctionUnit::GetSymbolConstant(const std::string &str) {
   if (!used_symbol_constants.contains(str)) {
@@ -349,6 +349,114 @@ uint8_t FunctionUnit::GetSymbolConstant(const std::string &str) {
 void FunctionUnit::Error(const std::string &msg) {
   SPDLOG_DEBUG(msg);
   error_callback(msg.c_str());
+}
+
+void FunctionUnit::ForceCloseValue(Token name_in_outer_scope) {
+  if (!force_closed_values.contains(name_in_outer_scope->lexeme)) {
+    Token new_name = MakeToken(TokenType::IDENTIFIER, "__closed_" + name_in_outer_scope->lexeme, line_info_callback());
+    if (!enclosing) {
+      Error("Cannot force close in global scope");
+    }
+
+    if (upvalues.size() == UPVALUE_COUNT_LIMIT) {
+      Error("Too many closure variables in function.");
+    }
+    upvalues.resize(upvalues.size() + 1);
+    upvalues.back().name = new_name->lexeme;
+    upvalues.back().src_at_begin = UpValueSrc::ON_STACK_TOP;
+    upvalues.back().position = upvalues.size() - 1;
+    upvalues.back().position_at_begin = -1;
+    upvalues.back().is_inited = true;  // all upvalues are already inited
+
+    force_closed_values[name_in_outer_scope->lexeme] = &upvalues.back();
+  }
+  auto up_value = force_closed_values[name_in_outer_scope->lexeme];
+  EmitBytes(OpCode::OP_GET_UPVALUE, up_value->position);
+}
+
+FunctionUnit::NamedValueOperator FunctionUnit::ResolveNamedValue(Token varaible_name) {
+  /**
+   * About UpValue:
+   *
+   * At runtime, If the closed value we want to access is still on the stack, we should access the value on stack. If
+   * the closed value is not on stack, we should access the copied one. e.g. we define a closure, and then call it
+   * immediately, we should access the raw value that is still on stack.
+   *
+   * To support this feature:
+   *    1. compiler and virtual machine will have to work together.
+   *    2. The closed value at runtime will be a pointer point to stack initially, and it will point to a new location
+   *       when the stack position it points to is popped.
+   *
+   * Note that the global level function will not have any upvalue, all unresolved symbol in global level will go to
+   * global directly. That is , the global level function is a closure that closes nothing.
+   *
+   * To a normal closure:
+   *    1. The ObjFunction of closure is already created by compiler at compilation time, and we can do nothing to it.
+   *       (It may contains some GET_UPVALUE, SET_UPVALUE op, but not very important.)
+   *    2. There will always be a "outer function", act as the runtime creator of the closure.
+   *
+   * The ClosureCreator will do all the magic things at runtime to make the inner defined ObjFunction a real closure.
+   *    1. At compile time, just after the inner function is defined (a `PopCU()` is executed), a `OP_CLOUSRE` will be
+   * emitted. At runtime, `OP_CLOUSRE` will create a ObjClosure, and update the upvalues of it to make the upvalues
+   * point to correct position, and for the upvalues that point to stack, we will track them as `opened-upvalues`, they
+   * will get updated later.
+   *    2. At compile time, normally, when a var out of scope, a OP_POP will be emit, but if it is needed by some inner
+   * function, a `OP_CLOSE_UPVALUE` will be emitted, this OP will not only do the pop, but also do some upvalue updating
+   *       job at runtime. At runtime, `OP_CLOSE_UPVALUE` will try to close all opened-upvalues that point to a invalid
+   *       stack position. Normally, a `out of scope` will move the sp to correct place, and all value on stack after
+   *       the correct place will be treated as `poped`, thus, it is very easy to determine whether a opened-upvalue
+   * point to a invalid place. And also, OP_CLOSE_UPVALUE just do the `close`, it doesnt care which function the upvalue
+   *       belongs to.
+   *
+   * Note that:
+   *    1. the truth that closed values are get "copied" (or captured, closed) when they went out of scope, it may cause
+   * some logical misleading, e.g. creating closure in loops will make every closure closed to the same value.
+   *    2. we will also support the chain style upvalue, if a nested closure is created, and they need to access same
+   *    variable, then same value will always be used at runtime.
+   *
+   *
+   * To support the code gen of `OP_CLOUSRE` and `OP_CLOSE_UPVALUE`, we need to track the upvalue at compile time. And
+   * all these tracking will be done by the TryResolveUpValue, obviously, upvalue is only known by compiler, user code
+   * will not decl/define upvalue.
+   */
+
+  OpCode get_op, set_op;
+  FunctionUnit::NamedValue *p_resolve = nullptr;
+  std::unique_ptr<FunctionUnit::Global> global_resolve;
+  if ((p_resolve = TryResolveLocal(varaible_name))) {
+    get_op = OpCode::OP_GET_LOCAL;
+    set_op = OpCode::OP_SET_LOCAL;
+    assert(p_resolve->position < STACK_COUNT_LIMIT);
+  } else if ((p_resolve = TryResolveUpValue(varaible_name))) {
+    get_op = OpCode::OP_GET_UPVALUE;
+    set_op = OpCode::OP_SET_UPVALUE;
+    assert(p_resolve->position < UPVALUE_COUNT_LIMIT);
+  } else if ((global_resolve = TryResolveGlobal(varaible_name))) {
+    get_op = OpCode::OP_GET_GLOBAL;
+    set_op = OpCode::OP_SET_GLOBAL;
+    p_resolve = global_resolve.get();
+    assert(p_resolve->position < CONSTANT_COUNT_LIMIT);
+  } else {
+    // We will treat all unknown variable as global variable, and delay the error to runtime.
+    // because new global variable might be created at runtime before we actually access it.
+
+    get_op = OpCode::OP_GET_GLOBAL;
+    set_op = OpCode::OP_SET_GLOBAL;
+    global_resolve = std::make_unique<FunctionUnit::Global>();
+    global_resolve->name = varaible_name->lexeme;
+    global_resolve->is_inited = true;
+    global_resolve->position = GetSymbolConstant(varaible_name->lexeme);
+    assert(global_resolve->position < CONSTANT_COUNT_LIMIT);
+    p_resolve = global_resolve.get();
+  }
+  if (!p_resolve->is_inited) {
+    Error("Can't read local variable in its own initializer.");
+  }
+  return NamedValueOperator{
+      .get_op = get_op,
+      .set_op = set_op,
+      .reslove = *p_resolve,
+  };
 }
 
 }  // namespace lox::vm

@@ -199,22 +199,23 @@ void VM::Run() {
       case OpCode::OP_CLOSURE: {
         auto closure = new ObjClosure(CHUNK_READ_CONSTANT().AsObject()->DynAs<ObjFunction>());
         uint8_t upvalue_count = CHUNK_READ_BYTE();
-        uint8_t extra_closed_value = CHUNK_READ_BYTE();
+        uint8_t extra_closed_value = 0;
         closure->upvalues.resize(upvalue_count, nullptr);
         for (int i = 0; i < upvalue_count; i++) {
           uint8_t src = CHUNK_READ_BYTE();
           uint8_t position_at_begin = CHUNK_READ_BYTE();
           switch (src) {
-            case 0:  // on stack
+            case 0:  // on known slot
               closure->upvalues[i] = MarkValueNeedToClose(active_frame_->slots + position_at_begin);
               break;
             case 1:  // on enclosing function, that is , current active function
               closure->upvalues[i] = active_frame_->closure->upvalues[position_at_begin];
               break;
-            case 2: {  // on stack tail
+            case 2: {  // on stack top
               closure->upvalues[i] = new ObjUpvalue(nullptr);
-              closure->upvalues[i]->closed = Peek(extra_closed_value - position_at_begin - 1);
+              closure->upvalues[i]->closed = Peek(position_at_begin);
               closure->upvalues[i]->location = &closure->upvalues[i]->closed;
+              ++extra_closed_value;
               break;
             }
             default:

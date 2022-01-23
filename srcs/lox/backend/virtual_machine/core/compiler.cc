@@ -320,91 +320,16 @@ void Compiler::VarDefStmt() {
 }
 
 void Compiler::GetOrSetNamedValue(FunctionUnit *cu, Token varaible_token, bool can_assign) {
-  /**
-   * About UpValue:
-   *
-   * At runtime, If the closed value we want to access is still on the stack, we should access the value on stack. If
-   * the closed value is not on stack, we should access the copied one. e.g. we define a closure, and then call it
-   * immediately, we should access the raw value that is still on stack.
-   *
-   * To support this feature:
-   *    1. compiler and virtual machine will have to work together.
-   *    2. The closed value at runtime will be a pointer point to stack initially, and it will point to a new location
-   *       when the stack position it points to is popped.
-   *
-   * Note that the global level function will not have any upvalue, all unresolved symbol in global level will go to
-   * global directly. That is , the global level function is a closure that closes nothing.
-   *
-   * To a normal closure:
-   *    1. The ObjFunction of closure is already created by compiler at compilation time, and we can do nothing to it.
-   *       (It may contains some GET_UPVALUE, SET_UPVALUE op, but not very important.)
-   *    2. There will always be a "outer function", act as the runtime creator of the closure.
-   *
-   * The ClosureCreator will do all the magic things at runtime to make the inner defined ObjFunction a real closure.
-   *    1. At compile time, just after the inner function is defined (a `PopCU()` is executed), a `OP_CLOUSRE` will be
-   * emitted. At runtime, `OP_CLOUSRE` will create a ObjClosure, and update the upvalues of it to make the upvalues
-   * point to correct position, and for the upvalues that point to stack, we will track them as `opened-upvalues`, they
-   * will get updated later.
-   *    2. At compile time, normally, when a var out of scope, a OP_POP will be emit, but if it is needed by some inner
-   * function, a `OP_CLOSE_UPVALUE` will be emitted, this OP will not only do the pop, but also do some upvalue updating
-   *       job at runtime. At runtime, `OP_CLOSE_UPVALUE` will try to close all opened-upvalues that point to a invalid
-   *       stack position. Normally, a `out of scope` will move the sp to correct place, and all value on stack after
-   *       the correct place will be treated as `poped`, thus, it is very easy to determine whether a opened-upvalue
-   * point to a invalid place. And also, OP_CLOSE_UPVALUE just do the `close`, it doesnt care which function the upvalue
-   *       belongs to.
-   *
-   * Note that:
-   *    1. the truth that closed values are get "copied" (or captured, closed) when they went out of scope, it may cause
-   * some logical misleading, e.g. creating closure in loops will make every closure closed to the same value.
-   *    2. we will also support the chain style upvalue, if a nested closure is created, and they need to access same
-   *    variable, then same value will always be used at runtime.
-   *
-   *
-   * To support the code gen of `OP_CLOUSRE` and `OP_CLOSE_UPVALUE`, we need to track the upvalue at compile time. And
-   * all these tracking will be done by the TryResolveUpValue, obviously, upvalue is only known by compiler, user code
-   * will not decl/define upvalue.
-   */
-  OpCode get_op, set_op;
-  FunctionUnit::NamedValue *p_resolve = nullptr;
-  std::unique_ptr<FunctionUnit::Global> global_resolve;
-  if ((p_resolve = cu->TryResolveLocal(varaible_token))) {
-    get_op = OpCode::OP_GET_LOCAL;
-    set_op = OpCode::OP_SET_LOCAL;
-    assert(p_resolve->position < STACK_COUNT_LIMIT);
-  } else if ((p_resolve = cu->TryResolveUpValue(varaible_token))) {
-    get_op = OpCode::OP_GET_UPVALUE;
-    set_op = OpCode::OP_SET_UPVALUE;
-    assert(p_resolve->position < UPVALUE_COUNT_LIMIT);
-  } else if ((global_resolve = cu->TryResolveGlobal(varaible_token))) {
-    get_op = OpCode::OP_GET_GLOBAL;
-    set_op = OpCode::OP_SET_GLOBAL;
-    p_resolve = global_resolve.get();
-    assert(p_resolve->position < CONSTANT_COUNT_LIMIT);
-  } else {
-    // We will treat all unknown variable as global variable, and delay the error to runtime.
-    // because new global variable might be created at runtime before we actually access it.
-    SPDLOG_DEBUG(CreateErrMsg(varaible_token, "Compiler detected a undefined variable."));
-    get_op = OpCode::OP_GET_GLOBAL;
-    set_op = OpCode::OP_SET_GLOBAL;
-    global_resolve = std::make_unique<FunctionUnit::Global>();
-    global_resolve->is_inited = true;
-    global_resolve->position = cu->GetSymbolConstant(varaible_token->lexeme);
-    assert(global_resolve->position < CONSTANT_COUNT_LIMIT);
-    p_resolve = global_resolve.get();
-  }
-
-  if (!p_resolve->is_inited) {
-    ErrorAt(previous, "Can't read local variable in its own initializer.");
-  }
+  auto handle = cu_->ResolveNamedValue(varaible_token);
   if (MatchAndAdvance(TokenType::EQUAL)) {
     if (can_assign) {
       AnyExpression();
-      cu->EmitBytes(set_op, p_resolve->position);
+      cu->EmitBytes(handle.set_op, handle.reslove.position);
     } else {
       ErrorAt(previous, "Invalid assignment target.");
     }
   } else {
-    cu->EmitBytes(get_op, p_resolve->position);
+    cu->EmitBytes(handle.get_op, handle.reslove.position);
   }
 }
 bool Compiler::CanAssign() { return last_expr_lower_bound <= InfixPrecedence::ASSIGNMENT; }
@@ -563,7 +488,7 @@ void Compiler::CreateFunc(FunctionType type) {
   auto new_cu = PopCU();
   // We will create a closure at runtime for the function, OP_CLOSURE will update the newly created closure's upvalue,
   // to make them in a valid state.
-  cu_->EmitOpClosure(new_cu->func, new_cu->upvalues, new_cu->force_closed_values.size());
+  cu_->EmitOpClosure(new_cu->func, new_cu->upvalues, new_cu->force_closed_values);
 }
 
 uint8_t Compiler::ArgumentList() {
@@ -760,7 +685,7 @@ void Compiler::EmitPrefix() {
   }
 }
 void Compiler::EmitClassAttrAccess(Token class_token) {
-  ForceCloseValue(class_token);
+  cu_->ForceCloseValue(class_token);
   GetNamedValue(MakeToken(TokenType::THIS, "this", previous->line));
   cu_->EmitByte(OpCode::OP_INSTANCE_TYPE_CAST);
 }
@@ -859,35 +784,5 @@ void Compiler::EmitInfix() {
     default:
       ErrorAt(previous, "Expect expression.");
   }
-}
-void Compiler::ForceCloseValue(Token name_in_outer_scope) {
-  // force the enclosing scope to get a value into the stack with a new_name, to force "capture global by value"
-  //
-  // this will make extra values pushed onto stack, that make outer function stack broken
-  // outer function will reset this invalid state in EmitOpClosure by discarding the extra value. see
-  // FunctionUnit::EmitOpClosure
-  //
-  // For now, this feature is used to support `super.attr` and `ClassName.attr`, in future, we might add a new feature
-  // "capture by value" beside capture by reference.
-
-  Token new_name = MakeToken(TokenType::IDENTIFIER, "__closed_" + name_in_outer_scope->lexeme, previous->line);
-  if (!cu_->force_closed_values.contains(name_in_outer_scope->lexeme)) {
-    if (!cu_->enclosing || cu_->enclosing->current_semantic_scope_level >= cu_->current_semantic_scope_level ||
-        cu_->enclosing->current_semantic_scope_level == 0) {
-      ErrorAt(name_in_outer_scope, "Outer scope does not support value close");
-    }
-    auto value = cu_->enclosing->DeclNamedValue(new_name);
-    GetOrSetNamedValue(cu_->enclosing, name_in_outer_scope, false);
-    cu_->enclosing->DefineNamedValue(value);
-
-    auto p_resolve = cu_->TryResolveUpValue(new_name);
-    if (!p_resolve || p_resolve->src_at_begin != FunctionUnit::UpValueSrc::ON_SLOT_BEGIN) {
-      ErrorAt(name_in_outer_scope, "Unkown error, please report");
-    }
-    p_resolve->src_at_begin = FunctionUnit::UpValueSrc::ON_STACK_TAIL;
-    p_resolve->position_at_begin = cu_->force_closed_values.size();
-    cu_->force_closed_values[name_in_outer_scope->lexeme] = 1;
-  }
-  GetOrSetNamedValue(cu_, new_name, false);
 }
 }  // namespace lox::vm

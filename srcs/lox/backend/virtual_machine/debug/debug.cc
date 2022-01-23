@@ -170,14 +170,10 @@ class ChunkDump {
     AppendLatestLine(" %-16s %4d->[%s]", "OP_CLOSURE", constant, chunk->constants[constant].Str().c_str());
     auto function = chunk->constants[constant].AsObject()->DynAs<ObjFunction>();
     int upvalue_count = chunk->code[offset++];
-    int extra_close_count = chunk->code[offset++];
-    if (extra_close_count) {
-      AppendLatestLine("\n%04d      |                     %s %d", offset - 1, "extra_close_count", extra_close_count);
-    }
     for (int j = 0; j < upvalue_count; j++) {
       int isLocal = chunk->code[offset++];
       int index = chunk->code[offset++];
-      AppendLatestLine("\n%04d      |                     %s %d", offset - 2, isLocal ? "local" : "upvalue", index);
+      AppendLatestLine("\n%04d      |                 src:%d pos:%d", offset - 2, isLocal, index);
     }
     return offset;
   };

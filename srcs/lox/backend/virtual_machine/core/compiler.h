@@ -96,7 +96,6 @@ class Compiler {
   void EmitInfix();
 
   void GetNamedValue(Token name);
-  void ForceCloseValue(Token name_in_outer_scope);
 
   /**
    * When can_assign is false, this function could only be used to get named value.

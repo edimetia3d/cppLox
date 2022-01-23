@@ -38,7 +38,7 @@ enum class OpCode : uint8_t {
   OP_JUMP_IF_FALSE,  // 3 bytes of [opcode,[hi_jump_offset,lo_jump_offset]]
   OP_JUMP_BACK,      // 3 bytes of [opcode,[hi_jump_offset,lo_jump_offset]]
   OP_CALL,           // 2 Bytes of [op_code,arg_count]
-  OP_CLOSURE,  // dynamic size of [op_code, upvalue_count, extra_close_count, N*[isLocal,offset_of_slot_or_upvalue]]
+  OP_CLOSURE,        // dynamic size of [op_code, upvalue_count, N*[isLocal,offset_of_slot_or_upvalue]]
   OP_CLOSE_UPVALUE,  // move a stack value to heap
   OP_RETURN,         // Pop a value on stack, and switch call frame to caller, and push the value to the caller's stack
   OP_CLASS,     // 2 Bytes of [op_code, class_name_cst_index], Read class name from constant, and leave a class obj on

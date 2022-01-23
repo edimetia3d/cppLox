@@ -77,7 +77,7 @@ struct FunctionUnit {
     UNKOWN = -1,
     ON_SLOT_BEGIN,
     ON_ENCLOSING_UPVALUE,
-    ON_STACK_TAIL,  // force captured
+    ON_STACK_TOP,  // force captured
   };
   struct UpValue : public NamedValue {
     // position of upvalue is :
@@ -95,6 +95,14 @@ struct FunctionUnit {
   };
   static std::vector<Global> globals;  // contains globals current function will used
   std::unique_ptr<Global> TryResolveGlobal(Token varaible_name);
+
+  struct NamedValueOperator {
+    OpCode get_op;
+    OpCode set_op;
+    NamedValue reslove;
+  };
+
+  NamedValueOperator ResolveNamedValue(Token varaible_name);
 
   ///////////////////////////////////////////// NAME RESOLVE SUPPORT END////////////////////////////////////////////////
   struct JumpDownHole {
@@ -121,7 +129,15 @@ struct FunctionUnit {
   // Note that 1. function name belongs to outer scope, function body is in the inner scope. 2. In our implementation,
   // class do not create new scope, and class can only define methods, and these methods will not be populated as named
   // value in scope.
-  std::map<std::string, int> force_closed_values;
+  std::map<std::string, UpValue*> force_closed_values;
+  /**
+   * Force make enclosing cu close a value for this cu, and access the closed value to leave it on stack. That is
+   * 1. a new entry in `upvalues` will be added
+   * 2. a GET_UPVALUE will be emit to get the closed value
+   *
+   * name_in_outer_cu is a name that must be valid in outer cu.
+   */
+  void ForceCloseValue(Token name_in_outer_scope);
   FunctionUnit::UpValue* DoAddUpValue(NamedValue* some_value, UpValueSrc beg_src);
   UpValue* AddUpValueFromEnclosingStack(Local* some_value);
   UpValue* AddUpValueFromEnclosingUpValue(UpValue* some_value);
@@ -142,7 +158,8 @@ struct FunctionUnit {
   void EmitUnary(const TokenType& token_type);
   void EmitBinary(const TokenType& token_type);
   void EmitLiteral(TokenType token_type);
-  void EmitOpClosure(ObjFunction* func, std::vector<UpValue> upvalues_of_func, int extra_closed_value);
+  void EmitOpClosure(ObjFunction* func, const std::vector<UpValue>& upvalues_of_func,
+                     std::map<std::string, UpValue*> value_need_to_force_closed);
   bool IsGlobalScope() const;
   void Error(const std::string& msg);
 
