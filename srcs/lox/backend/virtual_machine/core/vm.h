@@ -13,9 +13,6 @@
 #define VM_FRAMES_LIMIT 64
 #define VM_STACK_LIMIT (VM_FRAMES_LIMIT * STACK_COUNT_LIMIT)
 
-// todo: clean up error system
-// todo: clean up log/ptrintf
-// todo: clean up gc / malloc system push / pop
 namespace lox::vm {
 
 /**

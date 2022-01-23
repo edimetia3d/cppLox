@@ -1,0 +1,3 @@
+// todo: clean up error system of tree-walker
+// todo: add test for break/continue/classname.attr
+// todo: clean up gc / malloc system push / pop
