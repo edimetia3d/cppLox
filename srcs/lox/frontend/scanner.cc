@@ -68,6 +68,8 @@ Token Scanner::ScanOne() {
       }
   }
   // clang-format on
+  Error("Unknown error");
+  return nullptr;
 }
 Token Scanner::AddToken(TokenType type) {
   auto ret = MakeToken(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);

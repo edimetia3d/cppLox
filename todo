@@ -4,3 +4,4 @@
 // todo: fix stack print to avoid loose mode
 // todo: fix object creation controll
 // todo: fix interactive mode from top to down
+// todo: fix clean up all obj/ast class

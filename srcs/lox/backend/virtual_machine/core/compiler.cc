@@ -475,7 +475,7 @@ void Compiler::CreateFunc(FunctionType type) {
   auto new_cu = PopCU();
   // We will create a closure at runtime for the function, OP_CLOSURE will update the newly created closure's upvalue,
   // to make them in a valid state.
-  cu_->EmitOpClosure(new_cu->func, new_cu->upvalues, new_cu->force_closed_values);
+  cu_->EmitOpClosure(new_cu.get());
 }
 
 uint8_t Compiler::ArgumentList() {

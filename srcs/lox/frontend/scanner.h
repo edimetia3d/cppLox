@@ -19,7 +19,8 @@ class ScannerError : public LoxErrorWithExitCode<EX_DATAERR> {
 
 class Scanner {
  public:
-  explicit Scanner(const std::string& srcs) : srcs_(&srcs) {}
+  explicit Scanner(const std::string& srcs, std::string src_file_name)
+      : srcs_(&srcs), src_file_name(std::move(src_file_name)) {}
 
   std::vector<Token> ScanAll();
 
@@ -28,7 +29,7 @@ class Scanner {
   void Reset() { Reset(*srcs_); }
 
   void Reset(const std::string& srcs) {
-    Scanner tmp(srcs);
+    Scanner tmp(srcs, src_file_name);
     std::swap(tmp, *this);
   }
 
@@ -62,6 +63,7 @@ class Scanner {
   int start_lex_pos_ = 0;
   int current_lex_pos_ = 0;
   int line_ = 0;
+  std::string src_file_name;
   void ResetTokenBeg();
 };
 }  // namespace lox

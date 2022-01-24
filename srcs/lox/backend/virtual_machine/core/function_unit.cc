@@ -318,16 +318,19 @@ std::unique_ptr<FunctionUnit::Global> FunctionUnit::TryResolveGlobal(Token varai
   return nullptr;
 }
 void FunctionUnit::EmitConstant(Value value) { EmitBytes(OpCode::OP_CONSTANT, AddValueConstant(value)); }
-void FunctionUnit::EmitOpClosure(ObjFunction *func, const std::vector<UpValue> &upvalues_of_func,
-                                 std::map<std::string, UpValue *> value_need_to_force_closed) {
+void FunctionUnit::EmitOpClosure(FunctionUnit *newly_created_cu) {
+  auto &upvalues_of_func = newly_created_cu->upvalues;
+  auto &value_need_to_force_closed = newly_created_cu->force_closed_values;
+
   int extra_count = 0;
   for (auto &pair : value_need_to_force_closed) {
     auto handle = ResolveNamedValue(MakeToken(TokenType::IDENTIFIER, pair.first, -1));
     EmitBytes(handle.get_op, handle.reslove.position);
-    pair.second->position_at_begin = value_need_to_force_closed.size() - extra_count - 1;
+    pair.second->position_at_begin =
+        value_need_to_force_closed.size() - extra_count - 1;  // position is count from stack top to bottom
     ++extra_count;
   }
-  EmitBytes(OpCode::OP_CLOSURE, AddValueConstant(Value(func)));
+  EmitBytes(OpCode::OP_CLOSURE, AddValueConstant(Value(newly_created_cu->func)));
   EmitByte((uint8_t)upvalues_of_func.size());
   for (auto &upvalue : upvalues_of_func) {
     EmitByte(static_cast<uint8_t>(upvalue.src_at_begin));
@@ -351,7 +354,16 @@ void FunctionUnit::Error(const std::string &msg) {
   error_callback(msg.c_str());
 }
 
-void FunctionUnit::ForceCloseValue(Token name_in_outer_scope) {
+void FunctionUnit::ForceCloseValue(Token name_in_outer_scope, bool emit_get_upvalue) {
+  /**
+   * ForceCloseValue need to cooperate with EmitOpClosure.
+   *
+   * Given a enclosing_cu and a newly_created_cu. newly_created_cu will call ForceCloseValue to make requirement
+   * about a value to be closed. After the newly_created_cu had been compiled, the enclosing_cu will call EmitOpClosure
+   * to create the closure of newly_created_cu, and will also close the required value at there.
+   *
+   */
+
   if (!force_closed_values.contains(name_in_outer_scope->lexeme)) {
     Token new_name = MakeToken(TokenType::IDENTIFIER, "__closed_" + name_in_outer_scope->lexeme, line_info_callback());
     if (!enclosing) {
@@ -370,8 +382,10 @@ void FunctionUnit::ForceCloseValue(Token name_in_outer_scope) {
 
     force_closed_values[name_in_outer_scope->lexeme] = &upvalues.back();
   }
-  auto up_value = force_closed_values[name_in_outer_scope->lexeme];
-  EmitBytes(OpCode::OP_GET_UPVALUE, up_value->position);
+  if (emit_get_upvalue) {
+    auto up_value = force_closed_values[name_in_outer_scope->lexeme];
+    EmitBytes(OpCode::OP_GET_UPVALUE, up_value->position);
+  }
 }
 
 FunctionUnit::NamedValueOperator FunctionUnit::ResolveNamedValue(Token varaible_name) {

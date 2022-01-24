@@ -6,11 +6,11 @@
 
 #include <spdlog/spdlog.h>
 
-#include "lox/global_setting.h"
 #include "lox/backend/virtual_machine/builtins/builtin_fn.h"
-#include "lox/backend/virtual_machine/errors.h"
 #include "lox/backend/virtual_machine/debug/debug.h"
+#include "lox/backend/virtual_machine/errors.h"
 #include "lox/backend/virtual_machine/object/object.h"
+#include "lox/global_setting.h"
 
 #define CHUNK_READ_BYTE() (*ip_++)
 #define CHUNK_READ_SHORT() (ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))
@@ -38,24 +38,39 @@ VM *VM::Instance() {
 }
 void VM::Run() {
 #ifndef NDEBUG
-  if (lox::GlobalSetting().per_line_debug) {
-    if (lox::GlobalSetting().single_step_mode) {
-      printf("Press Enter to start/continue execution.\n");
-      getchar();
-    }
-    SPDLOG_DEBUG("===============================================");
+  SPDLOG_DEBUG("===============================================");
+  SPDLOG_DEBUG("===============Start Execution=================");
+  SPDLOG_DEBUG("===============================================");
+  if (lox::GlobalSetting().single_step_mode) {
+    printf("Press Enter to start/continue execution.\n");
+    getchar();
   }
-  int before_line = 0;
-  int current_line = 0;
-  int offset = 0;
 #endif
   for (;;) {
 #ifndef NDEBUG
-    offset = ip_ - active_frame_->closure->function->chunk->code.data();
-    if (lox::GlobalSetting().per_line_debug) {
-      current_line = active_frame_->closure->function->chunk->lines[offset];
-      if (current_line != before_line) {
-        before_line = current_line;
+    if (lox::GlobalSetting().runtime_dump_frequency != RuntimeDumpFrequency::NONE) {
+      int offset = ip_ - active_frame_->closure->function->chunk->code.data();
+
+      bool should_dump_runtime_info = false;
+      switch (lox::GlobalSetting().runtime_dump_frequency) {
+        case RuntimeDumpFrequency::EVERY_INSTRUCTION:
+          should_dump_runtime_info = true;
+          break;  // no need to fall through
+        case RuntimeDumpFrequency::EVERY_LINE: {
+          bool line_should_dump = offset > 0 && active_frame_->closure->function->chunk->lines[offset] !=
+                                                    active_frame_->closure->function->chunk->lines[offset - 1];
+          should_dump_runtime_info |= line_should_dump;
+          [[fallthrough]];
+        }
+        case RuntimeDumpFrequency::EVERY_FUNCTION:
+          should_dump_runtime_info |= (offset == 0);
+          break;
+        case RuntimeDumpFrequency::NONE:
+          break;
+      }
+
+      if (should_dump_runtime_info) {
+        // use gdb to break in this branch, to single step through the lox source code.
         DumpStack(this);
         DumpGlobal(this);
         if (lox::GlobalSetting().single_step_mode) {

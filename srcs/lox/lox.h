@@ -24,10 +24,10 @@ class LoxInterpreter {
    * @param code
    * @return
    */
-  void Eval(const std::string &code);
+  void Eval(const std::string &code, const std::string &file_name);
 
  private:
-  void RunStream(std::istream *istream);
+  void RunStream(std::istream *istream, const std::string &file_name);
   std::shared_ptr<BackEnd> back_end_;
 };
 

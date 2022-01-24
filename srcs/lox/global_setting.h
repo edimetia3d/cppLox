@@ -5,13 +5,13 @@
 #ifndef CPPLOX_SRCS_LOX_GLOBAL_SETTING_H_
 #define CPPLOX_SRCS_LOX_GLOBAL_SETTING_H_
 #include <string>
-
+enum class RuntimeDumpFrequency { NONE, EVERY_INSTRUCTION, EVERY_LINE, EVERY_FUNCTION };
 namespace lox {
 struct _GlobalSetting {
   bool interactive_mode = true;
   bool debug = false;
   bool single_step_mode = false;
-  bool per_line_debug = true;
+  RuntimeDumpFrequency runtime_dump_frequency = RuntimeDumpFrequency::EVERY_LINE;
   std::string backend = "VirtualMachine";
 };
 
