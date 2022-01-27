@@ -4,15 +4,20 @@
 
 #include "lox/object/gc.h"
 
+#include <spdlog/spdlog.h>
+
 namespace lox {
 GC &GC::Instance() {
   static GC obj;
   return obj;
 }
-void GC::collectGarbage() {
-  markRoots();
+
+void GC::Collect() {
+  MarkRoots();
   Sweep();
+  gc_threashold = Object::AllCreatedObj().size() * 1.2;
 }
+
 void GC::RecursiveMark(Object *object) {
   if (object == nullptr || marked.contains(object)) return;
   marked[object] = true;
@@ -20,6 +25,7 @@ void GC::RecursiveMark(Object *object) {
     RecursiveMark(ref);
   }
 }
+
 void GC::Sweep() {
   auto &list = Object::AllCreatedObj();
   auto iter = list.begin();
@@ -37,26 +43,26 @@ void GC::Sweep() {
   }
   marked.clear();
 }
-void GC::markRoots() {
-  auto node = markers.begin();
-  while (node != markers.end()) {
-    node->marker_fn(node->marker_fn_arg);
-    ++node;
+void GC::MarkRoots() {
+  for (auto pair : markers) {
+    pair.second();
   }
 }
-void GC::RegisterMarker(GC::MarkerFn fn, void *arg) { markers.insert(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
-void GC::UnRegisterMarker(GC::MarkerFn fn, void *arg) { markers.erase(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
+bool GC::TryCollet() {
+  if (Object::AllCreatedObj().size() > gc_threashold) {
+    Collect();
+    return true;
+  }
+  return false;
+}
+int GC::ForceClearAll() {
+  int count = 0;
+  auto objs = Object::AllCreatedObj();
+  for (auto key : objs) {
+    ++count;
+    delete key;
+  }
+  return count;
+}
 
-bool GC::Marker::operator<(const GC::Marker &rhs) const {
-  if (rhs.marker_fn == marker_fn) {
-    return marker_fn_arg < rhs.marker_fn_arg;
-  }
-  return (void *)marker_fn < (void *)rhs.marker_fn;
-}
-GC::RegisterMarkerGuard::RegisterMarkerGuard(GC::MarkerFn fn, void *arg) : marker{fn, arg} {
-  GC::Instance().RegisterMarker(marker.marker_fn, marker.marker_fn_arg);
-}
-GC::RegisterMarkerGuard::~RegisterMarkerGuard() {
-  GC::Instance().UnRegisterMarker(marker.marker_fn, marker.marker_fn_arg);
-}
 }  // namespace lox

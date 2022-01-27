@@ -510,8 +510,8 @@ void Compiler::ReturnStmt() {
     cu_->EmitByte(OpCode::OP_RETURN);
   }
 }
-void Compiler::MarkRoots(void *compiler_p) {
-  Compiler *compiler = static_cast<Compiler *>(compiler);
+void Compiler::MarkRoots() {
+  Compiler *compiler = this;
   // RecursiveMark functions
   auto cu = compiler->cu_;
   while (cu) {
@@ -520,7 +520,9 @@ void Compiler::MarkRoots(void *compiler_p) {
   }
 }
 
-Compiler::Compiler() : marker_register_guard(&MarkRoots, this) {}
+Compiler::Compiler() {
+  GC::Instance().markers[this] = [this]() { MarkRoots(); };
+}
 
 void Compiler::ClassDefStmt() {
   Consume(TokenType::IDENTIFIER, "Expect class name.");
@@ -785,4 +787,5 @@ void Compiler::EmitInfix() {
       ErrorAt(previous, "Expect expression.");
   }
 }
+Compiler::~Compiler() { GC::Instance().markers.erase(this); }
 }  // namespace lox::vm

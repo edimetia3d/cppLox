@@ -64,8 +64,7 @@ class VM {
   ObjUpvalue *MarkValueNeedToClose(Value *local_value_stack_pos);
   void CloseValuesFromStackPosition(Value *stack_position);
 
-  static void MarkGCRoots(void *vm);
-  void TryGC() const;  // only vm will trigger gc at a suitable time.
+  void MarkGCRoots();
 
   void PushFrame(ObjClosure *closure);  // push a new call frame and active it
   void PopFrame();                      // pop the current call frame and discard it
@@ -83,7 +82,6 @@ class VM {
 
   ObjUpvalue *open_upvalues;  // a linked-list that stores all the upvalues that has not been closed
   Symbol *const SYMBOL_INIT{Symbol::Intern("init")};  // just used to avoid repeated symbol creation
-  GC::RegisterMarkerGuard marker_register_guard;      // used to register the marker function
 };
 }  // namespace lox::vm
 #endif  // CLOX_SRCS_CLOX_VM_VM_H_

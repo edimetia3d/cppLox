@@ -10,6 +10,7 @@
 #include "lox/lox.h"
 #include "lox/version.h"
 #include "lox/lox_error.h"
+#include "lox/object/gc.h"
 
 using namespace lox;
 
@@ -65,6 +66,9 @@ int main(int argn, char* argv[]) {
     std::cerr << e.what() << std::endl;
     return e.exit_code;
   }
-
+  int count = GC::Instance().ForceClearAll();
+  if (count) {
+    SPDLOG_DEBUG("GC destroyed {} Object at exit.", count);
+  }
   return 0;
 }

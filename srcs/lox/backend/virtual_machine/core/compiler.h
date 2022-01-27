@@ -56,6 +56,7 @@ class Compiler {
  public:
   Compiler();
   ObjFunction* Compile(Scanner* scanner, std::string* err_msg);
+  ~Compiler();
 
  private:
   void Advance();
@@ -105,9 +106,8 @@ class Compiler {
    */
   void CreateFunc(FunctionType type);
   uint8_t ArgumentList();
-  static void MarkRoots(void* compiler);
+  void MarkRoots();
 
-  GC::RegisterMarkerGuard marker_register_guard;
   FunctionUnit* cu_ = nullptr;
   /**
    * Push a new Function Unit as the main compilation unit

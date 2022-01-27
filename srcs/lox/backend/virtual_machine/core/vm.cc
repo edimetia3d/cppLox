@@ -248,13 +248,12 @@ void VM::Run() {
       case OpCode::OP_RETURN: {
         Value result = Pop();  // retrive return first
         PopFrame();
+        GC::Instance().TryCollet();
         if (active_frame_ < frames_) {
           Pop();
-          TryGC();
           goto EXIT;
         } else {
           Push(result);
-          TryGC();
           break;
         }
       }
@@ -345,20 +344,12 @@ void VM::Run() {
 EXIT:
   return;
 }
-void VM::TryGC() const {
-  if (Object::AllCreatedObj().size() > GC::Instance().gc_threashold) {
-    GC::Instance().collectGarbage();
-    GC::Instance().gc_threashold = Object::AllCreatedObj().size() * 1.2;
-  }
-}
 
 void VM::ResetStack() { sp_ = stack_; }
 void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
 void VM::Interpret(ObjFunction *function) {
-  Push(Value(function));
   auto rt_fn = Object::Make<ObjClosure>(function);
-  Pop();
   Push(Value(rt_fn));
   CallClosure(nullptr, rt_fn, 0);
   return Run();
@@ -384,16 +375,7 @@ Value VM::Peek(int distance) {
   assert(distance >= 0);
   return *(sp_ - distance - 1);
 }
-VM::~VM() {
-  int count = 0;
-  while (!Object::AllCreatedObj().empty()) {
-    ++count;
-    delete *Object::AllCreatedObj().begin();
-  }
-  if (count) {
-    SPDLOG_DEBUG("VM destroyed {} CLoxObject at exit.", count);
-  }
-}
+VM::~VM() { GC::Instance().markers.erase(this); }
 void VM::CallValue(Value callee, int arg_count) {
   if (callee.IsObject()) {
     if (ObjClass *klass = callee.AsObject()->DynAs<ObjClass>()) {
@@ -439,21 +421,17 @@ void VM::CallClosure(ObjInstance *this_instance, ObjClosure *callee, int arg_cou
     active_frame_->slots[0] = Value(callee);
   }
 }
-VM::VM() : marker_register_guard(&MarkGCRoots, this) {
+VM::VM() {
   active_frame_ = &frames_[0] - 1;  // to make the active_frame_ comparable, init with a dummy value
   ResetStack();
   DefineBuiltins();
+  GC::Instance().markers[this] = [this]() { MarkGCRoots(); };
 }
 void VM::DefineBuiltins() {
   for (const auto &pair : AllNativeFn()) {
-    const std::string &Name = pair.first.c_str();
-    Push(Value(Symbol::Intern(Name)));
-    Push(Value(Object::Make<ObjNativeFunction>(pair.second)));
-    auto Key = Peek(1).AsObject()->DynAs<Symbol>();
-    assert(!globals_.contains(Key));
-    globals_[Key] = Peek(0);
-    Pop();
-    Pop();
+    auto key = Symbol::Intern(pair.first);
+    assert(!globals_.contains(key));
+    globals_[key] = Value(Object::Make<ObjNativeFunction>(pair.second));
   }
 }
 
@@ -490,8 +468,8 @@ void VM::CloseValuesFromStackPosition(Value *stack_position) {
     open_upvalues = upvalue->next;
   }
 }
-void VM::MarkGCRoots(void *vm_p) {
-  VM *vm = static_cast<VM *>(vm_p);
+void VM::MarkGCRoots() {
+  VM *vm = this;
 
   // RecursiveMark data
   GC::Instance().RecursiveMark(vm->SYMBOL_INIT);
