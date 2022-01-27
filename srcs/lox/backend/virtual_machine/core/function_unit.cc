@@ -17,7 +17,7 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
   locals.reserve(STACK_COUNT_LIMIT);
   upvalues.reserve(UPVALUE_COUNT_LIMIT);
   globals.reserve(CONSTANT_COUNT_LIMIT);
-  func = new ObjFunction(name);  // object function will get gc cleaned, so we only new , not delete
+  func = Object::Make<ObjFunction>(name);  // object function will get gc cleaned, so we only new , not delete
   if (enclosing) {
     current_semantic_scope_level = enclosing->current_semantic_scope_level;
   } else {

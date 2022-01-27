@@ -56,6 +56,8 @@ struct ObjNativeFunction : public lox::Object {
 };
 
 struct Symbol : public lox::Object {
+  explicit Symbol(std::string d);
+
   static Symbol* Intern(const std::string& str);
 
   operator const std::string&() const { return data; }
@@ -66,7 +68,6 @@ struct Symbol : public lox::Object {
   std::vector<Object*> References() override;
 
  protected:
-  explicit Symbol(std::string d);
   static std::unordered_map<std::string, Symbol*>& GetInternMap();
   std::string data;
 };
@@ -89,16 +90,7 @@ struct ObjInstance : public lox::Object {
   [[nodiscard]] std::string Str() const override;
   std::unordered_map<Symbol*, Value>& dict() { return *dict_data; }
   std::vector<Object*> References() override;
-  ObjInstance* Cast(ObjClass* target) {
-    if (klass == target) return this;
-    if (IsInstance(target)) {
-      auto ret = new ObjInstance(target);
-      ret->dict_data = dict_data;
-      ret->is_cast = true;
-      return ret;
-    }
-    return nullptr;
-  }
+  ObjInstance* Cast(ObjClass* target);
 
  private:
   std::shared_ptr<std::unordered_map<Symbol*, Value>> dict_data;

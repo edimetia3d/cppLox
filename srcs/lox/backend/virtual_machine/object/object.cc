@@ -41,7 +41,7 @@ std::unordered_map<std::string, Symbol *> &Symbol::GetInternMap() {
 std::vector<Object *> Symbol::References() { return {}; }
 Symbol *Symbol::Intern(const std::string &str) {
   if (!GetInternMap().contains(str)) {
-    GetInternMap()[str] = new Symbol(str);
+    GetInternMap()[str] = Object::Make<Symbol>(str);
   }
   return GetInternMap()[str];
 }
@@ -102,6 +102,16 @@ bool ObjInstance::IsInstance(ObjClass *target) const {
     check = check->superclass;
   }
   return check == target;
+}
+ObjInstance *ObjInstance::Cast(ObjClass *target) {
+  if (klass == target) return this;
+  if (IsInstance(target)) {
+    auto ret = Object::Make<ObjInstance>(target);
+    ret->dict_data = dict_data;
+    ret->is_cast = true;
+    return ret;
+  }
+  return nullptr;
 }
 
 }  // namespace lox::vm

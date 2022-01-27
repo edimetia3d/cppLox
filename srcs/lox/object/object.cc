@@ -13,5 +13,6 @@ std::set<Object *> &Object::AllCreatedObj() {
 Object::Object() { AllCreatedObj().insert(this); }
 
 Object::~Object() { AllCreatedObj().erase(this); }
+void *Object::operator new(size_t size) { return ::operator new(size); }
 
 }  // namespace lox

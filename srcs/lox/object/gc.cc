@@ -48,7 +48,10 @@ void GC::RegisterMarker(GC::MarkerFn fn, void *arg) { markers.insert(Marker{.mar
 void GC::UnRegisterMarker(GC::MarkerFn fn, void *arg) { markers.erase(Marker{.marker_fn = fn, .marker_fn_arg = arg}); }
 
 bool GC::Marker::operator<(const GC::Marker &rhs) const {
-  return rhs.marker_fn_arg < marker_fn_arg && rhs.marker_fn < marker_fn;
+  if (rhs.marker_fn == marker_fn) {
+    return marker_fn_arg < rhs.marker_fn_arg;
+  }
+  return (void *)marker_fn < (void *)rhs.marker_fn;
 }
 GC::RegisterMarkerGuard::RegisterMarkerGuard(GC::MarkerFn fn, void *arg) : marker{fn, arg} {
   GC::Instance().RegisterMarker(marker.marker_fn, marker.marker_fn_arg);

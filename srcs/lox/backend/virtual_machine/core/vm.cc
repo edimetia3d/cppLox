@@ -185,7 +185,7 @@ void VM::Run() {
         break;
       }
       case OpCode::OP_CLASS:
-        Push(Value(new ObjClass(CHUNK_READ_STRING()->c_str())));
+        Push(Value(Object::Make<ObjClass>(CHUNK_READ_STRING()->c_str())));
         break;
       case OpCode::OP_PRINT: {
         printf("%s\n", Pop().Str().c_str());
@@ -212,7 +212,7 @@ void VM::Run() {
         break;
       }
       case OpCode::OP_CLOSURE: {
-        auto closure = new ObjClosure(CHUNK_READ_CONSTANT().AsObject()->DynAs<ObjFunction>());
+        auto closure = Object::Make<ObjClosure>(CHUNK_READ_CONSTANT().AsObject()->DynAs<ObjFunction>());
         uint8_t upvalue_count = CHUNK_READ_BYTE();
         uint8_t extra_closed_value = 0;
         closure->upvalues.resize(upvalue_count, nullptr);
@@ -227,7 +227,7 @@ void VM::Run() {
               closure->upvalues[i] = active_frame_->closure->upvalues[position_at_begin];
               break;
             case 2: {  // on stack top
-              closure->upvalues[i] = new ObjUpvalue(nullptr);
+              closure->upvalues[i] = Object::Make<ObjUpvalue>(nullptr);
               closure->upvalues[i]->closed = Peek(position_at_begin);
               closure->upvalues[i]->location = &closure->upvalues[i]->closed;
               ++extra_closed_value;
@@ -270,7 +270,7 @@ void VM::Run() {
         if (instance->dict().contains(name)) {
           final_attr = Value(instance->dict()[name]);
         } else if (instance->klass->methods.contains(name)) {
-          auto *bound = new ObjBoundMethod(instance, instance->klass->methods[name]->As<ObjClosure>());
+          auto *bound = Object::Make<ObjBoundMethod>(instance, instance->klass->methods[name]->As<ObjClosure>());
           final_attr = Value(bound);
         } else {
           Error("Undefined property '%s'.", name->c_str());
@@ -357,7 +357,7 @@ void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
 void VM::Interpret(ObjFunction *function) {
   Push(Value(function));
-  auto rt_fn = new ObjClosure(function);
+  auto rt_fn = Object::Make<ObjClosure>(function);
   Pop();
   Push(Value(rt_fn));
   CallClosure(nullptr, rt_fn, 0);
@@ -397,7 +397,7 @@ VM::~VM() {
 void VM::CallValue(Value callee, int arg_count) {
   if (callee.IsObject()) {
     if (ObjClass *klass = callee.AsObject()->DynAs<ObjClass>()) {
-      auto new_instance = new ObjInstance(klass);
+      auto new_instance = Object::Make<ObjInstance>(klass);
       Value instance_value(new_instance);
       if (klass->methods.contains(SYMBOL_INIT)) {
         // call init will leave `this` on the stack.
@@ -448,7 +448,7 @@ void VM::DefineBuiltins() {
   for (const auto &pair : AllNativeFn()) {
     const std::string &Name = pair.first.c_str();
     Push(Value(Symbol::Intern(Name)));
-    Push(Value(new ObjNativeFunction(pair.second)));
+    Push(Value(Object::Make<ObjNativeFunction>(pair.second)));
     auto Key = Peek(1).AsObject()->DynAs<Symbol>();
     assert(!globals_.contains(Key));
     globals_[Key] = Peek(0);
@@ -470,7 +470,7 @@ ObjUpvalue *VM::MarkValueNeedToClose(Value *local_value_stack_pos) {
   if (upvalue != nullptr && upvalue->location == local_value_stack_pos) {
     return upvalue;
   }
-  auto createdUpvalue = new ObjUpvalue(local_value_stack_pos);
+  auto createdUpvalue = Object::Make<ObjUpvalue>(local_value_stack_pos);
   createdUpvalue->next = upvalue;
 
   if (prevUpvalue == nullptr) {
