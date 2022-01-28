@@ -48,7 +48,5 @@ void LoxInterpreter::Eval(const std::string &code, const std::string &file_name)
   Scanner scanner(code, file_name);
   return back_end_->Run(scanner);
 }
-LoxInterpreter::LoxInterpreter(const std::string &backend_name) {
-  back_end_ = BackEndRegistry::Instance().Get(GlobalSetting().backend)();
-}
+LoxInterpreter::LoxInterpreter() { back_end_ = BackEndRegistry::Instance().Get(GlobalSetting().backend)(); }
 }  // namespace lox

@@ -7,7 +7,7 @@
 #include <string>
 enum class RuntimeDumpFrequency { NONE, EVERY_INSTRUCTION, EVERY_LINE, EVERY_FUNCTION };
 namespace lox {
-struct _GlobalSetting {
+struct LoxGlobalSetting {
   bool interactive_mode = true;
   bool debug = false;
   bool single_step_mode = false;
@@ -15,7 +15,7 @@ struct _GlobalSetting {
   std::string backend = "VirtualMachine";
 };
 
-_GlobalSetting& GlobalSetting();
+LoxGlobalSetting& GlobalSetting();
 }  // namespace lox
 
 #endif  // CPPLOX_SRCS_LOX_GLOBAL_SETTING_H_

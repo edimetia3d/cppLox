@@ -12,19 +12,14 @@ namespace lox {
 class BackEnd;
 class LoxInterpreter {
  public:
-  explicit LoxInterpreter(const std::string &backend_name = "TreeWalker");
+  explicit LoxInterpreter();
   static std::string CLIHelpString();
 
   void RunFile(const std::string &file_path);
 
   void RunPrompt();
 
-  /**
-   * Multi line exec
-   * @param code
-   * @return
-   */
-  void Eval(const std::string &code, const std::string &file_name);
+  void Eval(const std::string &code, const std::string &file_name = "Unknown file");
 
  private:
   void RunStream(std::istream *istream, const std::string &file_name);

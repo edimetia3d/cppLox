@@ -3,7 +3,7 @@
 //
 
 #include "lox/global_setting.h"
-lox::_GlobalSetting& lox::GlobalSetting() {
-  static _GlobalSetting v;
+lox::LoxGlobalSetting& lox::GlobalSetting() {
+  static LoxGlobalSetting v;
   return v;
 }

@@ -8,7 +8,7 @@
 
 #include "lox/global_setting.h"
 #include "lox/lox.h"
-#include "lox/version.h"
+#include "lox/version/version.h"
 #include "lox/lox_error.h"
 #include "lox/object/gc.h"
 

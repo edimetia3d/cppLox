@@ -21,7 +21,7 @@ class LoxError : public std::exception {
   explicit LoxError(const std::string& what) : what_(what){};
   explicit LoxError(std::string&& what) : what_(std::move(what)){};
 
-  const char* what() const noexcept override { return what_.c_str(); }
+  const char* what() const noexcept override;
 
   uint8_t exit_code = -1;  // if error should cause exit, this should be used.
  protected:
