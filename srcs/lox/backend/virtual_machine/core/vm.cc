@@ -247,7 +247,6 @@ void VM::Run() {
         PopFrame();
         GC::Instance().TryCollet();
         if (active_frame_ < frames_) {
-          Pop();
           goto EXIT;
         } else {
           Push(result);
@@ -342,7 +341,6 @@ EXIT:
   return;
 }
 
-void VM::ResetStack() { sp_ = stack_; }
 void VM::Push(Value value) { *sp_++ = value; }
 Value VM::Pop() { return *(--sp_); }
 void VM::Interpret(ObjFunction *function) {
@@ -365,7 +363,7 @@ void VM::Error(const char *format, ...) {
     SPDLOG_DEBUG("[line {}] in {}() \n", function->chunk->lines[instruction], function->name);
   }
 #endif
-  ResetStack();
+  Rescue();
   throw RuntimeError(std::string(buf.data()));
 }
 Value VM::Peek(int distance) {
@@ -419,10 +417,14 @@ void VM::CallClosure(ObjInstance *this_instance, ObjClosure *callee, int arg_cou
   }
 }
 VM::VM() {
-  active_frame_ = &frames_[0] - 1;  // to make the active_frame_ comparable, init with a dummy value
-  ResetStack();
+  Rescue();
   DefineBuiltins();
   GC::Instance().markers[this] = [this]() { MarkGCRoots(); };
+}
+void VM::Rescue() {
+  active_frame_ = &frames_[0] - 1;  // to make the active_frame_ comparable, init with a dummy value
+  sp_ = stack_;
+  open_upvalues = nullptr;
 }
 void VM::DefineBuiltins() {
   for (const auto &pair : AllNativeFn()) {

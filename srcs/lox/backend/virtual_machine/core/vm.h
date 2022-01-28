@@ -53,7 +53,6 @@ class VM {
   inline Value Peek(int distance = 0);
   inline Value Pop();
 
-  inline void ResetStack();
   void DefineBuiltins();
 
   void Error(const char *format, ...);
@@ -81,6 +80,10 @@ class VM {
 
   ObjUpvalue *open_upvalues;  // a linked-list that stores all the upvalues that has not been closed
   Symbol *const SYMBOL_INIT{Symbol::Intern("init")};  // just used to avoid repeated symbol creation
+  /**
+   * Reset the VM after a runtime error occurs, so we can execute next script.
+   */
+  void Rescue();
 };
 }  // namespace lox::vm
 #endif  // CLOX_SRCS_CLOX_VM_VM_H_

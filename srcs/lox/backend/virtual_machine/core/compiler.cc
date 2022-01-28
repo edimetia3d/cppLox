@@ -12,6 +12,7 @@
 #include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/errors.h"
 #include "lox/common/finally.h"
+#include "lox/global_setting.h"
 
 // there is always a stack used by function pointer
 namespace lox::vm {
@@ -276,6 +277,9 @@ void Compiler::PrintStmt() {
 bool Compiler::CheckCurrentTokenType(TokenType type) { return current->type == type; }
 void Compiler::ExpressionStmt() {
   AnyExpression();
+  if (GlobalSetting().interactive_mode && !CheckCurrentTokenType(TokenType::SEMICOLON)) {
+    return cu_->EmitByte(OpCode::OP_PRINT);
+  }
   Consume(TokenType::SEMICOLON, "Expect ';' after expression.");
   cu_->EmitByte(OpCode::OP_POP);
 }

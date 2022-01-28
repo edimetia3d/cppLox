@@ -30,7 +30,11 @@ void LoxInterpreter::RunPrompt() {
     if (one_line == "exit()") {
       break;
     }
-    Eval(one_line, "stdin");
+    try {
+      Eval(one_line, "stdin");
+    } catch (const LoxError &e) {
+      std::cout << e.what() << std::endl;
+    }
     fflush(stdout);
     std::cout << ">> ";
   }
