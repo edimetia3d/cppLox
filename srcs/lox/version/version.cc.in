@@ -2,7 +2,7 @@
 // License: MIT
 //
 
-#include "version.h"
+#include "lox/version/version.h"
 namespace lox {
 namespace version {
 std::string GitSha1() { return "@GIT_SHA1@"; }

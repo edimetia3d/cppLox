@@ -32,10 +32,7 @@
   } while (false)
 
 namespace lox::vm {
-VM *VM::Instance() {
-  static VM object;
-  return &object;
-}
+
 void VM::Run() {
 #ifndef NDEBUG
   SPDLOG_DEBUG("===============================================");
@@ -352,7 +349,7 @@ void VM::Interpret(ObjFunction *function) {
   auto rt_fn = Object::Make<ObjClosure>(function);
   Push(Value(rt_fn));
   CallClosure(nullptr, rt_fn, 0);
-  return Run();
+  Run();
 }
 
 void VM::Error(const char *format, ...) {

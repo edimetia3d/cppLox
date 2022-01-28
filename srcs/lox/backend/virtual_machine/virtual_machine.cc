@@ -14,6 +14,6 @@ void VirtualMachine::Run(Scanner& scanner) {
   if (!script) {
     throw CompilationError(err_msg);
   }
-  VM::Instance()->Interpret(script);
+  vm_.Interpret(script);
 }
 }  // namespace lox

@@ -22,7 +22,6 @@ class LoxInterpreter {
   void Eval(const std::string &code, const std::string &file_name = "Unknown file");
 
  private:
-  void RunStream(std::istream *istream, const std::string &file_name);
   std::shared_ptr<BackEnd> back_end_;
 };
 

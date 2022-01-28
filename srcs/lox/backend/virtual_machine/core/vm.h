@@ -45,7 +45,6 @@ class VM {
  public:
   VM();
   ~VM();
-  static VM *Instance();
   void Interpret(ObjFunction *function);  // interpret a script
  private:
   void Run();  // the core vm dispatch loop.
