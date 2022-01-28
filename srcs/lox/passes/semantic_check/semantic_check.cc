@@ -14,14 +14,14 @@ void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace
   }
   if (auto p = CastTo<BreakStmt>(ast_node)) {
     if (while_loop_level == 0) {
-      throw LoxError("Semantic Error: " + p->src_token()->Str() + " Nothing to break here.");
+      throw LoxError("Semantic Error: " + p->src_token()->Dump() + " Nothing to break here.");
     }
     return;
   }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
     if (IsValid(p->superclass())) {
       if (p->superclass()->DownCast<VariableExpr>()->name()->lexeme == p->name()->lexeme) {
-        throw LoxError("Semantic Error: " + p->name()->Str() + " Class can not inherit itself");
+        throw LoxError("Semantic Error: " + p->name()->Dump() + " Class can not inherit itself");
       }
     }
     return;

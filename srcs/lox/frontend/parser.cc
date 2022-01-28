@@ -276,7 +276,7 @@ Stmt Parser::ForStmt() {
     body = MakeStmt<lox::BlockStmt>(body_with_increasement);
   }
   if (!IsValid(condition)) {
-    auto tmp_true_token = MakeToken(TokenType::TRUE, "for_sugar_true", Peek()->line);
+    auto tmp_true_token = Token(TokenType::TRUE, "for_sugar_true", Peek()->line);
     condition = MakeExpr<LiteralExpr>(tmp_true_token);
   }
   body = MakeStmt<lox::WhileStmt>(condition, body);

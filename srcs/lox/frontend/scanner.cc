@@ -18,7 +18,7 @@ std::vector<Token> Scanner::ScanAll() {
 
 Token Scanner::ScanOne() {
   if (IsAtEnd()) {
-    return MakeToken(TokenType::EOF_TOKEN, "EOF", line_);
+    return Token(TokenType::EOF_TOKEN, "EOF", line_);
   }
   ResetTokenBeg();
   char c = Advance();
@@ -69,10 +69,10 @@ Token Scanner::ScanOne() {
   }
   // clang-format on
   Error("Unknown error");
-  return nullptr;
+  return Token();
 }
 Token Scanner::AddToken(TokenType type) {
-  auto ret = MakeToken(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);
+  auto ret = Token(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);
   ResetTokenBeg();
   return ret;
   ;
@@ -132,7 +132,7 @@ Token Scanner::AddIdentifierToken() {
   while (IsAlphaNumeric(Peek())) Advance();
 
   return AddToken(
-      TokenBase::GetIdentifierType(std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_)));
+      Token::GetIdentifierType(std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_)));
 }
 
 char Scanner::LastChar() { return srcs_->at(current_lex_pos_); }

@@ -78,7 +78,7 @@ void EnvResovlePass::PreNode(AstNode *ast_node, std::shared_ptr<AstNode> *replac
   }
   if (auto p = CastTo<ClassStmt>(ast_node)) {
     BeginScope(ScopeType::CLASS);
-    auto token_this = MakeToken(TokenType::THIS, "this", p->name()->line);
+    auto token_this = Token(TokenType::THIS, "this", p->name()->line);
     Define(token_this);
     Declare(p->name());
     return;

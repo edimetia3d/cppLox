@@ -13,30 +13,37 @@
 
 namespace lox {
 
-class TokenBase;
-using Token = std::shared_ptr<TokenBase>;
-
-class TokenBase {
+class TokenState {
  public:
-  static Token Make(const TokenType& type, const std::string& lexeme, int line) {
-    return std::shared_ptr<TokenBase>(new TokenBase(type, lexeme, line));
-  }
-
-  static TokenType GetIdentifierType(const std::string& identifier);
-  std::string Str() const;
+  std::string Dump() const;
 
   std::string lexeme;
   TokenType type;
   int line;
 
  protected:
-  explicit TokenBase(const TokenType& type, const std::string& lexeme, int line)
+  friend class Token;
+  explicit TokenState(const TokenType& type, const std::string& lexeme, int line)
       : type(type), line(line), lexeme(std::move(lexeme)) {}
 };
 
-static inline Token MakeToken(const TokenType& type, const std::string& lexeme, int line) {
-  return TokenBase::Make(type, lexeme, line);
-}
+struct Token {
+  Token() = default;
+  Token(const TokenType& type, const std::string& lexeme, int line) {
+    state_ = std::shared_ptr<TokenState>(new TokenState(type, lexeme, line));
+  }
+
+  static TokenType GetIdentifierType(const std::string& identifier);
+
+  TokenState* operator->() const { return state_.get(); }
+  operator bool() const { return static_cast<bool>(state_); }
+
+ private:
+  Token(std::shared_ptr<TokenState> state) : state_(state) {}
+  std::shared_ptr<TokenState> state_;
+};
+// Token is designed to be shared ptr like, and only contains one data member
+static_assert(sizeof(Token) == sizeof(std::shared_ptr<TokenState>));
 
 /**
  * Note: only class LoxInterpreter will handle Errors, all other class only generate
@@ -46,11 +53,11 @@ template <class CRTP>  // use crtp to make different derived class
 class PrefixTokenError : public LoxError {
  public:
   explicit PrefixTokenError(const Token& token, const std::string& message)
-      : LoxError(CRTP::StrName() + token->Str() + " what(): " + message) {}
+      : LoxError(CRTP::StrName() + token->Dump() + " what(): " + message) {}
   [[nodiscard]] const Token& SourceToken() const { return token_; }
 
  private:
-  Token token_ = MakeToken(TokenType::_TOKEN_COUNT_NUMBER, "None", -1);
+  Token token_ = Token(TokenType::_TOKEN_COUNT_NUMBER, "None", -1);
 };
 
 }  // namespace lox

@@ -324,7 +324,7 @@ void FunctionUnit::EmitOpClosure(FunctionUnit *newly_created_cu) {
 
   int extra_count = 0;
   for (auto &pair : value_need_to_force_closed) {
-    auto handle = ResolveNamedValue(MakeToken(TokenType::IDENTIFIER, pair.first, -1));
+    auto handle = ResolveNamedValue(Token(TokenType::IDENTIFIER, pair.first, -1));
     EmitBytes(handle.get_op, handle.reslove.position);
     pair.second->position_at_begin =
         value_need_to_force_closed.size() - extra_count - 1;  // position is count from stack top to bottom
@@ -365,7 +365,7 @@ void FunctionUnit::ForceCloseValue(Token name_in_outer_scope, bool emit_get_upva
    */
 
   if (!force_closed_values.contains(name_in_outer_scope->lexeme)) {
-    Token new_name = MakeToken(TokenType::IDENTIFIER, "__closed_" + name_in_outer_scope->lexeme, line_info_callback());
+    Token new_name = Token(TokenType::IDENTIFIER, "__closed_" + name_in_outer_scope->lexeme, line_info_callback());
     if (!enclosing) {
       Error("Cannot force close in global scope");
     }
