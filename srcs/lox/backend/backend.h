@@ -5,37 +5,32 @@
 #ifndef CPPLOX_SRCS_LOX_BACKEND_BACKEND_H_
 #define CPPLOX_SRCS_LOX_BACKEND_BACKEND_H_
 #include <functional>
-#include <iostream>
 #include <map>
 #include <memory>
-#include <string>
 
 #include "lox/frontend/scanner.h"
-#include "lox/lox_error.h"
+
 namespace lox {
-class BackEnd {
- public:
+class BackEnd;
+struct BackEndRegistry {
   using BackEndCreateFn = std::function<std::shared_ptr<BackEnd>()>;
-  static std::shared_ptr<BackEnd> CreateBackEnd(const std::string &name) {
-    LoadBuiltinBackEnd();
-    return GetRegistry()[name]();
-  }
 
-  static void Register(const std::string name, BackEndCreateFn fn) { GetRegistry()[name] = fn; }
+  static BackEndRegistry &Instance();
 
-  virtual void Run(Scanner &scanner) = 0;
+  void Register(const std::string name, BackEndCreateFn fn);
 
-  static void LoadBuiltinBackEnd();
+  BackEndCreateFn Get(const std::string &name);
 
  private:
-  static std::map<std::string, BackEndCreateFn> &GetRegistry();
+  BackEndRegistry();
+
+  std::map<std::string, BackEndCreateFn> reg_;
 };
 
-template <class ConcreteBackend>
-struct RegisterBackend {
-  RegisterBackend(const char *name) {
-    BackEnd::Register(name, []() { return std::make_shared<ConcreteBackend>(); });
-  }
+class BackEnd {
+ public:
+  virtual void Run(Scanner &scanner) = 0;
 };
+
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_BACKEND_BACKEND_H_

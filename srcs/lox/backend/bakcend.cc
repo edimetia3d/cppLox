@@ -3,15 +3,28 @@
 //
 
 #include "lox/backend/backend.h"
+
+#include "lox/lox_error.h"
 #include "lox/backend/tree_walker/tree_walker.h"
 #include "lox/backend/virtual_machine/virtual_machine.h"
+
 namespace lox {
-std::map<std::string, BackEnd::BackEndCreateFn>& BackEnd::GetRegistry() {
-  static auto ret = std::map<std::string, BackEndCreateFn>();
-  return ret;
+
+static void LoadBuiltinBackEnd(BackEndRegistry* registry) {
+  registry->Register("TreeWalker", []() { return std::shared_ptr<BackEnd>(new TreeWalker()); });
+  registry->Register("VirtualMachine", []() { return std::shared_ptr<BackEnd>(new vm::VirtualMachine()); });
 }
-void BackEnd::LoadBuiltinBackEnd() {
-  static auto reg0 = RegisterBackend<TreeWalker>("TreeWalker");
-  static auto reg1 = RegisterBackend<vm::VirtualMachine>("VirtualMachine");
+
+BackEndRegistry& BackEndRegistry::Instance() {
+  static BackEndRegistry instance;
+  return instance;
+}
+BackEndRegistry::BackEndRegistry() { LoadBuiltinBackEnd(this); }
+void BackEndRegistry::Register(const std::string name, BackEndRegistry::BackEndCreateFn fn) { reg_[name] = fn; }
+BackEndRegistry::BackEndCreateFn BackEndRegistry::Get(const std::string& name) {
+  if (!reg_.contains(name)) {
+    throw LoxError("Backend not found: " + name);
+  }
+  return reg_[name];
 }
 }  // namespace lox
