@@ -9,9 +9,9 @@
 #include "lox/global_setting.h"
 namespace lox {
 
-class ParserError : public PrefixTokenError<ParserError> {
+class ParserError : public ErrorWithToken<ParserError> {
  public:
-  using PrefixTokenError<ParserError>::PrefixTokenError;
+  using ErrorWithToken<ParserError>::ErrorWithToken;
   static std::string StrName() { return "ParserError"; }
 };
 template <TokenType type, TokenType... remained_types>

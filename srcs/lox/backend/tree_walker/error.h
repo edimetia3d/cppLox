@@ -14,14 +14,14 @@
 
 namespace lox {
 
-class RuntimeError : public PrefixTokenError<RuntimeError> {
+class RuntimeError : public ErrorWithToken<RuntimeError> {
  public:
-  using PrefixTokenError<RuntimeError>::PrefixTokenError;
+  using ErrorWithToken<RuntimeError>::ErrorWithToken;
   static std::string StrName() { return "RuntimeError"; }
 };
-class ResolveError : public PrefixTokenError<ResolveError> {
+class ResolveError : public ErrorWithToken<ResolveError> {
  public:
-  using PrefixTokenError<ResolveError>::PrefixTokenError;
+  using ErrorWithToken<ResolveError>::ErrorWithToken;
   static std::string StrName() { return "ResolveError"; }
 };
 }  // namespace lox

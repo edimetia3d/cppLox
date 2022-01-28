@@ -50,10 +50,10 @@ static_assert(sizeof(Token) == sizeof(std::shared_ptr<TokenState>));
  * errors, and return `PrefixTokenError` to the caller.
  */
 template <class CRTP>  // use crtp to make different derived class
-class PrefixTokenError : public LoxError {
+class ErrorWithToken : public LoxError {
  public:
-  explicit PrefixTokenError(const Token& token, const std::string& message)
-      : LoxError(CRTP::StrName() + token->Dump() + " what(): " + message) {}
+  explicit ErrorWithToken(const Token& token, const std::string& message)
+      : LoxError(CRTP::StrName() + token->Dump() + " : " + message) {}
   [[nodiscard]] const Token& SourceToken() const { return token_; }
 
  private:
