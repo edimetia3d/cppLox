@@ -12,7 +12,7 @@
 #include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/errors.h"
 #include "lox/common/finally.h"
-#include "lox/global_setting.h"
+#include "lox/common/global_setting.h"
 
 // there is always a stack used by function pointer
 namespace lox::vm {
@@ -642,9 +642,9 @@ void Compiler::EmitPrefix() {
       cu_->EmitConstant(lox::Value(std::stod(previous->lexeme)));
       break;
     }
-    case TokenType::TRUE:
+    case TokenType::TRUE_TOKEN:
       [[fallthrough]];
-    case TokenType::FALSE:
+    case TokenType::FALSE_TOKEN:
       [[fallthrough]];
     case TokenType::NIL: {
       cu_->EmitLiteral(previous->type);

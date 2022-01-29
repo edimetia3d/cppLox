@@ -3,10 +3,9 @@
 //
 
 #include "lox/backend/backend.h"
-
-#include "lox/lox_error.h"
 #include "lox/backend/tree_walker/tree_walker.h"
 #include "lox/backend/virtual_machine/virtual_machine.h"
+#include "lox/common/lox_error.h"
 
 namespace lox {
 

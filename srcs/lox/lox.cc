@@ -8,8 +8,8 @@
 #include <iostream>
 
 #include "lox/backend/backend.h"
+#include "lox/common/global_setting.h"
 #include "lox/frontend/scanner.h"
-#include "lox/global_setting.h"
 
 namespace lox {
 

@@ -229,13 +229,13 @@ void FunctionUnit::EmitBinary(const TokenType &token_type) {
 
 void FunctionUnit::EmitLiteral(TokenType token_type) {
   switch (token_type) {
-    case TokenType::FALSE:
+    case TokenType::FALSE_TOKEN:
       EmitByte(OpCode::OP_FALSE);
       break;
     case TokenType::NIL:
       EmitByte(OpCode::OP_NIL);
       break;
-    case TokenType::TRUE:
+    case TokenType::TRUE_TOKEN:
       EmitByte(OpCode::OP_TRUE);
       break;
     default:

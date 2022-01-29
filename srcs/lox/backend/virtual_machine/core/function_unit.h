@@ -5,8 +5,9 @@
 #ifndef LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_FUNCTION_UNIT_H
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_FUNCTION_UNIT_H
 
-#include <string>
+#include <functional>
 #include <map>
+#include <string>
 
 #include "lox/backend/virtual_machine/core/chunk.h"
 #include "lox/backend/virtual_machine/object/object.h"

@@ -6,4 +6,4 @@ add_subdirectory(debug)
 
 add_library(virtual_machine virtual_machine.cc)
 
-target_link_libraries(virtual_machine PRIVATE core vm_object vm_debug)
+target_link_libraries(virtual_machine PRIVATE core vm_object vm_debug lox_common)

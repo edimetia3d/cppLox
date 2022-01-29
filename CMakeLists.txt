@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.13)
 project(Lox)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -stdlib=libc++")
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # prefer libc++
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif ()
+
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSPDLOG_ACTIVE_LEVEL=1")
 
 include(cmake/build_options.cmake)
+include(cmake/win32_compat.cmake)
 
 add_subdirectory(third_party)
 include_directories(${CLI11_DIR}/include)

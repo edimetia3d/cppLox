@@ -41,6 +41,8 @@ If you had docker installed, you can run the test cases in docker environment.
 ## Build Instructions
 
 ```bash
+git clone https://github.com/edimetia3d/cppLox.git --recursive
+cd cppLox
 mkdir build
 cmake ..
 make

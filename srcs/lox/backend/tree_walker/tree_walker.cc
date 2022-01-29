@@ -11,8 +11,8 @@
 #include "lox/backend/tree_walker/evaluator/evaluator.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/env_reslove_pass.h"
 #include "lox/backend/tree_walker/passes/env_resolve_pass/resolve_map.h"
+#include "lox/common/global_setting.h"
 #include "lox/frontend/parser.h"
-#include "lox/global_setting.h"
 #include "lox/passes/pass_manager.h"
 #include "lox/passes/semantic_check/semantic_check.h"
 

@@ -10,7 +10,7 @@
 #include "lox/backend/virtual_machine/debug/debug.h"
 #include "lox/backend/virtual_machine/errors.h"
 #include "lox/backend/virtual_machine/object/object.h"
-#include "lox/global_setting.h"
+#include "lox/common/global_setting.h"
 
 #define CHUNK_READ_BYTE() (*ip_++)
 #define CHUNK_READ_SHORT() (ip_ += 2, (uint16_t)((ip_[-2] << 8) | ip_[-1]))

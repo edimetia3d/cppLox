@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-#include "lox/global_setting.h"
+#include "lox/common/global_setting.h"
 namespace lox {
 
 class ParserError : public ErrorWithToken<ParserError> {
@@ -86,7 +86,8 @@ lox::Expr lox::Parser::UnaryExpr() {
   return CallExpr();
 }
 lox::Expr lox::Parser::Primary() {
-  if (AdvanceIfMatchAny<TokenType::FALSE, TokenType::TRUE, TokenType::NIL, TokenType::NUMBER, TokenType::STRING>())
+  if (AdvanceIfMatchAny<TokenType::FALSE_TOKEN, TokenType::TRUE_TOKEN, TokenType::NIL, TokenType::NUMBER,
+                        TokenType::STRING>())
     return MakeExpr<LiteralExpr>(Previous());
 
   if (AdvanceIfMatchAny<TokenType::IDENTIFIER, TokenType::THIS>()) {
@@ -276,7 +277,7 @@ Stmt Parser::ForStmt() {
     body = MakeStmt<lox::BlockStmt>(body_with_increasement);
   }
   if (!IsValid(condition)) {
-    auto tmp_true_token = Token(TokenType::TRUE, "for_sugar_true", Peek()->line);
+    auto tmp_true_token = Token(TokenType::TRUE_TOKEN, "for_sugar_true", Peek()->line);
     condition = MakeExpr<LiteralExpr>(tmp_true_token);
   }
   body = MakeStmt<lox::WhileStmt>(condition, body);

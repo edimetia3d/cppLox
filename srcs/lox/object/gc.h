@@ -4,8 +4,9 @@
 
 #ifndef LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_GC_H
 #define LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_COMMON_GC_H
-#include <unordered_map>
+#include <functional>
 #include <map>
+#include <unordered_map>
 
 #include "lox/object/object.h"
 

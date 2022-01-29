@@ -1,7 +1,8 @@
 
 
-add_library(lox global_setting.cc lox.cc lox_error.cc)
+add_library(lox lox.cc)
 
+add_subdirectory(common)
 add_subdirectory(object)
 add_subdirectory(version)
 add_subdirectory(frontend)

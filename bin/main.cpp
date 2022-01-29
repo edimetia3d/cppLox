@@ -1,16 +1,16 @@
 
 
-#include <iostream>
-
-#include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <sysexits.h>
 
-#include "lox/global_setting.h"
+#include <CLI/CLI.hpp>
+#include <iostream>
+
+#include "lox/common/global_setting.h"
+#include "lox/common/lox_error.h"
 #include "lox/lox.h"
-#include "lox/version/version.h"
-#include "lox/lox_error.h"
 #include "lox/object/gc.h"
+#include "lox/version/version.h"
 
 using namespace lox;
 

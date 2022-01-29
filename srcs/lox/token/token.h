@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include "lox/lox_error.h"
+#include "lox/common/lox_error.h"
 #include "token_type.h"
 
 namespace lox {

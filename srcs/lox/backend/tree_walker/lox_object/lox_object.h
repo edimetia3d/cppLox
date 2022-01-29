@@ -103,10 +103,9 @@ class Number : public LoxObjectBase {
   using RawValueT = double;
   bool IsTrue() const override { return static_cast<bool>(RawValue<RawValueT>()); }
   std::string ToString() const override {
-    if (std::trunc(RawValue<RawValueT>()) == RawValue<RawValueT>()) {
-      return std::to_string(static_cast<int64_t>(RawValue<RawValueT>()));
-    }
-    return std::to_string(RawValue<RawValueT>());
+    std::vector<char> buf(100);
+    snprintf(buf.data(), buf.size(), "%g", RawValue<RawValueT>());
+    return buf.data();
   }
   LoxObject operator-() const override;
   LOX_OBJECT_CTOR_SHARED_PTR_ONLY(Number);

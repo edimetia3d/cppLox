@@ -4,11 +4,11 @@
 
 #ifndef LOX_INCLUDES_LOX_LOX_ERROR_H_
 #define LOX_INCLUDES_LOX_LOX_ERROR_H_
-#include <sysexits.h>
-
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "sysexits.h"
 
 namespace lox {
 /**

@@ -4,7 +4,7 @@
 
 #include "lox/frontend/scanner.h"
 
-#include "lox/lox_error.h"
+#include "lox/common/lox_error.h"
 
 namespace lox {
 

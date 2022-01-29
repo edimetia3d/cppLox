@@ -4,7 +4,7 @@
 
 #include "semantic_check.h"
 
-#include "lox/lox_error.h"
+#include "lox/common/lox_error.h"
 namespace lox {
 
 void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) {

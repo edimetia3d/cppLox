@@ -5,6 +5,7 @@
 #ifndef LOX_SRCS_LOX_OBJECT_OBJECT_H
 #define LOX_SRCS_LOX_OBJECT_OBJECT_H
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>

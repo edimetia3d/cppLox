@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "lox/lox_error.h"
+#include "lox/common/lox_error.h"
 #include "lox/token/token.h"
 
 namespace lox {

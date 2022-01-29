@@ -20,9 +20,9 @@ void Evaluator::Visit(LiteralExpr* state) {
     case TokenType::STRING:
       VisitorReturn(
           object::MakeLoxObject(std::string(state->value()->lexeme.begin() + 1, state->value()->lexeme.end() - 1)));
-    case TokenType::TRUE:
+    case TokenType::TRUE_TOKEN:
       VisitorReturn(object::MakeLoxObject(true));
-    case TokenType::FALSE:
+    case TokenType::FALSE_TOKEN:
       VisitorReturn(object::MakeLoxObject(false));
     case TokenType::NIL:
       VisitorReturn(object::VoidObject());
