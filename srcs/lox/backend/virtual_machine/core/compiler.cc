@@ -355,7 +355,7 @@ void Compiler::IfStmt() {
 
 void Compiler::WhileStmt() {
   ScopeGuard guard(cu_, ScopeType::WHILE);
-  int loop_begin_offset = cu_->Chunk()->ChunkSize();
+  int loop_begin_offset = cu_->FuncChunk()->ChunkSize();
   cu_->loop_infos.back().beg_offset =
       loop_begin_offset;  // save the loop begin offset, so we can `continue` to here later
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
@@ -383,7 +383,7 @@ void Compiler::ForStmt() {
     ExpressionStmt();
   }
 
-  int loop_begin_offset = cu_->Chunk()->ChunkSize();
+  int loop_begin_offset = cu_->FuncChunk()->ChunkSize();
   cu_->loop_infos.back().beg_offset =
       loop_begin_offset;  // save the loop begin offset, so we can `continue` to here later
   FunctionUnit::JumpDownHole exitJump;
@@ -398,7 +398,7 @@ void Compiler::ForStmt() {
 
   if (!MatchAndAdvance(TokenType::RIGHT_PAREN)) {
     auto bodyJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
-    int incrementStart = cu_->Chunk()->ChunkSize();
+    int incrementStart = cu_->FuncChunk()->ChunkSize();
     AnyExpression();                // this will leave a value on top of stack
     cu_->EmitByte(OpCode::OP_POP);  // discard stack top
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
@@ -584,9 +584,9 @@ std::unique_ptr<FunctionUnit> Compiler::PopCU() {
   cu_->EmitDefaultReturn();  // always inject a default return to make sure the function ends
 #ifndef NDEBUG
   SPDLOG_DEBUG("=========== {:^20} CODE  ===========", cu_->func->name);
-  DumpChunkCode(cu_->Chunk());
+  DumpChunkCode(cu_->FuncChunk());
   SPDLOG_DEBUG("=========== {:^20} CONST ===========", cu_->func->name);
-  DumpChunkConstant(cu_->Chunk());
+  DumpChunkConstant(cu_->FuncChunk());
   SPDLOG_DEBUG("=========== {:^20} END   ===========", cu_->func->name);
 #endif
   auto latest_cu = cu_;

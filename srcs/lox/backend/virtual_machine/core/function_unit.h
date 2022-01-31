@@ -164,7 +164,7 @@ struct FunctionUnit {
   FunctionUnit::UpValue* DoAddUpValue(NamedValue* some_value, UpValueSrc beg_src);
   UpValue* AddUpValueFromEnclosingStack(Local* some_value);
   UpValue* AddUpValueFromEnclosingUpValue(UpValue* some_value);
-  Chunk* Chunk() { return func->chunk.get(); }
+  Chunk* FuncChunk() { return func->chunk.get(); }
   void EmitByte(uint8_t byte);
   void EmitBytes(OpCode byte1, uint8_t byte2);
   void EmitByte(OpCode opcode);

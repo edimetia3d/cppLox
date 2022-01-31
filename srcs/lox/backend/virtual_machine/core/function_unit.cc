@@ -97,7 +97,7 @@ FunctionUnit::Local *FunctionUnit::TryResolveLocal(Token varaible_name) {
   return nullptr;
 }
 
-void FunctionUnit::EmitByte(uint8_t byte) { Chunk()->WriteUInt8(byte, line_info_callback()); }
+void FunctionUnit::EmitByte(uint8_t byte) { FuncChunk()->WriteUInt8(byte, line_info_callback()); }
 
 void FunctionUnit::EmitBytes(OpCode byte1, uint8_t byte2) {
   EmitByte(byte1);
@@ -108,7 +108,7 @@ void FunctionUnit::EmitBytes(OpCode opcode0, OpCode opcode1) { EmitBytes(opcode0
 
 void FunctionUnit::EmitJumpBack(int start) {
   int ip_target = start;
-  int ip_from = Chunk()->ChunkSize() + 3;  // after OP_JUMP_BACK is consumed by VM, ip will pointer to this pos
+  int ip_from = FuncChunk()->ChunkSize() + 3;  // after OP_JUMP_BACK is consumed by VM, ip will pointer to this pos
 
   EmitByte(OpCode::OP_JUMP_BACK);
   int offset = -1 * (ip_target - ip_from);  // always use a positive number to get longer jump range, that's why we
@@ -122,26 +122,26 @@ void FunctionUnit::EmitJumpBack(int start) {
 }
 
 FunctionUnit::JumpDownHole FunctionUnit::CreateJumpDownHole(OpCode jump_cmd) {
-  int instruction_beg_offset = Chunk()->ChunkSize();
+  int instruction_beg_offset = FuncChunk()->ChunkSize();
   EmitByte(jump_cmd);
   EmitByte(0xff);
   EmitByte(0xff);
-  int hole_size = Chunk()->ChunkSize() - instruction_beg_offset;
+  int hole_size = FuncChunk()->ChunkSize() - instruction_beg_offset;
   return JumpDownHole{jump_cmd, instruction_beg_offset, hole_size};
 }
 void FunctionUnit::JumpHerePatch(FunctionUnit::JumpDownHole hole) {
   int beg_addr = hole.beg_offset;
   int ip_from = hole.beg_offset + hole.hole_size;
-  int ip_target = Chunk()->ChunkSize();
+  int ip_target = FuncChunk()->ChunkSize();
   int jump_diff = ip_target - ip_from;
 
   if (jump_diff > UINT16_MAX) {
     Error("Jump too far.");
   }
 
-  Chunk()->code[beg_addr] = (uint8_t)hole.jump_type;
-  Chunk()->code[beg_addr + 1] = (jump_diff >> 8) & 0xff;
-  Chunk()->code[beg_addr + 2] = jump_diff & 0xff;
+  FuncChunk()->code[beg_addr] = (uint8_t)hole.jump_type;
+  FuncChunk()->code[beg_addr + 1] = (jump_diff >> 8) & 0xff;
+  FuncChunk()->code[beg_addr + 2] = jump_diff & 0xff;
 }
 
 bool FunctionUnit::IsGlobalScope() const { return current_semantic_scope_level == 0; }
@@ -161,10 +161,10 @@ uint8_t FunctionUnit::AddValueConstant(Value value) {
   if ((value.IsObject() && value.AsObject()->DynAs<Symbol>())) {
     return GetSymbolConstant(value.AsObject()->DynAs<Symbol>()->c_str());
   }
-  if (Chunk()->constants.size() == CONSTANT_COUNT_LIMIT) {
+  if (FuncChunk()->constants.size() == CONSTANT_COUNT_LIMIT) {
     Error("Too many constants in one chunk.");
   }
-  return Chunk()->AddConstant(value);
+  return FuncChunk()->AddConstant(value);
 }
 
 void FunctionUnit::EmitDefaultReturn() {
@@ -339,10 +339,10 @@ void FunctionUnit::EmitOpClosure(FunctionUnit *newly_created_cu) {
 }
 uint8_t FunctionUnit::GetSymbolConstant(const std::string &str) {
   if (!used_symbol_constants.contains(str)) {
-    if (Chunk()->constants.size() == CONSTANT_COUNT_LIMIT) {
+    if (FuncChunk()->constants.size() == CONSTANT_COUNT_LIMIT) {
       Error("Too many constants in one chunk.");
     }
-    auto constant = Chunk()->AddConstant(Value(Symbol::Intern(str)));
+    auto constant = FuncChunk()->AddConstant(Value(Symbol::Intern(str)));
     used_symbol_constants[str] = constant;
     return constant;
   }
