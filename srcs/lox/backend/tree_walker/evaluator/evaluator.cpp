@@ -84,9 +84,24 @@ void Evaluator::Visit(LogicalExpr* node) {
 void Evaluator::Visit(BinaryExpr* node) {
   auto left = Eval(node->left.get());
   auto right = Eval(node->right.get());
-  if (!left->obj()->DynAs<Number>() || !right->obj()->DynAs<Number>()) {
-    Error("Only Number support binary op");
+  if (left->obj()->DynAs<Number>() && right->obj()->DynAs<Number>()) {
+    return NumberBinaryOp(node, left, right);
   }
+  if (left->obj()->DynAs<String>() && right->obj()->DynAs<String>()) {
+    return StringBinaryOp(node, left, right);
+  }
+  Error("Binary op not supported datatype.");
+}
+void Evaluator::StringBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right) {
+  switch (node->attr->op->type) {
+    case TokenType::PLUS:
+      VisitorReturn(Object::MakeShared<String>(left->obj()->As<String>()->data + right->obj()->As<String>()->data));
+    default:
+      Error("Not a valid String Op.");
+  }
+}
+
+void Evaluator::NumberBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right) {
   auto left_num = left->obj()->As<Number>()->data;
   auto right_num = right->obj()->As<Number>()->data;
   switch (node->attr->op->type) {

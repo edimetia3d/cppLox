@@ -60,6 +60,9 @@ class Evaluator : public AstNodeVisitor<ObjectPtr> {
   void Visit(BlockStmt* state) override;
   void Visit(IfStmt* state) override;
 
+  void NumberBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right);
+  void StringBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right);
+
   EnvPtr work_env_;
   ObjectPtr CreateClosure(FunctionStmt* function);
 };
