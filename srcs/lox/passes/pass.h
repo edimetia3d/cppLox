@@ -7,26 +7,33 @@
 #include "lox/ast/ast.h"
 namespace lox {
 /**
- * A pass could modify ast inplace , or return a new node to replace current node.
- * eg1. You could modify all print-stmt node's PrintStmt::expression to modify the printed value, this one could be a
- * inplace one eg2. You could do code injection to replace all print-stmt nodes with some new block-stmt, so you could
- * do more thing before/after print, in this case ,you should return a new node by set the `replace_node`
+ * A pass will walk the AST and perform some action on each node.
+ *
+ * The walking order is a root-first style traversal, but every node will be visited twice. The second run could access
+ * the Node after itself or it's child might had been modified.
+ *
+ * 1. We Run PreNode on the node first.
+ * 2. We Run PreNode and PostNode on all children of the node recursively.
+ * 3. We Run PostNode on the node last.
  *
  * Note that:
- * A Modified ast node will be processed by current pass again. So all pass must avoid endless recursion.
- * eg1. after you modified one ast-node, the pass will run on the ast-node again, until there is no modification nor new
- * node return eg2. you returned a new ast-node to replace the current one, the pass will run on the returned node
- * again, until there is no modification nor new node return
+ *
+ * If a pass modifies the node's child in PreNode, the new child will be visited. If pass modifies the node's child in
+ * PostNode, the new child will never be visited.
+ *
  */
 struct Pass {
-  /**
-   * @param ast_node the input original node
-   * @param replace_node a new node that will replace the input original node `replace_node->get()` is equal to
-   * `ast_node` by default (self replace self, so replace nothing)
-   */
-  virtual void PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) = 0;
-  virtual void PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) = 0;
+  enum class IsModified {
+    NO,
+    YES,
+  };
+
+  virtual IsModified PreNode(ASTNode* ast_node) = 0;
+  virtual IsModified PostNode(ASTNode* ast_node) = 0;
 };
+
+using PassSequence = std::vector<std::shared_ptr<Pass>>;
+
 }  // namespace lox
 
 #endif  // CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_H_

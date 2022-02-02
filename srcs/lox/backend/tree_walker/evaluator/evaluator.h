@@ -7,83 +7,62 @@
 
 #include <cassert>
 
-#include "lox/ast/ast_node_visitor.h"
+#include "lox/ast/ast.h"
 #include "lox/backend/tree_walker/evaluator/environment.h"
-#include "lox/backend/tree_walker/lox_object/lox_object.h"
-#include "lox/backend/tree_walker/passes/env_resolve_pass/resolve_map.h"
-namespace lox {
+#include "lox/backend/tree_walker/evaluator/runtime_error.h"
+#include "lox/object/object.h"
+namespace lox::twalker {
 
-struct ReturnValue : public std::exception {
-  explicit ReturnValue(object::LoxObject obj) : ret(std::move(obj)) {}
-
-  object::LoxObject ret;
-};
-
-class Evaluator : public AstNodeVisitor<object::LoxObject> {
+/**
+ * Evaluator's most evaluation are intuitive, only three utilities need some explanation:
+ * 1. Environment: it is the runtime semantic scope. A newly created named value will be stored in the latest
+ * environment. and the named value will be deleted when the environment is deleted. For Lox, only
+ * ClassStmt/CallStmt/BlockStmt may create a new environment.
+ * 2. Closure: All FunctionStmt will be converted to Closure at runtime, and every
+ * Closure will close the env it was created, like a hard fork. When the closure is called, a new temporary env append
+ * to the closed env to act as a new local env.
+ * 3. Callable: Mainly to support native function and instance creation.
+ *
+ * Some feature are implemented based on c++ exception: `Return`,`Break` and `Continue`.
+ *
+ * Note that most semantic error had been caught by semantic checker, so evaluator will use static cast when
+ * possible.
+ */
+class Evaluator : public AstNodeVisitor<ObjectPtr> {
  public:
-  explicit Evaluator(std::shared_ptr<Environment> env) : work_env_(std::move(env)) {}
-
-  object::LoxObject Eval(std::shared_ptr<AstNode> node) {
-    assert(IsValid(node));
-    assert(active_map_);
-    node->Accept(this);
-    return PopRet();
-  }
-
-  void SetActiveResolveMap(std::shared_ptr<EnvResolveMap> map) { active_map_ = map; }
-
-  std::shared_ptr<Environment>& WorkEnv() { return work_env_; }
-  std::shared_ptr<Environment> WorkEnv(std::shared_ptr<Environment> new_env) {
-    auto old_env = work_env_;
-    work_env_ = new_env;
-    return old_env;
-  }
-
-  std::shared_ptr<Environment> FreezeEnv() {
-    auto old_env = work_env_;
-    work_env_ = Environment::Make(old_env);
-    return old_env;
-  }
-
-  struct EnterNewScopeGuard {
-    EnterNewScopeGuard(Evaluator* ev, std::shared_ptr<Environment> base_env = nullptr) : evaluator(ev) {
-      std::shared_ptr<Environment> new_env;
-      if (!base_env) {
-        new_env = Environment::Make(evaluator->WorkEnv());
-      } else {
-        new_env = Environment::Make(base_env);
-      }
-      backup = evaluator->WorkEnv(new_env);
-    }
-    ~EnterNewScopeGuard() { evaluator->WorkEnv(backup); }
-    std::shared_ptr<Environment> backup;
-    Evaluator* evaluator;
-  };
+  Evaluator();
+  void LaunchScript(FunctionStmt* script);
+  ObjectPtr Eval(ASTNode* node);
+  void Error(const std::string& msg);
+  EnvPtr WorkEnv() { return work_env_; }
+  EnvPtr SwitchEnv(EnvPtr new_env);
 
  protected:
-  std::shared_ptr<Environment> work_env_;
-  std::shared_ptr<EnvResolveMap> active_map_;
-  void Visit(LogicalExpr* state) override;
-  void Visit(BinaryExpr* state) override;
-  void Visit(GroupingExpr* state) override;
+  void Visit(LogicalExpr* node) override;
+  void Visit(BinaryExpr* node) override;
+  void Visit(GroupingExpr* node) override;
   void Visit(LiteralExpr* state) override;
-  void Visit(UnaryExpr* state) override;
-  void Visit(VariableExpr* state) override;
-  void Visit(AssignExpr* state) override;
-  void Visit(CallExpr* state) override;
-  void Visit(GetAttrExpr* state) override;
-  void Visit(SetAttrExpr* state) override;
-  void Visit(PrintStmt* state) override;
+  void Visit(UnaryExpr* node) override;
+  void Visit(VariableExpr* node) override;
+  void Visit(AssignExpr* node) override;
+  void Visit(CallExpr* node) override;
+  void Visit(GetAttrExpr* node) override;
+  void Visit(SetAttrExpr* node) override;
+  void Visit(PrintStmt* node) override;
   void Visit(ReturnStmt* state) override;
   void Visit(WhileStmt* state) override;
+  void Visit(ForStmt* node) override;
   void Visit(ExprStmt* state) override;
   void Visit(BreakStmt* state) override;
   void Visit(VarDeclStmt* state) override;
-  void Visit(FunctionStmt* state) override;
-  void Visit(ClassStmt* state) override;
+  void Visit(FunctionStmt* node) override;
+  void Visit(ClassStmt* node) override;
   void Visit(BlockStmt* state) override;
   void Visit(IfStmt* state) override;
+
+  EnvPtr work_env_;
+  ObjectPtr CreateClosure(FunctionStmt* function);
 };
 
-}  // namespace lox
+}  // namespace lox::twalker
 #endif  // CPPLOX_SRCS_LOX_EVALUATOR_EVAL_VISITOR_H_

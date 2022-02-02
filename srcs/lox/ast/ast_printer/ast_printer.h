@@ -8,38 +8,51 @@
 #include <cassert>
 #include <string>
 
-#include "lox/ast/ast_node_visitor.h"
+#include "lox/ast/ast.h"
 
 namespace lox {
 class AstPrinter : public AstNodeVisitor<std::string> {
  public:
-  std::string Print(std::shared_ptr<AstNode> node) {
-    assert(IsValid(node));
+  std::string Print(ASTNode* node) {
+    assert(node);
     node->Accept(this);
     return PopRet();
   }
 
  protected:
-  void Visit(LogicalExpr* state) override;
-  void Visit(BinaryExpr* state) override;
-  void Visit(GroupingExpr* state) override;
-  void Visit(LiteralExpr* state) override;
-  void Visit(UnaryExpr* state) override;
-  void Visit(VariableExpr* state) override;
-  void Visit(AssignExpr* state) override;
-  void Visit(CallExpr* state) override;
-  void Visit(GetAttrExpr* state) override;
-  void Visit(SetAttrExpr* state) override;
-  void Visit(PrintStmt* state) override;
-  void Visit(ReturnStmt* state) override;
-  void Visit(WhileStmt* state) override;
-  void Visit(BreakStmt* state) override;
-  void Visit(ExprStmt* state) override;
-  void Visit(VarDeclStmt* state) override;
-  void Visit(FunctionStmt* state) override;
-  void Visit(ClassStmt* state) override;
-  void Visit(BlockStmt* state) override;
-  void Visit(IfStmt* state) override;
+  void Visit(LogicalExpr* node) override;
+  void Visit(BinaryExpr* node) override;
+  void Visit(GroupingExpr* node) override;
+  void Visit(LiteralExpr* node) override;
+  void Visit(UnaryExpr* node) override;
+  void Visit(VariableExpr* node) override;
+  void Visit(AssignExpr* node) override;
+  void Visit(CallExpr* node) override;
+  void Visit(GetAttrExpr* node) override;
+  void Visit(SetAttrExpr* node) override;
+  void Visit(PrintStmt* node) override;
+  void Visit(ReturnStmt* node) override;
+  void Visit(WhileStmt* node) override;
+  void Visit(ForStmt* node) override;
+  void Visit(BreakStmt* node) override;
+  void Visit(ExprStmt* node) override;
+  void Visit(VarDeclStmt* node) override;
+  void Visit(FunctionStmt* node) override;
+  void Visit(ClassStmt* node) override;
+  void Visit(BlockStmt* node) override;
+  void Visit(IfStmt* node) override;
+  int semantic_level = 0;
+  struct SemanticLevelGuard {
+    SemanticLevelGuard(AstPrinter* printer_) : printer(printer_) { ++printer->semantic_level; }
+    ~SemanticLevelGuard() { --printer->semantic_level; }
+    AstPrinter* printer;
+  };
+  std::string Indentation() {
+    std::vector<char> buf(semantic_level * 2 + 1, ' ');
+    buf.back() = '\0';
+    return buf.data();
+  }
+  std::string& PossibleBlockPrint(ASTNode* node, std::string& ret);
 };
 
 }  // namespace lox

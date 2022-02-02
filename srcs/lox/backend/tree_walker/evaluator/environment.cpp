@@ -4,29 +4,31 @@
 
 #include "lox/backend/tree_walker/evaluator/environment.h"
 
-#include "lox/backend/tree_walker/error.h"
-namespace lox {
+#include "lox/backend/tree_walker/evaluator/runtime_error.h"
 
-void Environment::Define(std::string var_name, object::LoxObject value) {
+namespace lox::twalker {
+
+void Environment::Define(std::string var_name, ObjectPtr value) {
   map[var_name] = value;  // redefine existing var is permitted
 }
-void Environment::Remove(std::string var_name) { map.erase(var_name); }
-void Environment::Set(std::string var_name, object::LoxObject value) {
-  if (map.count(var_name) == 0) {
+
+bool Environment::Set(std::string var_name, ObjectPtr value) {
+  if (!map.contains(var_name)) {
     if (parent_) {
       return parent_->Set(var_name, value);
     }
-    throw "Var Not found";
+    return false;
   }
   map[var_name] = value;
+  return true;
 }
-object::LoxObject Environment::Get(std::string var_name) {
-  if (map.count(var_name) == 0) {
+ObjectPtr Environment::Get(std::string var_name) {
+  if (!map.contains(var_name)) {
     if (parent_) {
       return parent_->Get(var_name);
     }
-    return object::VoidObject();
+    throw RuntimeError("Var Not found");
   }
   return map[var_name];
 }
-}  // namespace lox
+}  // namespace lox::twalker

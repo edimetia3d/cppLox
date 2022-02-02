@@ -1,16 +1,16 @@
 
 add_library(environment environment.cpp)
-target_link_libraries(environment PUBLIC lox_object)
-
+target_link_libraries(environment PUBLIC runtime_object)
 
 add_library(evaluator
         evaluator.cpp
-        callable_object.cc
-        lox_function.cc
-        lox_class.cc
-        class_instance.cc)
-target_link_libraries(evaluator PUBLIC lox_object)
+        )
+
+add_library(runtime_object
+        runtime_object.cc
+        )
 target_link_libraries(evaluator PUBLIC ast)
 target_link_libraries(evaluator PUBLIC environment)
-target_link_libraries(evaluator PRIVATE resolve_map)
 target_link_libraries(evaluator PUBLIC lox_common)
+target_link_libraries(evaluator PUBLIC runtime_object)
+target_link_libraries(evaluator PUBLIC talker_builtins)

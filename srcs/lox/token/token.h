@@ -45,20 +45,5 @@ struct Token {
 // Token is designed to be shared ptr like, and only contains one data member
 static_assert(sizeof(Token) == sizeof(std::shared_ptr<TokenState>));
 
-/**
- * Note: only class LoxInterpreter will handle Errors, all other class only generate
- * errors, and return `PrefixTokenError` to the caller.
- */
-template <class CRTP>  // use crtp to make different derived class
-class ErrorWithToken : public LoxError {
- public:
-  explicit ErrorWithToken(const Token& token, const std::string& message)
-      : LoxError(CRTP::StrName() + token->Dump() + " : " + message) {}
-  [[nodiscard]] const Token& SourceToken() const { return token_; }
-
- private:
-  Token token_ = Token(TokenType::_TOKEN_COUNT_NUMBER, "None", -1);
-};
-
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_TOKEN_H_

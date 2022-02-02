@@ -9,32 +9,26 @@
 #include <string>
 #include <vector>
 
-#include "lox/backend/tree_walker/lox_object/lox_object.h"
-namespace lox {
+#include "lox/object/object.h"
+namespace lox::twalker {
+class Environment;
+using EnvPtr = std::shared_ptr<Environment>;
 
 class Environment {
  public:
-  static std::shared_ptr<Environment> Make() { return std::shared_ptr<Environment>(new Environment); };
-  static std::shared_ptr<Environment> Make(std::shared_ptr<Environment> parent) {
-    return std::shared_ptr<Environment>(new Environment(parent));
-  };
-  void Define(std::string var_name, object::LoxObject value);
-  void Remove(std::string var_name);
-  void Set(std::string var_name, object::LoxObject value);
-  object::LoxObject Get(std::string var_name);
-  Environment* GetByDistance(int distance = 0) {
-    auto ret = this;
-    for (int i = 0; i < distance; ++i) {
-      ret = ret->parent_.get();
-    }
-    return ret;
-  }
+  static EnvPtr Make() { return EnvPtr(new Environment); };
+  static EnvPtr Make(EnvPtr parent) { return EnvPtr(new Environment(parent)); };
+
+  void Define(std::string var_name, ObjectPtr value);
+  bool Set(std::string var_name, ObjectPtr value);
+  ObjectPtr Get(std::string var_name);
+  EnvPtr Parent() { return parent_; }
 
  private:
-  Environment() {}
-  Environment(std::shared_ptr<Environment> parent) : parent_(parent) {}
-  std::shared_ptr<Environment> parent_;
-  std::map<std::string, object::LoxObject> map;
+  Environment() = default;
+  explicit Environment(EnvPtr parent) : parent_(std::move(parent)) {}
+  EnvPtr parent_;
+  std::map<std::string, ObjectPtr> map;
 };
 
 }  // namespace lox

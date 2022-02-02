@@ -7,30 +7,44 @@
 #include "lox/common/lox_error.h"
 namespace lox {
 
-void SemanticCheck::PreNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) {
-  if (auto p = CastTo<WhileStmt>(ast_node)) {
+Pass::IsModified SemanticCheck::PreNode(ASTNode* ast_node) {
+  if (auto p = ast_node->DynAs<WhileStmt>()) {
     ++while_loop_level;
-    return;
+    return Pass::IsModified::NO;
   }
-  if (auto p = CastTo<BreakStmt>(ast_node)) {
+  if (auto p = ast_node->DynAs<BreakStmt>()) {
     if (while_loop_level == 0) {
-      throw LoxError("Semantic Error: " + p->src_token()->Dump() + " Nothing to break here.");
+      throw LoxError("Semantic Error: " + p->attr->src_token->Dump() + " Nothing to break here.");
     }
-    return;
+    return Pass::IsModified::NO;
   }
-  if (auto p = CastTo<ClassStmt>(ast_node)) {
-    if (IsValid(p->superclass())) {
-      if (p->superclass()->DownCast<VariableExpr>()->name()->lexeme == p->name()->lexeme) {
-        throw LoxError("Semantic Error: " + p->name()->Dump() + " Class can not inherit itself");
+  if (auto p = ast_node->DynAs<ClassStmt>()) {
+    if (p->superclass) {
+      if (p->superclass->DynAs<VariableExpr>()->attr->name->lexeme == p->attr->name->lexeme) {
+        throw LoxError("Semantic Error: " + p->attr->name->Dump() + " Class can not inherit itself");
       }
     }
-    return;
+    return Pass::IsModified::NO;
   }
+  if (auto p = ast_node->DynAs<FunctionStmt>()) {
+    if (p->attr->params.size() >= 255) {
+      throw LoxError("Lox Can't have more than 255 arguments.");
+    }
+  }
+  if (auto p = ast_node->DynAs<CallExpr>()) {
+    if (p->arguments.size() >= 255) {
+      throw LoxError("Lox Can't have more than 255 arguments.");
+    }
+  }
+
+  // todo: check init must return nothing
+
+  return Pass::IsModified::NO;
 }
-void SemanticCheck::PostNode(AstNode* ast_node, std::shared_ptr<AstNode>* replace_node) {
-  if (auto p = CastTo<WhileStmt>(ast_node)) {
+Pass::IsModified SemanticCheck::PostNode(ASTNode* ast_node) {
+  if (auto p = ast_node->DynAs<WhileStmt>()) {
     --while_loop_level;
-    return;
   }
+  return Pass::IsModified::NO;
 }
 }  // namespace lox

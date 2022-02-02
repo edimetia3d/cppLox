@@ -4,40 +4,46 @@
 
 #include "ast_node.h"
 namespace lox {
-void AstNode::Walk(std::function<void(AstNode *)> fn) {
-  std::vector<AstNode *> stk;
-  stk.push_back(this);
-  while (!stk.empty()) {
-    auto back = stk.back();
-    stk.pop_back();
-    fn(back);
-    for (auto child : back->Children()) {
-      stk.push_back(child);
+ASTNode* ASTNode::Parent() { return parent_; }
+std::vector<ASTNode*> ASTNode::Children() {
+  std::vector<ASTNode*> ret;
+  for (auto p : children_) {
+    if (p->get()) {
+      ret.push_back(p->get());
     }
+  }
+  return ret;
+}
+bool ASTNode::UpdateChild(const std::unique_ptr<ASTNode>& old, std::unique_ptr<ASTNode>&& replace) {
+  for (auto& p : children_) {
+    if (p->get() == old.get()) {
+      replace->parent_ = this;
+      *p = std::move(replace);
+      return true;
+    }
+  }
+  return false;
+}
+bool ASTNode::UpdateChild(int child_index, ASTNodePtr&& replace) {
+  if (child_index < 0 || child_index >= children_.size()) {
+    return false;
+  }
+  replace->parent_ = this;
+  *(children_[child_index]) = std::move(replace);
+  return true;
+}
+
+void ASTNode::AddChild(std::unique_ptr<ASTNode>* child) {
+  children_.push_back(child);
+  if ((*child)) {
+    (*child)->parent_ = this;
   }
 }
 
-void AstNode::UpdateChild(std::shared_ptr<AstNode> old_child, std::shared_ptr<AstNode> new_child) {
-  remove_child(old_child);
-  add_child(new_child);
-}
-void AstNode::add_child(std::shared_ptr<AstNode> &new_child) {
-  if (new_child) {
-    new_child->parent_ = this;
+void ASTNode::AddChild(std::vector<std::unique_ptr<ASTNode>>* child) {
+  for (auto& c : *child) {
+    AddChild(&c);
   }
 }
-void AstNode::remove_child(std::shared_ptr<AstNode> &old_child) {
-  if (old_child && old_child->parent_ == this) {
-    old_child->parent_ = nullptr;
-  }
-}
-void AstNode::UpdateChild(std::vector<std::shared_ptr<AstNode>> old_child,
-                          std::vector<std::shared_ptr<AstNode>> new_child) {
-  for (auto &old_one : old_child) {
-    remove_child(old_one);
-  }
-  for (auto &new_one : new_child) {
-    add_child(new_one);
-  }
-}
+
 }  // namespace lox

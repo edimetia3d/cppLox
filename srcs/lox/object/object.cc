@@ -12,7 +12,25 @@ std::set<Object *> &Object::AllCreatedObj() {
 
 Object::Object() { AllCreatedObj().insert(this); }
 
-Object::~Object() { AllCreatedObj().erase(this); }
+Object::~Object() {
+  if (AllSharedPtrObj().contains(this)) {
+    AllSharedPtrObj().erase(this);
+  }
+  AllCreatedObj().erase(this);
+}
 void *Object::operator new(size_t size) { return ::operator new(size); }
+std::map<Object *, ObjectWeakPtr> &Object::AllSharedPtrObj() {
+  static std::map<Object *, ObjectWeakPtr> ret;
+  return ret;
+}
 
+GCSpObject::~GCSpObject() {
+  if (obj_) {
+    delete obj_;
+  }
+}
+void GCSpObject::ForceDelete() {
+  delete obj_;
+  obj_ = nullptr;
+}
 }  // namespace lox

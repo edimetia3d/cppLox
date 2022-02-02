@@ -10,7 +10,7 @@
 namespace lox {
 
 static void LoadBuiltinBackEnd(BackEndRegistry* registry) {
-  registry->Register("TreeWalker", []() { return std::shared_ptr<BackEnd>(new TreeWalker()); });
+  registry->Register("TreeWalker", []() { return std::shared_ptr<BackEnd>(new twalker::TreeWalker()); });
   registry->Register("VirtualMachine", []() { return std::shared_ptr<BackEnd>(new vm::VirtualMachine()); });
 }
 

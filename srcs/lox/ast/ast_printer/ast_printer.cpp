@@ -7,144 +7,160 @@
 
 namespace lox {
 
-void AstPrinter::Visit(LogicalExpr* state) {
-  std::string left_expr = Print(state->left());
-  std::string op = state->op()->lexeme;
-  std::string right_expr = Print(state->right());
-  VisitorReturn(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
+void AstPrinter::Visit(LogicalExpr* node) {
+  std::string left_expr = Print(node->left.get());
+  std::string op = node->attr->op->lexeme;
+  std::string right_expr = Print(node->right.get());
+  VisitorReturn(left_expr + " " + op + " " + right_expr);
 }
 
-void lox::AstPrinter::Visit(BinaryExpr* state) {
-  std::string left_expr = Print(state->left());
-  std::string op = state->op()->lexeme;
-  std::string right_expr = Print(state->right());
-  VisitorReturn(std::string("( ") + left_expr + " " + op + " " + right_expr + std::string(" )"));
+void lox::AstPrinter::Visit(BinaryExpr* node) {
+  std::string left_expr = Print(node->left.get());
+  std::string op = node->attr->op->lexeme;
+  std::string right_expr = Print(node->right.get());
+  VisitorReturn(left_expr + " " + op + " " + right_expr);
 }
-void AstPrinter::Visit(LiteralExpr* state) { VisitorReturn(state->value()->lexeme); }
-void lox::AstPrinter::Visit(GroupingExpr* state) {
-  VisitorReturn(std::string("(") + Print(state->expression()) + std::string(")"));
+void AstPrinter::Visit(LiteralExpr* node) { VisitorReturn(node->attr->value->lexeme); }
+void lox::AstPrinter::Visit(GroupingExpr* node) {
+  VisitorReturn(std::string("(") + Print(node->expression.get()) + ")");
 }
-void AstPrinter::Visit(UnaryExpr* state) {
-  VisitorReturn(std::string("(") + state->op()->lexeme + Print(state->right()) + std::string(")"));
-}
-void AstPrinter::Visit(VariableExpr* state) { VisitorReturn(state->name()->lexeme); }
-void AstPrinter::Visit(AssignExpr* state) {
-  VisitorReturn(std::string("(") + state->name()->lexeme + " = " + Print(state->value()) + std::string(")"));
-}
-void AstPrinter::Visit(CallExpr* state) {
+void AstPrinter::Visit(UnaryExpr* node) { VisitorReturn(node->attr->op->lexeme + Print(node->right.get())); }
+void AstPrinter::Visit(VariableExpr* node) { VisitorReturn(node->attr->name->lexeme); }
+void AstPrinter::Visit(AssignExpr* node) { VisitorReturn(node->attr->name->lexeme + " = " + Print(node->value.get())); }
+void AstPrinter::Visit(CallExpr* node) {
   std::string ret = "";
-  ret = ret + Print(state->callee()) + "(";
+  ret = ret + Print(node->callee.get()) + "(";
   int i = 0;
-  for (auto& arg : state->arguments()) {
+  for (auto& arg : node->arguments) {
     if (i > 0) {
-      ret += ",";
+      ret += ", ";
     }
-    ret += Print(arg);
+    ret += Print(arg.get());
     ++i;
   }
   VisitorReturn(ret + ")");
 }
 
-void AstPrinter::Visit(PrintStmt* state) { VisitorReturn(std::string("print ") + Print(state->expression()) + ";"); }
-void AstPrinter::Visit(ExprStmt* state) { VisitorReturn(Print(state->expression()) + ";"); }
-void AstPrinter::Visit(VarDeclStmt* state) {
-  std::string init = "(NoInit)";
-  if (IsValid(state->initializer())) {
-    init = " = " + Print(state->initializer());
-  }
-  VisitorReturn(std::string("var ") + state->name()->lexeme + init + ";");
+void AstPrinter::Visit(PrintStmt* node) {
+  VisitorReturn(Indentation() + std::string("print ") + Print(node->expression.get()) + ";\n");
 }
-namespace {
-struct Level {
-  struct V {
-    int v = -1;
-  };
-  int Value() { return nest_level[current_printer].v; }
-  Level(void* printer) : current_printer(printer) { nest_level[current_printer].v += 1; }
-  ~Level() { nest_level[current_printer].v -= 1; }
-  void* current_printer;
-  static std::map<void*, V> nest_level;
-};
-std::map<void*, Level::V> Level::nest_level;
-}  // namespace
+void AstPrinter::Visit(ExprStmt* node) { VisitorReturn(Indentation() + Print(node->expression.get()) + ";\n"); }
+void AstPrinter::Visit(VarDeclStmt* node) {
+  std::string init = "";
+  if (node->initializer) {
+    init = " = " + Print(node->initializer.get());
+  }
+  VisitorReturn(Indentation() + std::string("var ") + node->attr->name->lexeme + init + ";\n");
+}
+void AstPrinter::Visit(BlockStmt* node) {
+  auto indentation = Indentation();
+  std::string ret = indentation + "{\n";
+  SemanticLevelGuard guard(this);
+  for (auto& stmt : node->statements) {
+    ret += Print(stmt.get());
+  }
+  ret += (indentation + "}\n");
+  VisitorReturn(ret);
+}
+void AstPrinter::Visit(IfStmt* node) {
+  auto indentation = Indentation();
+  std::string ret = indentation + "if (" + Print(node->condition.get()) + ")";
+  PossibleBlockPrint(node->thenBranch.get(), ret);
+  if (node->elseBranch) {
+    ret += (indentation + "else ");
+    PossibleBlockPrint(node->elseBranch.get(), ret);
+  }
+  VisitorReturn(ret);
+}
+void AstPrinter::Visit(WhileStmt* node) {
+  std::string ret = Indentation() + "while (" + Print(node->condition.get()) + ")\n";
+  PossibleBlockPrint(node->body.get(), ret);
+  VisitorReturn(ret);
+}
+void AstPrinter::Visit(ForStmt* node) {
+  std::string ret = Indentation() + "for (";
+  if (node->initializer) {
+    if (node->initializer->DynAs<VarDeclStmt>()) {
+      auto var_decl = node->initializer->As<VarDeclStmt>();
+      std::string init = "";
+      if (var_decl->initializer) {
+        init = std::string(" = ") + Print(var_decl->initializer.get());
+      }
+      ret += "var " + var_decl->attr->name->lexeme + init + "; ";
+    } else {
+      ret += Print(node->initializer.get()) + "; ";
+    }
+  }
+  if (node->condition) {
+    ret += Print(node->condition.get()) + "; ";
+  }
+  if (node->increment) {
+    ret += Print(node->increment.get()) + ")";
+  }
+  PossibleBlockPrint(node->body.get(), ret);
+  VisitorReturn(ret);
+}
 
-void AstPrinter::Visit(BlockStmt* state) {
-  Level level(this);
-  std::string tab_base = "  ";
-  std::string tab = "";
-  for (int i = 0; i < level.Value(); ++i) {
-    tab += tab_base;
+std::string& AstPrinter::PossibleBlockPrint(ASTNode* node, std::string& ret) {
+  if (node->DynAs<BlockStmt>()) {
+    ret += Print(node);
+  } else {
+    ret += "\n";
+    SemanticLevelGuard guard(this);
+    ret += Print(node);
   }
-  std::string str = tab + "{\n";
-  for (auto& stmt : state->statements()) {
-    str += (tab + Print(stmt));
-    str += (tab + "\n");
-  }
-  str += (tab + "}");
-  VisitorReturn(str);
+  return ret;
 }
-void AstPrinter::Visit(IfStmt* state) {
-  std::string ret = "if ( " + Print(state->condition()) + " )\n";
-  ret += "{\n" + Print(state->thenBranch()) + "}\n";
-  if (IsValid(state->elseBranch())) {
-    ret += "{\n" + Print(state->elseBranch()) + "}\n";
-  }
-  VisitorReturn(ret);
-}
-void AstPrinter::Visit(WhileStmt* state) {
-  std::string ret = "while ( " + Print(state->condition()) + " )\n";
-  ret += "{\n" + Print(state->body()) + "}\n";
-  VisitorReturn(ret);
-}
-void AstPrinter::Visit(BreakStmt* state) { VisitorReturn(state->src_token()->lexeme); }
-void AstPrinter::Visit(FunctionStmt* state) {
-  std::string ret = "fun ";
-  ret += state->name()->lexeme + " (";
+void AstPrinter::Visit(BreakStmt* node) { VisitorReturn(node->attr->src_token->lexeme); }
+void AstPrinter::Visit(FunctionStmt* node) {
+  auto indentation = Indentation();
+  std::string ret = indentation + "fun " + node->attr->name->lexeme + "(";
   int i = 0;
-  for (auto& param : state->params()) {
+  for (auto& param : node->attr->params) {
     if (i > 0) {
-      ret += ",";
+      ret += ", ";
     }
     ret += param->lexeme;
     ++i;
   }
-  ret += "){\n";
-  for (auto& stmt : state->body()) {
-    ret += Print(stmt);
-    ret += "\n";
+  ret += ") {\n";
+  SemanticLevelGuard guard(this);
+  for (auto& stmt : node->body) {
+    ret += Print(stmt.get());
   }
-  ret += "}";
+  ret += (indentation + "}\n");
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(ReturnStmt* state) {
-  std::string ret = "return";
-  if (IsValid(state->value())) {
-    ret += Print(state->value());
+void AstPrinter::Visit(ReturnStmt* node) {
+  std::string ret = Indentation() + "return ";
+  if (node->value) {
+    ret += Print(node->value.get());
   }
-  VisitorReturn(ret + ";");
+  VisitorReturn(ret + ";\n");
 }
-void AstPrinter::Visit(ClassStmt* state) {
-  std::string ret = "class ";
-  ret += state->name()->lexeme;
-  if (IsValid(state->superclass())) {
+void AstPrinter::Visit(ClassStmt* node) {
+  auto indentation = Indentation();
+  std::string ret = indentation + "class " + node->attr->name->lexeme;
+  if (node->superclass.get()) {
     ret += " < ";
-    ret += Print(state->superclass());
+    ret += Print(node->superclass.get());
   }
   ret += "{\n";
-  for (auto& method : state->methods()) {
-    ret += Print(method);
+  SemanticLevelGuard guard(this);
+  for (auto& method : node->methods) {
+    ret += Print(method.get());
   }
-  ret += "}";
+  ret += (indentation + "}\n");
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(GetAttrExpr* state) {
-  std::string ret = Print(state->src_object()) + "." + state->attr_name()->lexeme;
+void AstPrinter::Visit(GetAttrExpr* node) {
+  std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme;
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(SetAttrExpr* state) {
-  std::string ret = Print(state->src_object()) + "." + state->attr_name()->lexeme;
-  ret += " @= ";
-  ret += Print(state->value());
+void AstPrinter::Visit(SetAttrExpr* node) {
+  std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme;
+  ret += " = ";
+  ret += Print(node->value.get());
   VisitorReturn(ret);
 }
 

@@ -6,264 +6,334 @@
 
 #include <iostream>
 
-#include "lox/backend/tree_walker/error.h"
-#include "lox/backend/tree_walker/evaluator/callable_object.h"
-#include "lox/backend/tree_walker/evaluator/class_instance.h"
-#include "lox/backend/tree_walker/evaluator/lox_class.h"
-#include "lox/backend/tree_walker/evaluator/lox_function.h"
-namespace lox {
+#include "lox/ast/ast.h"
+#include "lox/backend/tree_walker/bultins/builtin_fn.h"
+#include "lox/backend/tree_walker/evaluator/runtime_object.h"
 
-void Evaluator::Visit(LiteralExpr* state) {
-  switch (state->value()->type) {
-    case TokenType::NUMBER:
-      VisitorReturn(object::MakeLoxObject(std::stod(state->value()->lexeme)));
-    case TokenType::STRING:
-      VisitorReturn(
-          object::MakeLoxObject(std::string(state->value()->lexeme.begin() + 1, state->value()->lexeme.end() - 1)));
-    case TokenType::TRUE_TOKEN:
-      VisitorReturn(object::MakeLoxObject(true));
-    case TokenType::FALSE_TOKEN:
-      VisitorReturn(object::MakeLoxObject(false));
-    case TokenType::NIL:
-      VisitorReturn(object::VoidObject());
-    default:
-      throw(RuntimeError(state->value(), "Not a valid Literal."));
+namespace lox::twalker {
+
+class BreakException : public std::exception {};
+class ContinueException : public std::exception {};
+
+struct NewEnvGuard {
+  NewEnvGuard(Evaluator* evaluator) : evaluator(evaluator) {
+    auto new_env = Environment::Make(evaluator->WorkEnv());
+    backup = evaluator->SwitchEnv(new_env);
   }
-}
-void Evaluator::Visit(GroupingExpr* state) { VisitorReturn(Eval(state->expression())); }
-void Evaluator::Visit(UnaryExpr* state) {
-  auto right = Eval(state->right());
+  ~NewEnvGuard() { evaluator->SwitchEnv(backup); }
+  EnvPtr backup;
+  Evaluator* evaluator;
+};
 
-  switch (state->op()->type) {
-    case TokenType::MINUS:
-      VisitorReturn(-right);
-    case TokenType::BANG:
-      try {
-        VisitorReturn(object::MakeLoxObject(IsValueTrue(right)));
-      } catch (const char* msg) {
-        throw(RuntimeError(state->op(), msg));
-      }
-
-    default:
-      throw(RuntimeError(state->op(), "Not a valid Unary Op."));
-  }
-}
-
-void Evaluator::Visit(LogicalExpr* state) {
-  auto left = Eval(state->left());
-  if (state->op()->type == TokenType::AND) {
-    if (IsValueTrue(left)) {
-      VisitorReturn(Eval(state->right()));
-    }
-
-  } else if (!IsValueTrue(left)) {
-    VisitorReturn(Eval(state->right()));
-  }
-  VisitorReturn(left);
-}
-
-void Evaluator::Visit(BinaryExpr* state) {
-  auto left = Eval(state->left());
-  auto right = Eval(state->right());
-  try {
-    switch (state->op()->type) {
-      case TokenType::PLUS:
-        VisitorReturn(left + right);
-      case TokenType::MINUS:
-        VisitorReturn(left - right);
-      case TokenType::STAR:
-        VisitorReturn(left * right);
-      case TokenType::SLASH:
-        VisitorReturn(left / right);
-      case TokenType::EQUAL_EQUAL:
-        VisitorReturn(left == right);
-      case TokenType::BANG_EQUAL:
-        VisitorReturn(left != right);
-      case TokenType::LESS:
-        VisitorReturn(left < right);
-      case TokenType::GREATER:
-        VisitorReturn(left > right);
-      case TokenType::LESS_EQUAL:
-        VisitorReturn(left <= right);
-      case TokenType::GREATER_EQUAL:
-        VisitorReturn(left >= right);
-      default:
-        throw(RuntimeError(state->op(), "Not a valid Binary Op."));
-    }
-  } catch (const char* msg) {
-    throw(RuntimeError(state->op(), msg));
-  }
-}
-void Evaluator::Visit(VariableExpr* state) {
-  auto ret = WorkEnv()->GetByDistance(active_map_->Get(state))->Get(state->name()->lexeme);
-  if (!IsValid(ret)) {
-    throw(RuntimeError(state->name(), "Doesnt reference to a valid value."));
-  }
-  VisitorReturn(ret);
-}
-void Evaluator::Visit(AssignExpr* state) {
-  auto value = Eval(state->value());
-  try {
-    WorkEnv()->GetByDistance(active_map_->Get(state))->Set(state->name()->lexeme, value);
-  } catch (const char* msg) {
-    throw(RuntimeError(state->name(), msg));
+void Evaluator::Visit(AssignExpr* node) {
+  auto value = Eval(node->value.get());
+  if (!WorkEnv()->Set(node->attr->name->lexeme, value)) {
+    Error("Doesnt reference to a valid value.");
   }
   VisitorReturn(value);
 }
-void Evaluator::Visit(CallExpr* state) {
-  auto callee = Eval(state->callee());
 
-  std::vector<object::LoxObject> arguments;
-  for (Expr argument : state->arguments()) {
-    arguments.push_back(Eval(argument));
+void Evaluator::Visit(LiteralExpr* node) {
+  // todo: add a pass to expand/fold constants
+  switch (node->attr->value->type) {
+    case TokenType::NUMBER:
+      VisitorReturn(Object::MakeShared<Number>(std::stod(node->attr->value->lexeme)));
+    case TokenType::STRING:
+      VisitorReturn(Object::MakeShared<String>(
+          std::string(node->attr->value->lexeme.begin() + 1, node->attr->value->lexeme.end() - 1)));
+    case TokenType::TRUE_TOKEN:
+      VisitorReturn(Object::MakeShared<Bool>(true));
+    case TokenType::FALSE_TOKEN:
+      VisitorReturn(Object::MakeShared<Bool>(false));
+    case TokenType::NIL:
+      VisitorReturn(Object::MakeShared<Nil>());
+    default:
+      Error("Not a valid Literal.");
   }
+}
+void Evaluator::Visit(GroupingExpr* node) { VisitorReturn(Eval(node->expression.get())); }
 
-  auto callable = callee->DownCast<LoxCallable>();
-  if (!callable) {
-    throw(RuntimeError(state->paren(), "Not a callable object"));
-  }
-  if (arguments.size() != callable->Arity()) {
-    throw(RuntimeError(state->paren(), "Wrong arg number"));
-  }
-  try {
-    VisitorReturn(callable->Call(this, arguments));
-  } catch (const char* msg) {
-    throw(RuntimeError(state->paren(), msg));
+void Evaluator::Visit(UnaryExpr* node) {
+  auto right = Eval(node->right.get());
+
+  switch (node->attr->op->type) {
+    case TokenType::MINUS:
+      if (!right->obj()->DynAs<Number>()) {
+        Error("Only number support minus");
+      }
+      VisitorReturn(Object::MakeShared<Number>(-1 * right->obj()->As<Number>()->data));
+    case TokenType::BANG:
+      VisitorReturn(Object::MakeShared<Bool>(!right->obj()->IsTrue()));
+    default:
+      Error("Not a valid Unary Op.");
   }
 }
 
-void Evaluator::Visit(PrintStmt* state) {
-  auto ret_v = Eval(state->expression());
-  std::cout << ret_v->ToString() << std::endl;
-  VisitorReturn(object::VoidObject());
+void Evaluator::Visit(LogicalExpr* node) {
+  auto left_obj = Eval(node->left.get());
+  auto left = left_obj->obj()->IsTrue();
+  if (node->attr->op->type == TokenType::AND && left) {
+    VisitorReturn(Eval(node->right.get()));
+  }
+  if (node->attr->op->type == TokenType::OR && !left) {
+    VisitorReturn(Eval(node->right.get()));
+  }
+  VisitorReturn(left_obj);
+}
+
+void Evaluator::Visit(BinaryExpr* node) {
+  auto left = Eval(node->left.get());
+  auto right = Eval(node->right.get());
+  if (!left->obj()->DynAs<Number>() || !right->obj()->DynAs<Number>()) {
+    Error("Only Number support binary op");
+  }
+  auto left_num = left->obj()->As<Number>()->data;
+  auto right_num = right->obj()->As<Number>()->data;
+  switch (node->attr->op->type) {
+    case TokenType::PLUS:
+      VisitorReturn(Object::MakeShared<Number>(left_num + right_num));
+    case TokenType::MINUS:
+      VisitorReturn(Object::MakeShared<Number>(left_num - right_num));
+    case TokenType::STAR:
+      VisitorReturn(Object::MakeShared<Number>(left_num * right_num));
+    case TokenType::SLASH:
+      VisitorReturn(Object::MakeShared<Number>(left_num / right_num));
+    case TokenType::EQUAL_EQUAL:
+      VisitorReturn(Object::MakeShared<Number>(left_num == right_num));
+    case TokenType::BANG_EQUAL:
+      VisitorReturn(Object::MakeShared<Number>(left_num != right_num));
+    case TokenType::LESS:
+      VisitorReturn(Object::MakeShared<Number>(left_num < right_num));
+    case TokenType::GREATER:
+      VisitorReturn(Object::MakeShared<Number>(left_num > right_num));
+    case TokenType::LESS_EQUAL:
+      VisitorReturn(Object::MakeShared<Number>(left_num <= right_num));
+    case TokenType::GREATER_EQUAL:
+      VisitorReturn(Object::MakeShared<Number>(left_num >= right_num));
+    default:
+      Error("Not a valid Binary Op.");
+  }
+}
+void Evaluator::Visit(VariableExpr* node) {
+  auto ret = WorkEnv()->Get(node->attr->name->lexeme);
+  if (!ret) {
+    Error("Doesnt reference to a valid value.");
+  }
+  VisitorReturn(ret);
+}
+
+void Evaluator::Visit(GetAttrExpr* node) {
+  // get attr may return normal object or bounded method
+  auto object = Eval(node->src_object.get());
+  const auto& attr_name = node->attr->attr_name->lexeme;
+
+  Klass* klass = nullptr;
+  ObjectPtr objcet_this;
+  ObjectPtr ret;
+
+  // try instance first
+  if (auto instance = object->obj()->DynAs<Instance>()) {
+    if (instance->data.dict().contains(attr_name)) {
+      VisitorReturn(instance->data.dict()[attr_name]);
+    }
+    // ok, we need get method
+    klass = instance->data.klass->obj()->As<Klass>();
+    objcet_this = object;
+  }
+  // if klass not set, the object should be a klass
+  if (!klass) {
+    klass = object->obj()->DynAs<Klass>();
+    objcet_this = WorkEnv()->Get("this");
+    if (!objcet_this) {
+      Error("Cannot use method out of method");  // todo: this should be a semantic error
+    }
+  }
+  auto fn = klass->GetMethod(objcet_this, attr_name)->obj()->DynAs<Closure>();
+  if (!ret) {
+    Error("No attr found");
+  }
+  VisitorReturn(ret);
+}
+
+void Evaluator::Visit(SetAttrExpr* node) {
+  auto object = Eval(node->src_object.get());
+  auto ret = Eval(node->value.get());
+  object->obj()->DynAs<Instance>()->data.dict()[node->attr->attr_name->lexeme] = ret;
+  VisitorReturn(ret);
+}
+
+void Evaluator::Visit(CallExpr* node) {
+  auto callee = Eval(node->callee.get());
+  auto callable = dynamic_cast<ICallable*>(callee->obj());
+  if (!callable) {
+    Error("Not a callable object");
+  }
+
+  std::vector<ObjectPtr> arguments;
+  for (auto& arg_expr : node->arguments) {
+    arguments.push_back(Eval(arg_expr.get()));
+  }
+
+  if (arguments.size() != callable->Arity()) {
+    Error("Wrong arg number");
+  }
+
+  NewEnvGuard guard(this);  // used as temporary local
+  try {
+    VisitorReturn(callable->Call(this, callee, arguments));
+  } catch (const ReturnValueException& e) {
+    VisitorReturn(e.ret);
+  }
+}
+
+void Evaluator::Visit(FunctionStmt* node) {
+  auto closure = CreateClosure(node);
+  WorkEnv()->Define(node->attr->name->lexeme, closure);
+  VisitorReturn(ObjectPtr());
+}
+void Evaluator::Visit(ClassStmt* node) {
+  auto superclass = ObjectPtr();
+  if (node->superclass) {
+    superclass = Eval(node->superclass.get());
+    if (!superclass->obj()->DynAs<Klass>()) {
+      Error("Base must be a class");  // todo: should be a semantic error
+    }
+  }
+  KlassData class_data{.name = node->attr->name->lexeme, .superclass = superclass};
+  auto klass = Object::MakeShared<Klass>(class_data);
+  WorkEnv()->Define(node->attr->name->lexeme, klass);
+  // klass is defined in outer scope, while methods generation are execute in inner scope
+  {
+    NewEnvGuard(this);
+    for (auto& method_stmt : node->methods) {
+      auto method = method_stmt->As<FunctionStmt>();  // todo : semantic check, only function stmt is allowed
+      klass->obj()->As<Klass>()->AddMethod(method->attr->name->lexeme, CreateClosure(method));
+    }
+  }
+  VisitorReturn(ObjectPtr());
+}
+
+void Evaluator::Visit(PrintStmt* node) {
+  auto ret_v = Eval(node->expression.get());
+  std::cout << ret_v->obj()->Str() << std::endl;
+  VisitorReturn(ObjectPtr());
 }
 void Evaluator::Visit(ExprStmt* state) {
-  Eval(state->expression());
-  VisitorReturn(object::VoidObject());
+  Eval(state->expression.get());
+  VisitorReturn(ObjectPtr());
 }
+
 void Evaluator::Visit(VarDeclStmt* state) {
-  auto value = object::VoidObject();
-  if (IsValid(state->initializer())) {
-    value = Eval(state->initializer());
+  auto value = ObjectPtr();
+  if (state->initializer) {
+    value = Eval(state->initializer.get());
   }
-  WorkEnv()->Define(state->name()->lexeme, value);
-  VisitorReturn(object::VoidObject());
+  WorkEnv()->Define(state->attr->name->lexeme, value);
+  VisitorReturn(ObjectPtr());
 }
+
 void Evaluator::Visit(BlockStmt* state) {
-  EnterNewScopeGuard guard(this);
-  for (auto& stmt : state->statements()) {
-    Eval(stmt);
+  NewEnvGuard guard(this);
+  for (auto& stmt : state->statements) {
+    Eval(stmt.get());
   }
-  VisitorReturn(object::VoidObject());
+  VisitorReturn(ObjectPtr());
 }
+
 void Evaluator::Visit(IfStmt* state) {
-  if (IsValueTrue((Eval(state->condition())))) {
-    Eval(state->thenBranch());
-  } else if (IsValid(state->elseBranch())) {
-    Eval(state->elseBranch());
+  auto cond_obj = Eval(state->condition.get());
+  if (cond_obj && cond_obj->obj()->IsTrue()) {
+    Eval(state->thenBranch.get());
+  } else if (state->elseBranch) {
+    Eval(state->elseBranch.get());
   }
-  VisitorReturn(object::VoidObject());
+  VisitorReturn(ObjectPtr());
 }
+
 void Evaluator::Visit(WhileStmt* state) {
-  while (IsValueTrue((Eval(state->condition())))) {
+  while (Eval(state->condition.get())->obj()->IsTrue()) {
     try {
-      Eval(state->body());
-    } catch (RuntimeError& err) {
-      if (err.SourceToken()->type == TokenType::BREAK) {
-        break;
-      }
-      throw;
+      Eval(state->body.get());
+    } catch (BreakException& err) {
+      break;
+    } catch (ContinueException& err) {
+      continue;
     }
   }
-  VisitorReturn(object::VoidObject());
+  VisitorReturn(ObjectPtr());
 }
-void Evaluator::Visit(BreakStmt* state) { throw(RuntimeError(state->src_token(), "Hit break")); }
-void Evaluator::Visit(FunctionStmt* state) {
-  LoxFunctionData fn_data{
-      .is_init_method = false,
-      .closure = WorkEnv(),
-      .function = std::static_pointer_cast<FunctionStmt>(state->shared_from_this()),
 
-  };
-  auto fn = object::MakeLoxObject<LoxFunction>(fn_data);
-  WorkEnv()->Define(state->name()->lexeme, fn);
-  // FreezeEnv(); use freeze env to "copy" capture
-  VisitorReturn(fn);
+void Evaluator::Visit(ForStmt* node) {
+  NewEnvGuard(this);  // for loop may create a new local variable
+  if (node->initializer) {
+    Eval(node->initializer.get());
+  }
+  for (; Eval(node->condition.get())->obj()->IsTrue(); node->increment ? Eval(node->increment.get()) : ObjectPtr()) {
+    try {
+      Eval(node->body.get());
+    } catch (BreakException& err) {
+      break;
+    } catch (ContinueException& err) {
+      continue;
+    }
+  }
+  VisitorReturn(ObjectPtr());
 }
+
+void Evaluator::Visit(BreakStmt* state) {
+  if (state->attr->src_token->type == TokenType::BREAK) {
+    throw BreakException();
+  }
+  if (state->attr->src_token->type == TokenType::CONTINUE) {
+    throw ContinueException();
+  }
+  Error("Not a valid break statement");  // todo: should be a semantic error
+}
+
 void Evaluator::Visit(ReturnStmt* state) {
-  auto ret = object::VoidObject();
-  if (IsValid(state->value())) {
-    ret = Eval(state->value());
+  auto ret = ObjectPtr();
+  if (state->value) {
+    ret = Eval(state->value.get());  // todo: check only `this` is allowed to return when in `init`
   }
-  throw ReturnValue(ret);
+  throw ReturnValueException(ret);
 }
-void Evaluator::Visit(ClassStmt* state) {
-  WorkEnv()->Define(state->name()->lexeme, object::VoidObject());
-  auto klass = object::VoidObject();
-  {
-    EnterNewScopeGuard(this, WorkEnv());
-    auto superclass = object::VoidObject();
-    if (IsValid(state->superclass())) {
-      superclass = Eval(state->superclass());
-      if (!superclass->DownCast<LoxClass>()) {
-        throw(RuntimeError(state->name(), "Base must be a class"));
-      }
-    }
-    LoxClassData class_data{.name = state->name()->lexeme,
-                            .superclass = std::static_pointer_cast<LoxClass>(superclass)};
-    klass = object::MakeLoxObject<LoxClass>(class_data);
-    for (auto& method_stmt : state->methods()) {
-      auto method_state = method_stmt->DownCast<FunctionStmt>();
-      LoxFunctionData fn_data{
-          .is_init_method = method_state->name()->lexeme == "init",
-          .closure = WorkEnv(),
-          .function = std::static_pointer_cast<FunctionStmt>(method_state->shared_from_this()),
-      };
-      auto method = object::MakeLoxObject<LoxFunction>(fn_data);
-      klass->SetAttr(method_state->name()->lexeme, method);
-    }
-  }
-  WorkEnv()->Set(state->name()->lexeme, klass);
-  VisitorReturn(object::VoidObject());
-}
-void Evaluator::Visit(GetAttrExpr* state) {
-  auto object = Eval(state->src_object());
-  const auto& attr_name = state->attr_name()->lexeme;
-  auto ret = object::VoidObject();
-  // Let's handle binding of this
-  if (auto instance = object->DownCast<LoxClassInstance>()) {
-    if (auto attr = instance->GetAttr(attr_name)) {
-      VisitorReturn(attr);
-    }
-    ret = instance->RawValue<LoxClassInstanceData>().klass->GetAttr(attr_name);
-    if (auto function = ret->DownCast<LoxFunction>()) {
-      ret = function->BindThis(instance->shared_from_this());
-    }
-  } else if (auto klass = object->DownCast<LoxClass>()) {
-    ret = klass->GetAttr(attr_name);
-    if (auto fn = ret->DownCast<LoxFunction>()) {
-      if (auto objcet_this = WorkEnv()->Get("this")) {
-        if (!(objcet_this->DownCast<LoxClassInstance>()->IsInstanceOf(klass))) {
-          throw(RuntimeError(state->attr_name(), klass->ToString() + " is not superclass"));
-        }
-        ret = fn->BindThis(objcet_this);
-      } else {
-        throw(RuntimeError(state->attr_name(), "Cannot use method out of method"));
-      }
-    }
-  } else {
-    ret = object->GetAttr(attr_name);
-  }
 
-  if (!IsValid(ret)) {
-    throw(RuntimeError(state->attr_name(), "No attr found"));
+ObjectPtr Evaluator::CreateClosure(FunctionStmt* function) {
+  auto closed = WorkEnv();
+  if (!closed->Parent()) {
+    closed = EnvPtr();  // we do not close global to avoid object defined in global create cycle with env
   }
-  VisitorReturn(ret);
+  ClosureData fn_data{
+      .closed = closed,
+      .function = function,
+  };
+  return Object::MakeShared<Closure>(fn_data);
 }
-void Evaluator::Visit(SetAttrExpr* state) {
-  auto object = Eval(state->src_object());
-  auto ret = Eval(state->value());
-  object->SetAttr(state->attr_name()->lexeme, Eval(state->value()));
-  VisitorReturn(ret);
+
+Evaluator::Evaluator() : work_env_(Environment::Make()) {
+  for (auto it : BuiltinCallables()) {
+    work_env_->Define(it.first, it.second);
+  }
 }
-}  // namespace lox
+
+ObjectPtr Evaluator::Eval(ASTNode* node) {
+  assert(node);
+  node->Accept(this);
+  return PopRet();
+}
+
+void Evaluator::Error(const std::string& msg) { throw RuntimeError(msg); }
+
+EnvPtr Evaluator::SwitchEnv(EnvPtr new_env) {
+  auto old_env = work_env_;
+  work_env_ = new_env;
+  return old_env;
+}
+void Evaluator::LaunchScript(FunctionStmt* script) {
+  Eval(script);  // define the <script>
+  auto callee = WorkEnv()->Get("<script>");
+  auto callable = dynamic_cast<ICallable*>(callee->obj());
+  assert(callable);
+  callable->Call(this, callee, {});
+}
+}  // namespace lox::twalker

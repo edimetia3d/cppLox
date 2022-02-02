@@ -1,4 +1,0 @@
-
-add_subdirectory(env_resolve_pass)
-add_library(tree_walker_passes INTERFACE)
-target_link_libraries(tree_walker_passes INTERFACE env_reslove_pass lox_common)

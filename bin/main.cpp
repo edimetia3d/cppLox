@@ -1,7 +1,6 @@
 
 
 #include <spdlog/spdlog.h>
-#include <sysexits.h>
 
 #include <CLI/CLI.hpp>
 #include <iostream>
@@ -32,6 +31,7 @@ void ArgsDef(CLI::App& app, CLIArgs& args) {
                  "could be one of{\"TreeWalker\",\"VirtualMachine\"}, default is \"VirtualMachine\"");
   app.add_option("--man", args.just_man, "Print user manual and return");
   app.add_option("--log_level", args.log_level, "Set the log level");
+  app.add_flag("--debug", GlobalSetting().debug, "Enable debug mode");
 }
 
 int main(int argn, char* argv[]) {
@@ -39,8 +39,6 @@ int main(int argn, char* argv[]) {
   CLIArgs args;
   ArgsDef(app, args);
   CLI11_PARSE(app, argn, argv);
-
-  LoxInterpreter interpreter;
 
   if (args.just_man) {
     PrintBuildInfo();
@@ -56,19 +54,20 @@ int main(int argn, char* argv[]) {
     spdlog::set_level(spdlog::level::err);
 #endif
   }
-  try {
-    if (!args.input_file.empty()) {
-      interpreter.RunFile(args.input_file);
-    } else {
-      interpreter.RunPrompt();
+  {
+    // use a scope to kill interpreter
+    LoxInterpreter interpreter;
+    try {
+      if (!args.input_file.empty()) {
+        interpreter.RunFile(args.input_file);
+      } else {
+        interpreter.RunPrompt();
+      }
+    } catch (const lox::LoxError& e) {
+      std::cerr << e.what() << std::endl;
+      return e.exit_code;
     }
-  } catch (const lox::LoxError& e) {
-    std::cerr << e.what() << std::endl;
-    return e.exit_code;
   }
-  int count = GC::Instance().ForceClearAll();
-  if (count) {
-    SPDLOG_DEBUG("GC destroyed {} Object at exit.", count);
-  }
+  GC::Instance().ForceClearAll();
   return 0;
 }

@@ -32,7 +32,12 @@ void GC::Sweep() {
   std::set<Object *> to_del;
   while (iter != list.end()) {
     if (!marked.contains(*iter)) {
-      to_del.insert((*iter));
+      if (Object::AllSharedPtrObj().contains(*iter)) {
+        auto sp = Object::AllSharedPtrObj()[*iter].lock();
+        sp->ForceDelete();
+      } else {
+        to_del.insert((*iter));
+      }
     }
     ++iter;
   }
@@ -57,11 +62,21 @@ bool GC::TryCollet() {
 }
 int GC::ForceClearAll() {
   int count = 0;
+  int shared_count = 0;
   auto objs = Object::AllCreatedObj();
-  for (auto key : objs) {
-    ++count;
-    delete key;
+  while (!Object::AllCreatedObj().empty()) {
+    auto key = *Object::AllCreatedObj().begin();
+    if (Object::AllSharedPtrObj().contains(key)) {
+      auto sp = Object::AllSharedPtrObj()[key].lock();
+      sp->ForceDelete();
+      ++shared_count;
+    } else {
+      delete key;
+      ++count;
+    }
   }
+  SPDLOG_DEBUG("GC destroyed {} Object in raw ptr.", count);
+  SPDLOG_DEBUG("GC destroyed {} Object in shared ptr.", shared_count);
   return count;
 }
 

@@ -5,121 +5,84 @@
 #ifndef CPPLOX_SRCS_LOX_AST_AST_NODE_H_
 #define CPPLOX_SRCS_LOX_AST_AST_NODE_H_
 
-#include <cassert>
-#include <functional>
 #include <memory>
-#include <set>
 #include <type_traits>
 #include <vector>
 
 namespace lox {
-class AstNode;
+
+/**
+ * A forward decl to make IASTNodeVisitor valid
+ */
+class IASTNodeVisitor;
+
+/**
+ * An ASTNode could have any extra data as it's attribute, anything that is not a child node should be stored in it's
+ * attribute.
+ */
+struct ASTNodeAttr {};
+
+class ASTNode;
 template <class T>
-concept SubclassOfAstNode = std::is_base_of<AstNode, T>::value;
+concept ConcreteASTNode = std::is_base_of<ASTNode, T>::value;
+using ASTNodePtr = std::unique_ptr<ASTNode>;
 
-class IAstNodeVisitor;
-
-class AstNode : public std::enable_shared_from_this<AstNode> {
+/**
+ * Expr and Stmt are both just an name alias of ASTNode, to make things clear.
+ *
+ * All ASTNode are created as unique_ptr. The parent node owns all its child,
+ * an ASTNode will and will only have one parent node.
+ */
+class ASTNode {
  public:
-  template <SubclassOfAstNode SubT, class... Args>
-  static std::shared_ptr<SubT> Make(Args... args) {
-    return std::shared_ptr<SubT>(new SubT(args...));
+  ASTNode() = default;
+
+  ASTNode(const ASTNode&) = delete;
+  ASTNode(ASTNode&&) = delete;
+
+  template <ConcreteASTNode SubT, class... Args>
+  static std::unique_ptr<SubT> Make(Args&&... args) {
+    return std::unique_ptr<SubT>(new SubT(std::forward<Args>(args)...));
   }
 
-  virtual void Accept(IAstNodeVisitor* visitor) = 0;
+  virtual void Accept(IASTNodeVisitor* visitor) = 0;
 
-  virtual bool IsModified() = 0;
-
-  virtual void ResetModify() = 0;
-
-  virtual std::set<AstNode*> Children() = 0;
-
-  template <SubclassOfAstNode T>
-  T* DownCast() {
-    return dynamic_cast<T*>(this);
+  template <ConcreteASTNode SubT>
+  SubT* As() {
+    return static_cast<SubT*>(this);
   }
 
-  virtual ~AstNode() = default;
+  template <ConcreteASTNode SubT>
+  SubT* DynAs() {
+    return dynamic_cast<SubT*>(this);
+  }
 
-  AstNode* Parent() { return parent_; }
+  ASTNode* Parent();
 
-  void Walk(std::function<void(AstNode*)> fn);
+  std::vector<ASTNode*> Children();
+
+  bool UpdateChild(const ASTNodePtr& old, ASTNodePtr&& replace);
+
+  bool UpdateChild(int child_index, ASTNodePtr&& replace);
+
+  virtual ~ASTNode() = default;
 
  protected:
-  // current element is always "owned" by parent through shared_ptr, to avoid cycle reference, just use a weak pointer
-  // here
-  AstNode* parent_ = nullptr;
+  ASTNode* parent_;
+  void AddChild(ASTNodePtr* child);
 
-  void UpdateChild(std::shared_ptr<AstNode> old_child, std::shared_ptr<AstNode> new_child);
-  void UpdateChild(std::vector<std::shared_ptr<AstNode>> old_child, std::vector<std::shared_ptr<AstNode>> new_child);
+  void AddChild(std::vector<ASTNodePtr>* child);
+  std::vector<ASTNodePtr*> children_;
 
-  bool is_modified_ = false;
-
-  void remove_child(std::shared_ptr<AstNode>& old_child);
-  void add_child(std::shared_ptr<AstNode>& new_child);
+ private:
+  void* operator new(size_t size) { return ::operator new(size); }
 };
 
-static inline bool IsValid(const std::shared_ptr<AstNode>& node) { return node.get(); }
+using Expr = ASTNode;
+using ExprPtr = std::unique_ptr<Expr>;
 
-template <SubclassOfAstNode T>
-static inline bool IsModified(std::shared_ptr<T> element) {
-  if (IsValid(element)) {
-    return element->IsModified();
-  }
-  return false;
-}
-template <SubclassOfAstNode T>
-static inline bool IsModified(const std::vector<std::shared_ptr<T>>& elements) {
-  bool ret = false;
-  for (auto& element : elements) {
-    ret = ret || IsModified(element);
-  }
-  return ret;
-}
+using Stmt = ASTNode;
+using StmtPtr = std::unique_ptr<Stmt>;
 
-template <SubclassOfAstNode T>
-static inline void ResetModify(std::shared_ptr<T> element) {
-  if (IsValid(element)) {
-    element->ResetModify();
-  }
-}
-template <SubclassOfAstNode T>
-static inline void ResetModify(const std::vector<std::shared_ptr<T>>& elements) {
-  for (auto& element : elements) {
-    ResetModify(element);
-  }
-}
-
-template <SubclassOfAstNode T>
-static inline void UpdateSet(std::set<AstNode*>& set, std::shared_ptr<T> element) {
-  if (IsValid(element)) {
-    set.insert(element.get());
-  }
-}
-template <SubclassOfAstNode T>
-static inline void UpdateSet(std::set<AstNode*>& set, const std::vector<std::shared_ptr<T>>& elements) {
-  for (auto& element : elements) {
-    UpdateSet(set, element);
-  }
-}
-
-template <SubclassOfAstNode Type, SubclassOfAstNode... Rest>
-bool MatchAnyType(AstNode* p) {
-  if (dynamic_cast<Type*>(p)) {
-    return true;
-  }
-  if constexpr (sizeof...(Rest) > 0) {
-    return MatchAnyType<Rest...>();
-  }
-  return false;
-}
-
-template <SubclassOfAstNode Type>
-Type* CastTo(AstNode* p) {
-  return dynamic_cast<Type*>(p);
-}
-
-using Expr = std::shared_ptr<AstNode>;
-using Stmt = std::shared_ptr<AstNode>;
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_AST_AST_NODE_H_
