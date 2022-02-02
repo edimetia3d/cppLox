@@ -10,7 +10,7 @@
 #include <unordered_map>
 
 #include "lox/object/object.h"
-#include "lox/object/value.h"
+#include "value.h"
 
 namespace lox::vm {
 

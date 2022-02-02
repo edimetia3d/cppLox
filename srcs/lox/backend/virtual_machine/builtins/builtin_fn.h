@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 
-#include "lox/object/value.h"
+#include "lox/backend/virtual_machine/object/value.h"
 
 /**
  * Every native function is a `Value (int argCount, Value* args)` style

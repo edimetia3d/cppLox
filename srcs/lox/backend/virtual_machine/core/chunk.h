@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "lox/backend/virtual_machine/core/opcode.h"
-#include "lox/object/value.h"
+#include "lox/backend/virtual_machine/object/value.h"
 
 namespace lox::vm {
 /**

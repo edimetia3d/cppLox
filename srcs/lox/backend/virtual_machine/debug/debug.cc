@@ -6,7 +6,7 @@
 #include "lox/backend/virtual_machine/core/chunk.h"
 #include "lox/backend/virtual_machine/core/vm.h"
 #include "lox/backend/virtual_machine/object/object.h"
-#include "lox/object/value.h"
+#include "lox/backend/virtual_machine/object/value.h"
 
 namespace lox::vm {
 

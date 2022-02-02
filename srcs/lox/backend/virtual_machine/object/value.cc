@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/object/value.h"
+#include "value.h"
 
 #include <numeric>
 

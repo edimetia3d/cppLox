@@ -29,7 +29,7 @@
 #include "lox/backend/virtual_machine/core/function_unit.h"
 #include "lox/frontend/scanner.h"
 #include "lox/object/gc.h"
-#include "lox/object/value.h"
+#include "lox/backend/virtual_machine/object/value.h"
 
 namespace lox::vm {
 
