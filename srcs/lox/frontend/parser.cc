@@ -200,6 +200,7 @@ StmtPtr lox::Parser::AnyStatement() {
     return DoAnyStatement();
   } catch (const ParserError& e) {
     Synchronize();
+    std::cerr << e.what() << std::endl;
     return StmtPtr();
   }
 }

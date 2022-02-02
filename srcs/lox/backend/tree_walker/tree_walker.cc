@@ -16,6 +16,9 @@ TreeWalker::TreeWalker() { evaluator_ = std::make_shared<Evaluator>(); }
 void TreeWalker::Run(Scanner &scanner) {
   Parser parser(&scanner);
   auto root = parser.Parse();
+  if (!root) {
+    throw ParserError("Parse failed");
+  }
 #ifndef NDEBUG
   if (root && GlobalSetting().debug) {
     AstPrinter printer;
