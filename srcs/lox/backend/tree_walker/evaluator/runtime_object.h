@@ -39,7 +39,8 @@ class ICallable {
    * 1. return value by throw an ReturnValueException
    * 2. return value by return a value
    *
-   * note: for we did ot use enable_shared_from_this, we can not get shared this from definition,
+   * note:
+   * 1. for we did ot use enable_shared_from_this, we can not get shared this from definition,
    * the param this_in_sp should be given by caller
    */
   virtual ObjectPtr Call(Evaluator* evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) = 0;
@@ -50,24 +51,25 @@ class Bool : public TWObject<bool> {
   using TWObject<DataType>::TWObject;
   bool IsTrue() const override { return data; }
   std::string Str() const override { return (data ? "true" : "false"); }
+  bool Equal(const Object* rhs) const override { return rhs->DynAs<Bool>() && rhs->As<Bool>()->data == data; }
 };
 
 class Number : public TWObject<double> {
  public:
   using TWObject<DataType>::TWObject;
-  bool IsTrue() const override { return data; }
   std::string Str() const override {
     std::vector<char> buf(30);
     snprintf(buf.data(), buf.size(), "%g", data);
     return buf.data();
   }
+  bool Equal(const Object* rhs) const override { return rhs->DynAs<Number>() && rhs->As<Number>()->data == data; }
 };
 
 class String : public TWObject<std::string> {
  public:
   using TWObject<DataType>::TWObject;
-  bool IsTrue() const override { return !data.empty(); }
   std::string Str() const override { return data; }
+  bool Equal(const Object* rhs) const override { return rhs->DynAs<String>() && rhs->As<String>()->data == data; }
 };
 
 class Nil : public lox::Object {
@@ -75,6 +77,7 @@ class Nil : public lox::Object {
   bool IsTrue() const override { return false; }
   std::string Str() const override { return "nil"; }
   std::vector<Object*> References() override { return {}; }
+  bool Equal(const Object* rhs) const override { return rhs->DynAs<Nil>(); }
 };
 
 class Klass;
@@ -91,13 +94,13 @@ struct InstanceData {
 class Instance : public TWObject<InstanceData> {
  public:
   using TWObject<DataType>::TWObject;
-  bool IsTrue() const override { return static_cast<bool>(this); }
   std::string Str() const override;
 };
 
 class Environment;
 struct ClosureData {
-  EnvPtr closed;  // note that when created, `closed` is a capture of the caller's environment
+  bool is_initializer = false;  // only method could use this
+  EnvPtr closed;                // note that when created, `closed` is a capture of the caller's environment
   FunctionStmt* function;
 };
 

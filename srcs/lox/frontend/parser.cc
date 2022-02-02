@@ -141,6 +141,7 @@ ExprPtr lox::Parser::Primary() {
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
     return ASTNode::Make<GroupingExpr>(GroupingExprAttr{}, std::move(expr));
   }
+  Advance();  // Consume the error token and error
   Error(Peek(), "Primary get unknown token");
   return nullptr;
 }
@@ -176,13 +177,9 @@ void lox::Parser::Synchronize() {
 }
 std::unique_ptr<lox::FunctionStmt> lox::Parser::Parse() {
   std::vector<StmtPtr> statements;
-  bool err_found = false;
+  err_found = false;
   while (!IsAtEnd()) {
     auto stmt = AnyStatement();
-    if (!stmt) {
-      err_found = true;
-      statements.clear();
-    }
     if (!err_found) {
       statements.push_back(std::move(stmt));
     }
@@ -339,7 +336,7 @@ StmtPtr Parser::ReturnStmt() {
   }
 
   Consume(TokenType::SEMICOLON, "Expect ';' after return value.");
-  return ASTNode::Make<lox::ReturnStmt>(ReturnStmtAttr{.keyword = keyword}, std::move(value));
+  return ASTNode::Make<lox::ReturnStmt>(ReturnStmtAttr{.src_token = keyword}, std::move(value));
 }
 StmtPtr Parser::ClassDefStmt() {
   Token name = Consume(TokenType::IDENTIFIER, "Expect class name.");
@@ -360,6 +357,7 @@ StmtPtr Parser::ClassDefStmt() {
   return ASTNode::Make<ClassStmt>(ClassStmtAttr{.name = name}, std::move(superclass), std::move(methods));
 }
 void Parser::Error(Token token, const std::string& msg) {
+  err_found = true;
   ParserError err(token->Dump() + ": " + msg);
   throw err;
 }

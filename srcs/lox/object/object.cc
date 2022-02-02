@@ -33,4 +33,5 @@ void GCSpObject::ForceDelete() {
   delete obj_;
   obj_ = nullptr;
 }
+ObjectPtr NullObject() { return ObjectPtr(); }
 }  // namespace lox

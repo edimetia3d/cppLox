@@ -14,12 +14,12 @@ class Clock : public lox::Object, public ICallable {
     double clk = clock();
     return Object::MakeShared<Number>(clk);
   }
-  std::string Str() const override { return "builtin <fn clock>"; }
+  std::string Str() const override { return "<native fn>"; }
   std::vector<Object*> References() override { return {}; }
 };
 
 std::map<std::string, ObjectPtr> BuiltinCallables() {
-  std::map<std::string, ObjectPtr> map{{"Clock", Object::MakeShared<Clock>()}};
+  std::map<std::string, ObjectPtr> map{{"clock", Object::MakeShared<Clock>()}};
   return map;
 }
 }  // namespace lox::twalker

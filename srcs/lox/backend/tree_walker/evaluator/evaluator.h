@@ -62,9 +62,14 @@ class Evaluator : public AstNodeVisitor<ObjectPtr> {
 
   void NumberBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right);
   void StringBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right);
+  /**
+   * Used for closure capture, a env fork will be created, so later update of env will not affect the captured env.
+   */
+  EnvPtr ForkEnv();
+  ObjectPtr CreateClosure(FunctionStmt* function);
 
   EnvPtr work_env_;
-  ObjectPtr CreateClosure(FunctionStmt* function);
+  const EnvPtr global_env_;
 };
 
 }  // namespace lox::twalker

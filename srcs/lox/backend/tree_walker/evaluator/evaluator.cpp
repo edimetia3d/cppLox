@@ -84,6 +84,16 @@ void Evaluator::Visit(LogicalExpr* node) {
 void Evaluator::Visit(BinaryExpr* node) {
   auto left = Eval(node->left.get());
   auto right = Eval(node->right.get());
+
+  switch (node->attr->op->type) {
+    case TokenType::EQUAL_EQUAL:
+      VisitorReturn(Object::MakeShared<Bool>(left->obj()->Equal(right->obj())));
+    case TokenType::BANG_EQUAL:
+      VisitorReturn(Object::MakeShared<Bool>(!left->obj()->Equal(right->obj())));
+    default:
+      break;
+  }
+
   if (left->obj()->DynAs<Number>() && right->obj()->DynAs<Number>()) {
     return NumberBinaryOp(node, left, right);
   }
@@ -113,18 +123,14 @@ void Evaluator::NumberBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr
       VisitorReturn(Object::MakeShared<Number>(left_num * right_num));
     case TokenType::SLASH:
       VisitorReturn(Object::MakeShared<Number>(left_num / right_num));
-    case TokenType::EQUAL_EQUAL:
-      VisitorReturn(Object::MakeShared<Number>(left_num == right_num));
-    case TokenType::BANG_EQUAL:
-      VisitorReturn(Object::MakeShared<Number>(left_num != right_num));
     case TokenType::LESS:
-      VisitorReturn(Object::MakeShared<Number>(left_num < right_num));
+      VisitorReturn(Object::MakeShared<Bool>(left_num < right_num));
     case TokenType::GREATER:
-      VisitorReturn(Object::MakeShared<Number>(left_num > right_num));
+      VisitorReturn(Object::MakeShared<Bool>(left_num > right_num));
     case TokenType::LESS_EQUAL:
-      VisitorReturn(Object::MakeShared<Number>(left_num <= right_num));
+      VisitorReturn(Object::MakeShared<Bool>(left_num <= right_num));
     case TokenType::GREATER_EQUAL:
-      VisitorReturn(Object::MakeShared<Number>(left_num >= right_num));
+      VisitorReturn(Object::MakeShared<Bool>(left_num >= right_num));
     default:
       Error("Not a valid Binary Op.");
   }
@@ -141,6 +147,9 @@ void Evaluator::Visit(GetAttrExpr* node) {
   // get attr may return normal object or bounded method
   auto object = Eval(node->src_object.get());
   const auto& attr_name = node->attr->attr_name->lexeme;
+  if (!object->obj()->DynAs<Instance>() || !object->obj()->As<Klass>()) {
+    Error("Only instance/class can get attr.");
+  }
 
   Klass* klass = nullptr;
   ObjectPtr objcet_this;
@@ -163,7 +172,7 @@ void Evaluator::Visit(GetAttrExpr* node) {
       Error("Cannot use method out of method");  // todo: this should be a semantic error
     }
   }
-  auto fn = klass->GetMethod(objcet_this, attr_name)->obj()->DynAs<Closure>();
+  ret = klass->GetMethod(objcet_this, attr_name);
   if (!ret) {
     Error("No attr found");
   }
@@ -173,6 +182,9 @@ void Evaluator::Visit(GetAttrExpr* node) {
 void Evaluator::Visit(SetAttrExpr* node) {
   auto object = Eval(node->src_object.get());
   auto ret = Eval(node->value.get());
+  if (!object->obj()->DynAs<Instance>()) {
+    Error("Only instance can set attr.");
+  }
   object->obj()->DynAs<Instance>()->data.dict()[node->attr->attr_name->lexeme] = ret;
   VisitorReturn(ret);
 }
@@ -194,20 +206,17 @@ void Evaluator::Visit(CallExpr* node) {
   }
 
   NewEnvGuard guard(this);  // used as temporary local
-  try {
-    VisitorReturn(callable->Call(this, callee, arguments));
-  } catch (const ReturnValueException& e) {
-    VisitorReturn(e.ret);
-  }
+  VisitorReturn(callable->Call(this, callee, arguments));
 }
 
 void Evaluator::Visit(FunctionStmt* node) {
+  WorkEnv()->Define(node->attr->name->lexeme, NullObject());  // define first to support recursion
   auto closure = CreateClosure(node);
-  WorkEnv()->Define(node->attr->name->lexeme, closure);
-  VisitorReturn(ObjectPtr());
+  WorkEnv()->Set(node->attr->name->lexeme, closure);
+  VisitorReturn(NullObject());
 }
 void Evaluator::Visit(ClassStmt* node) {
-  auto superclass = ObjectPtr();
+  auto superclass = NullObject();
   if (node->superclass) {
     superclass = Eval(node->superclass.get());
     if (!superclass->obj()->DynAs<Klass>()) {
@@ -219,32 +228,32 @@ void Evaluator::Visit(ClassStmt* node) {
   WorkEnv()->Define(node->attr->name->lexeme, klass);
   // klass is defined in outer scope, while methods generation are execute in inner scope
   {
-    NewEnvGuard(this);
+    NewEnvGuard guard(this);
     for (auto& method_stmt : node->methods) {
       auto method = method_stmt->As<FunctionStmt>();  // todo : semantic check, only function stmt is allowed
       klass->obj()->As<Klass>()->AddMethod(method->attr->name->lexeme, CreateClosure(method));
     }
   }
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 
 void Evaluator::Visit(PrintStmt* node) {
   auto ret_v = Eval(node->expression.get());
   std::cout << ret_v->obj()->Str() << std::endl;
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 void Evaluator::Visit(ExprStmt* state) {
   Eval(state->expression.get());
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 
 void Evaluator::Visit(VarDeclStmt* state) {
-  auto value = ObjectPtr();
+  auto value = Object::MakeShared<Nil>();
   if (state->initializer) {
     value = Eval(state->initializer.get());
   }
   WorkEnv()->Define(state->attr->name->lexeme, value);
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 
 void Evaluator::Visit(BlockStmt* state) {
@@ -252,17 +261,17 @@ void Evaluator::Visit(BlockStmt* state) {
   for (auto& stmt : state->statements) {
     Eval(stmt.get());
   }
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 
 void Evaluator::Visit(IfStmt* state) {
   auto cond_obj = Eval(state->condition.get());
   if (cond_obj && cond_obj->obj()->IsTrue()) {
-    Eval(state->thenBranch.get());
-  } else if (state->elseBranch) {
-    Eval(state->elseBranch.get());
+    Eval(state->then_branch.get());
+  } else if (state->else_branch) {
+    Eval(state->else_branch.get());
   }
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 
 void Evaluator::Visit(WhileStmt* state) {
@@ -275,15 +284,17 @@ void Evaluator::Visit(WhileStmt* state) {
       continue;
     }
   }
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 
 void Evaluator::Visit(ForStmt* node) {
-  NewEnvGuard(this);  // for loop may create a new local variable
+  NewEnvGuard guard(this);  // for loop may create a new local variable in initializer
   if (node->initializer) {
     Eval(node->initializer.get());
   }
-  for (; Eval(node->condition.get())->obj()->IsTrue(); node->increment ? Eval(node->increment.get()) : ObjectPtr()) {
+  NewEnvGuard guard2(this);
+  for (; !node->condition || Eval(node->condition.get())->obj()->IsTrue();
+       node->increment && Eval(node->increment.get())) {
     try {
       Eval(node->body.get());
     } catch (BreakException& err) {
@@ -292,7 +303,7 @@ void Evaluator::Visit(ForStmt* node) {
       continue;
     }
   }
-  VisitorReturn(ObjectPtr());
+  VisitorReturn(NullObject());
 }
 
 void Evaluator::Visit(BreakStmt* state) {
@@ -306,7 +317,7 @@ void Evaluator::Visit(BreakStmt* state) {
 }
 
 void Evaluator::Visit(ReturnStmt* state) {
-  auto ret = ObjectPtr();
+  auto ret = NullObject();
   if (state->value) {
     ret = Eval(state->value.get());  // todo: check only `this` is allowed to return when in `init`
   }
@@ -315,8 +326,8 @@ void Evaluator::Visit(ReturnStmt* state) {
 
 ObjectPtr Evaluator::CreateClosure(FunctionStmt* function) {
   auto closed = WorkEnv();
-  if (!closed->Parent()) {
-    closed = EnvPtr();  // we do not close global to avoid object defined in global create cycle with env
+  if (closed != global_env_) {
+    closed = ForkEnv();  // need to create a fork, so later update of local env will not be captured
   }
   ClosureData fn_data{
       .closed = closed,
@@ -325,7 +336,7 @@ ObjectPtr Evaluator::CreateClosure(FunctionStmt* function) {
   return Object::MakeShared<Closure>(fn_data);
 }
 
-Evaluator::Evaluator() : work_env_(Environment::Make()) {
+Evaluator::Evaluator() : work_env_(Environment::Make()), global_env_(work_env_) {
   for (auto it : BuiltinCallables()) {
     work_env_->Define(it.first, it.second);
   }
@@ -345,10 +356,13 @@ EnvPtr Evaluator::SwitchEnv(EnvPtr new_env) {
   return old_env;
 }
 void Evaluator::LaunchScript(FunctionStmt* script) {
-  Eval(script);  // define the <script>
-  auto callee = WorkEnv()->Get("<script>");
-  auto callable = dynamic_cast<ICallable*>(callee->obj());
-  assert(callable);
-  callable->Call(this, callee, {});
+  for (auto& stmt : script->body) {
+    Eval(stmt.get());
+  }
+}
+EnvPtr Evaluator::ForkEnv() {
+  auto env = WorkEnv();
+  work_env_ = Environment::Make(env);
+  return env;
 }
 }  // namespace lox::twalker

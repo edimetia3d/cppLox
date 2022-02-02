@@ -65,10 +65,10 @@ void AstPrinter::Visit(BlockStmt* node) {
 void AstPrinter::Visit(IfStmt* node) {
   auto indentation = Indentation();
   std::string ret = indentation + "if (" + Print(node->condition.get()) + ")";
-  PossibleBlockPrint(node->thenBranch.get(), ret);
-  if (node->elseBranch) {
+  PossibleBlockPrint(node->then_branch.get(), ret);
+  if (node->else_branch) {
     ret += (indentation + "else ");
-    PossibleBlockPrint(node->elseBranch.get(), ret);
+    PossibleBlockPrint(node->else_branch.get(), ret);
   }
   VisitorReturn(ret);
 }

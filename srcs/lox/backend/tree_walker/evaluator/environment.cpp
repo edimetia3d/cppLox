@@ -27,7 +27,7 @@ ObjectPtr Environment::Get(std::string var_name) {
     if (parent_) {
       return parent_->Get(var_name);
     }
-    throw RuntimeError("Var Not found");
+    return NullObject();
   }
   return map[var_name];
 }

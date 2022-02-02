@@ -21,21 +21,27 @@ ObjectPtr Closure::Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<
   for (int i = 0; i < N; ++i) {
     evaluator->WorkEnv()->Define(data.function->attr->params[i]->lexeme, arguments[i]);
   }
-  for (auto &stmt : data.function->body) {
-    evaluator->Eval(stmt.get());
+  auto ret = NullObject();
+  try {
+    for (auto &stmt : data.function->body) {
+      evaluator->Eval(stmt.get());
+    }
+  } catch (const ReturnValueException &e) {
+    ret = e.ret;
   }
-  // if no return was thrown, we gen a default return value.
-  // todo: use a pass to inject a return statement is better.
-  auto default_ret = ObjectPtr();
-  if (data.function->attr->name->lexeme == "init") {
-    default_ret = evaluator->WorkEnv()->Get("this");
+  if (!ret) {
+    if (data.is_initializer) {
+      ret = data.closed->Get("this");
+    } else {
+      ret = Object::MakeShared<Nil>();
+    }
   }
-  return default_ret;
+  return ret;
 }
-std::string Closure::Str() const { return std::string("Function ") + data.function->attr->name->lexeme; }
+std::string Closure::Str() const { return std::string("<fn ") + data.function->attr->name->lexeme + ">"; }
 
 int Klass::Arity() {
-  auto init_fn = GetMethod(ObjectPtr(), "init");
+  auto init_fn = GetMethod(NullObject(), "init");
   if (init_fn) {
     return init_fn->obj()->As<Closure>()->Arity();
   }
@@ -48,37 +54,46 @@ ObjectPtr Klass::Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<Ob
   auto ret = Object::MakeShared<Instance>(data);
   auto init_fn = GetMethod(ret, "init");
   if (init_fn) {
-    init_fn->obj()->As<Closure>()->Call(evaluator, ret, arguments);
+    auto init_ret = init_fn->obj()->As<Closure>()->Call(evaluator, init_fn, arguments);
+    assert(init_ret->obj() == ret->obj());
   }
   return ret;
 }
-std::string Klass::Str() const { return std::string("class ") + data.name; }
+std::string Klass::Str() const { return data.name; }
 
 ObjectPtr Klass::GetMethod(ObjectPtr object_this, const std::string &name) {
   auto klass = this;
-  if (!klass->data.methods.contains(name)) {
-    klass = klass->data.superclass->obj()->As<Klass>();
+  while (klass && !klass->data.methods.contains(name)) {
+    if (klass->data.superclass) {
+      klass = klass->data.superclass->obj()->As<Klass>();
+    } else {
+      klass = nullptr;
+    }
   }
   if (klass) {
     auto closure = klass->data.methods[name]->obj()->As<Closure>();
-    ClosureData data{.closed = Environment::Make(closure->data.closed), .function = closure->data.function};
-    data.closed->Define("this", object_this);
-    if (klass->data.superclass) {
-      auto super_instance_data = object_this->obj()->DynAs<Instance>()->data;
-      super_instance_data.klass = klass->data.superclass;
-      data.closed->Define("super", Object::MakeShared<Instance>(super_instance_data));
+    ClosureData data{.is_initializer = closure->data.function->DynAs<FunctionStmt>()->attr->name->lexeme == "init",
+                     .closed = Environment::Make(closure->data.closed),
+                     .function = closure->data.function};
+    if (object_this) {
+      data.closed->Define("this", object_this);
+      if (klass->data.superclass) {
+        auto super_instance_data = object_this->obj()->DynAs<Instance>()->data;
+        super_instance_data.klass = klass->data.superclass;
+        data.closed->Define("super", Object::MakeShared<Instance>(super_instance_data));
+      }
     }
     return Object::MakeShared<Closure>(data);
   }
 
-  return ObjectPtr();
+  return NullObject();
 }
 void Klass::AddMethod(const std::string &name, ObjectPtr method) {
   assert(method->obj()->Is<Closure>());
   data.methods[name] = method;
 }
 
-std::string Instance::Str() const { return std::string("Instance of ") + data.klass->obj()->Str(); }
+std::string Instance::Str() const { return data.klass->obj()->Str() + " instance"; }
 
 InstanceData::InstanceData() noexcept : dict_(std::make_shared<DictT>()) {}
 }  // namespace lox::twalker

@@ -33,9 +33,8 @@ popd
 
 pushd craftinginterpreters
 echo "Testing with virtual machine"
-
 dart tool/bin/test.dart clox --interpreter "$BINARY_PATH"
 
 echo "Testing with tree walker"
-dart tool/bin/test.dart jlox operator/add.lox --interpreter "$BINARY_PATH"  --loose_mode --arguments --backend="TreeWalker"
+dart tool/bin/test.dart jlox --interpreter "$BINARY_PATH"  --loose_mode --arguments --backend="TreeWalker"
 popd

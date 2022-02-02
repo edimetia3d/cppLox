@@ -1,7 +1,3 @@
-// todo: clean up error system of tree-walker
 // todo: add test for break/continue/classname.attr
 // todo: add test for gc
-// todo: fix stack print to avoid loose mode
-// todo: fix object creation controll
-// todo: fix interactive mode from top to down
-// todo: fix clean up all obj/ast class
+// todo: clean up semantic check

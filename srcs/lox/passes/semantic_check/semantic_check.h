@@ -5,6 +5,8 @@
 #define CPPLOX_SRCS_LOX_PASSES_SEMANTIC_CHECK_SEMANTIC_CHECK_H_
 
 #include <map>
+#include <set>
+#include <string>
 #include <memory>
 #include <vector>
 
@@ -25,8 +27,36 @@ struct ClassInfo {
 
 struct LoopInfo {};
 
+enum class FunctionType {
+  NONE,
+  FUNCTION,
+  METHOD,
+  INITIALIZER,
+};
+
+enum class ScopeType {
+  NONE,
+  FUNCTION,
+  BLOCK,
+  CLASS,
+  GLOBAL,
+};
+struct ScopeInfo {
+  ScopeType type;
+  std::set<std::string> locals;
+};
+
 struct FunctionInfo {
-  int semantic_depth = 0;
+  FunctionInfo(FunctionType type, std::string name) : type(type), name(name) {
+    if (name == "<script>") {
+      scopes.push_back(ScopeInfo{.type = ScopeType::GLOBAL});
+    } else {
+      scopes.push_back(ScopeInfo{.type = lox::ScopeType::FUNCTION});
+    }
+  }
+  FunctionType type;
+  std::string name;
+  std::vector<ScopeInfo> scopes;
 };
 
 class SemanticCheck : public Pass {
@@ -40,6 +70,7 @@ class SemanticCheck : public Pass {
   std::vector<FunctionInfo> function_infos;
   std::map<std::string, std::shared_ptr<ClassInfo>> all_classes;
   std::vector<std::shared_ptr<ClassInfo>> class_infos;
+  void AddNamedValue(const std::string& name);
 };
 }  // namespace lox
 

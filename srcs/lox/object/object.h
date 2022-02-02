@@ -30,6 +30,8 @@ struct GCSpObject {
 using ObjectPtr = std::shared_ptr<GCSpObject>;
 using ObjectWeakPtr = std::weak_ptr<GCSpObject>;
 
+ObjectPtr NullObject();
+
 struct Object {
   Object();
 

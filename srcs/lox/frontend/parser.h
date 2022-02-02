@@ -32,7 +32,7 @@ class Parser {
 
   std::unique_ptr<lox::FunctionStmt> Parse();
 
- private:
+ protected:
   const Token& Peek() { return current; }
 
   Token Consume(TokenType type, const std::string& message);
@@ -80,9 +80,19 @@ class Parser {
   StmtPtr VarDefStmt();
   StmtPtr WhileStmt();
 
+  virtual ExprPtr AnyExpression() = 0;
+
   std::vector<StmtPtr> GetBlocks();
 
-  ExprPtr AnyExpression();
+  Scanner* scanner_;
+  Token previous;
+  Token current;
+  bool err_found = false;
+};
+
+class RecursiveDescentParser : public Parser {
+ protected:
+  ExprPtr AnyExpression() override;
   ExprPtr AssignExpr();
   ExprPtr OrExpr();
   ExprPtr AndExpr();
@@ -97,9 +107,6 @@ class Parser {
   template <ExprPtr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
   ExprPtr BinaryExpr();
 
-  Scanner* scanner_;
-  Token previous;
-  Token current;
 };
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_PARSER_H_
