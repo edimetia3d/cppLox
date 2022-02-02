@@ -7,9 +7,9 @@
 #include "lox/common/lox_error.h"
 
 namespace lox::twalker {
-class RuntimeError : public LoxError {
+class RuntimeError : public LoxErrorWithExitCode<EX_SOFTWARE> {
  public:
-  using LoxError::LoxError;
+  using LoxErrorWithExitCode<EX_SOFTWARE>::LoxErrorWithExitCode;
 };
 }  // namespace lox::twalker
 #endif  // LOX_SRCS_LOX_BACKEND_TREE_WALKER_EVALUATOR_RUNTIME_ERROR_H

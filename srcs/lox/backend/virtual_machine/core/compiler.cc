@@ -583,11 +583,13 @@ void Compiler::PushCU(FunctionType type, const std::string &name) {
 std::unique_ptr<FunctionUnit> Compiler::PopCU() {
   cu_->EmitDefaultReturn();  // always inject a default return to make sure the function ends
 #ifndef NDEBUG
-  SPDLOG_DEBUG("=========== {:^20} CODE  ===========", cu_->func->name);
-  DumpChunkCode(cu_->FuncChunk());
-  SPDLOG_DEBUG("=========== {:^20} CONST ===========", cu_->func->name);
-  DumpChunkConstant(cu_->FuncChunk());
-  SPDLOG_DEBUG("=========== {:^20} END   ===========", cu_->func->name);
+  if (GlobalSetting().debug) {
+    SPDLOG_DEBUG("=========== {:^20} CODE  ===========", cu_->func->name);
+    DumpChunkCode(cu_->FuncChunk());
+    SPDLOG_DEBUG("=========== {:^20} CONST ===========", cu_->func->name);
+    DumpChunkConstant(cu_->FuncChunk());
+    SPDLOG_DEBUG("=========== {:^20} END   ===========", cu_->func->name);
+  }
 #endif
   auto latest_cu = cu_;
   cu_ = cu_->enclosing;

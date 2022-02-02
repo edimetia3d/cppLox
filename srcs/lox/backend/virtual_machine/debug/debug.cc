@@ -181,6 +181,9 @@ class ChunkDump {
   void AppendLatestLine(const char *format, ...) {
     va_list args;
     va_start(args, format);
+    if (valid_line_content_size >= latest_line_buf.size() / 2) {
+      latest_line_buf.resize(latest_line_buf.size() * 2);
+    }
     int new_offset = vsnprintf(latest_line_buf.data() + valid_line_content_size,
                                latest_line_buf.size() - valid_line_content_size, format, args);
     va_end(args);
@@ -199,9 +202,12 @@ class ChunkDump {
 };
 
 void DumpStack(const VM *vm) {
-  std::vector<char> buf(1000);
+  std::vector<char> buf(1024);
   auto head = snprintf(buf.data(), buf.size(), "Stack: ");
   for (const Value *slot = vm->stack_; slot != vm->sp_; ++slot) {
+    if (head >= buf.size() / 2) {
+      buf.resize(buf.size() * 2);
+    }
     if (vm->active_frame_->slots == slot) {
       head += snprintf(buf.data() + head, buf.size() - head, "|Frame|>");
     }
@@ -211,10 +217,13 @@ void DumpStack(const VM *vm) {
 }
 
 void DumpGlobal(const VM *vm) {
-  std::vector<char> buf(1000);
+  std::vector<char> buf(1024);
   auto head = snprintf(buf.data(), buf.size(), "Global: ");
   auto iter = vm->globals_.begin();
   while (iter != vm->globals_.end()) {
+    if (head >= buf.size() / 2) {
+      buf.resize(buf.size() * 2);
+    }
     head +=
         snprintf(buf.data() + head, buf.size() - head, "{ %s : %s }", iter->first->c_str(), iter->second.Str().c_str());
     ++iter;

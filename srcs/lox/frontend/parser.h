@@ -15,9 +15,9 @@
 #include "lox/token/token.h"
 namespace lox {
 
-class ParserError : public LoxError {
+class ParserError : public LoxErrorWithExitCode<EX_DATAERR> {
  public:
-  using LoxError::LoxError;
+  using LoxErrorWithExitCode<EX_DATAERR>::LoxErrorWithExitCode;
 };
 
 /**

@@ -38,14 +38,14 @@ void VM::Run() {
   SPDLOG_DEBUG("===============================================");
   SPDLOG_DEBUG("===============Start Execution=================");
   SPDLOG_DEBUG("===============================================");
-  if (lox::GlobalSetting().single_step_mode) {
+  if (lox::GlobalSetting().single_step_mode && lox::GlobalSetting().debug) {
     printf("Press Enter to start/continue execution.\n");
     getchar();
   }
 #endif
   for (;;) {
 #ifndef NDEBUG
-    if (lox::GlobalSetting().runtime_dump_frequency != RuntimeDumpFrequency::NONE) {
+    if (lox::GlobalSetting().runtime_dump_frequency != RuntimeDumpFrequency::NONE && lox::GlobalSetting().debug) {
       int offset = ip_ - active_frame_->closure->function->chunk->code.data();
 
       bool should_dump_runtime_info = false;
@@ -351,18 +351,27 @@ void VM::Interpret(ObjFunction *function) {
 }
 
 void VM::Error(const char *format, ...) {
-  std::vector<char> buf(256);
+  std::vector<char> buf(1024);
   va_list args;
   va_start(args, format);
-  vsnprintf(buf.data(), 256, format, args);
+  int size = 0;
+  size += vsnprintf(buf.data(), buf.size() - size, format, args);
   va_end(args);
-#ifndef NDEBUG
-  for (auto fp = frames_; fp <= active_frame_; ++fp) {
-    ObjFunction *function = fp->closure->function;
-    size_t instruction = ip_ - function->chunk->code.data() - 1;
-    SPDLOG_DEBUG("[line {}] in {}() \n", function->chunk->lines[instruction], function->name);
+  uint8_t *ip = ip_;
+  for (auto p_frame = active_frame_; p_frame != (frames_ - 1); --p_frame) {
+    if (size >= buf.size() / 2) {
+      buf.resize(buf.size() * 2);
+    }
+    auto function = p_frame->closure->function;
+    size_t instruction = ip - function->chunk->code.data() - 1;
+    size += snprintf(buf.data() + size, buf.size() - size, "\n[line %d] in ", function->chunk->lines[instruction] + 1);
+    if (function->name.empty()) {
+      size += snprintf(buf.data() + size, buf.size() - size, "script\n");
+    } else {
+      size += snprintf(buf.data() + size, buf.size() - size, "%s()\n", function->name.c_str());
+    }
+    ip = p_frame->return_address;
   }
-#endif
   Rescue();
   throw RuntimeError(std::string(buf.data()));
 }

@@ -1,5 +1,5 @@
 #!/bin/sh
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=`realpath $(dirname "$0")`
 
 if [ "$#" -lt 2 ]; then
   SRC_DIR=$SCRIPT_DIR/..
@@ -34,40 +34,8 @@ popd
 pushd craftinginterpreters
 echo "Testing with virtual machine"
 
-dart tool/bin/test.dart clox assignment --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox benchmark --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox block --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox bool --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox call --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox class --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox closure --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox comments --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox constructor --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox expressions --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox field --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox for --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox function --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox if --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox inheritance --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox limit --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox logical_operator --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox method --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox nil --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox number --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox operator --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox print --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox regression --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox return --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox scanning --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox string --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox super --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox this --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox variable --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox while --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox empty_file.lox --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox precedence.lox --interpreter "$BINARY_PATH" --loose_mode
-dart tool/bin/test.dart clox unexpected_character.lox --interpreter "$BINARY_PATH" --loose_mode
+dart tool/bin/test.dart clox --interpreter "$BINARY_PATH"
 
 echo "Testing with tree walker"
-dart tool/bin/test.dart clox operator/add.lox --interpreter "$BINARY_PATH" --loose_mode --arguments --backend="TreeWalker"
+dart tool/bin/test.dart jlox operator/add.lox --interpreter "$BINARY_PATH"  --loose_mode --arguments --backend="TreeWalker"
 popd
