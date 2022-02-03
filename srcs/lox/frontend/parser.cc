@@ -5,6 +5,7 @@
 #include "lox/frontend/parser.h"
 
 #include <iostream>
+#include <map>
 
 #include "lox/common/global_setting.h"
 namespace lox {
@@ -22,129 +23,6 @@ bool Parser::AdvanceIfMatchAny() {
   return true;
 }
 
-template <lox::ExprPtr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... SAME_PRECEDENCE_OPRATOR_TOKEN_TYPES>
-ExprPtr Parser::BinaryExpr() {
-  // This function is the " left_expr (op right_expr)* "
-
-  // All token before this->current has been parsed into the left_expr
-  auto left_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-
-  // if this->current is the operator token, we should parse an expression as right_expr.
-  // if this->current is not matched, we could just return the left_expr
-  // Because there could be multi same precedence operator, we use a loop to parse multiple times
-  while (AdvanceIfMatchAny<SAME_PRECEDENCE_OPRATOR_TOKEN_TYPES...>()) {
-    Token op = Previous();
-    auto right_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
-    left_expr = ASTNode::Make<lox::BinaryExpr>(BinaryExprAttr{.op = op}, std::move(left_expr), std::move(right_expr));
-  }
-  // ok now it's done
-  return left_expr;
-}
-
-ExprPtr Parser::AnyExpression() { return AssignExpr(); }
-
-ExprPtr Parser::AssignExpr() {
-  ExprPtr expr = OrExpr();
-
-  if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
-    Token equals = Previous();
-    ExprPtr value = AssignExpr();  // use recurse to impl the right-associative
-
-    if (auto var_node = expr->DynAs<VariableExpr>()) {
-      Token name = var_node->attr->name;
-      return ASTNode::Make<lox::AssignExpr>(AssignExprAttr{.name = name}, std::move(value));
-    } else if (auto get_attr_node = expr->DynAs<GetAttrExpr>()) {
-      return ASTNode::Make<SetAttrExpr>(SetAttrExprAttr{.attr_name = get_attr_node->attr->attr_name},
-                                        std::move(get_attr_node->src_object), std::move(value));
-    }
-    Error(equals, "Only identifier or attribute can be assigned");
-  }
-
-  return expr;
-}
-
-ExprPtr Parser::OrExpr() {
-  auto left_expr = AndExpr();
-
-  while (AdvanceIfMatchAny<TokenType::OR>()) {
-    Token op = Previous();
-    auto right_expr = AndExpr();
-    left_expr = ASTNode::Make<LogicalExpr>(LogicalExprAttr{.op = op}, std::move(left_expr), std::move(right_expr));
-  }
-  return left_expr;
-}
-ExprPtr Parser::AndExpr() {
-  auto left_expr = EqualityExpr();
-
-  while (AdvanceIfMatchAny<TokenType::AND>()) {
-    Token op = Previous();
-    auto right_expr = EqualityExpr();
-    left_expr = ASTNode::Make<LogicalExpr>(LogicalExprAttr{.op = op}, std::move(left_expr), std::move(right_expr));
-  }
-  return left_expr;
-}
-
-ExprPtr lox::Parser::EqualityExpr() {
-  return BinaryExpr<&Parser::ComparisonExpr, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
-}
-ExprPtr lox::Parser::ComparisonExpr() {
-  return BinaryExpr<&Parser::TermExpr, TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS,
-                    TokenType::LESS_EQUAL>();
-}
-ExprPtr lox::Parser::TermExpr() { return BinaryExpr<&Parser::FactorExpr, TokenType::MINUS, TokenType::PLUS>(); }
-ExprPtr lox::Parser::FactorExpr() { return BinaryExpr<&Parser::UnaryExpr, TokenType::SLASH, TokenType::STAR>(); }
-ExprPtr lox::Parser::UnaryExpr() {
-  if (AdvanceIfMatchAny<TokenType::BANG, TokenType::MINUS>()) {
-    Token op = Previous();
-    auto right = UnaryExpr();  // just use recurse to parse multi unary operator with right-associative
-    return ASTNode::Make<lox::UnaryExpr>(UnaryExprAttr{.op = op}, std::move(right));
-  }
-  return CallExpr();
-}
-
-ExprPtr Parser::CallExpr() {
-  ExprPtr expr = Primary();
-  // 1. We treat `a.b.c...` as a call to GetAttr, and `a.b.c=d` as a call to SetAttr
-  // 2. operator dot and operator left_paren has same precedence
-  while (true) {
-    if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
-      std::vector<ExprPtr> arguments;
-      if (!Check(TokenType::RIGHT_PAREN)) {
-        do {
-          arguments.push_back(AnyExpression());
-        } while (AdvanceIfMatchAny<TokenType::COMMA>());
-      }
-      Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
-      expr = ASTNode::Make<lox::CallExpr>(CallExprAttr{}, std::move(expr), std::move(arguments));
-    } else if (AdvanceIfMatchAny<TokenType::DOT>()) {
-      Token name = Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
-      expr = ASTNode::Make<GetAttrExpr>(GetAttrExprAttr{.attr_name = name}, std::move(expr));
-    } else {
-      break;
-    }
-  }
-
-  return expr;
-}
-
-ExprPtr lox::Parser::Primary() {
-  if (AdvanceIfMatchAny<TokenType::FALSE_TOKEN, TokenType::TRUE_TOKEN, TokenType::NIL, TokenType::NUMBER,
-                        TokenType::STRING>())
-    return ASTNode::Make<LiteralExpr>(LiteralExprAttr{.value = Previous()});
-
-  if (AdvanceIfMatchAny<TokenType::IDENTIFIER, TokenType::THIS, TokenType::SUPER>()) {
-    return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = Previous()});
-  }
-
-  if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
-    auto expr = AnyExpression();
-    Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-    return ASTNode::Make<GroupingExpr>(GroupingExprAttr{}, std::move(expr));
-  }
-  Advance();  // Consume the error token and error
-  Error(Peek(), "Primary get unknown token");
-  return nullptr;
-}
 lox::Token lox::Parser::Consume(lox::TokenType type, const std::string& message) {
   if (Check(type)) return Advance();
   Error(Peek(), message);
@@ -362,4 +240,300 @@ void Parser::Error(Token token, const std::string& msg) {
   throw err;
 }
 
+std::shared_ptr<Parser> Parser::Make(ParserType type, Scanner* scanner) {
+  switch (type) {
+    case ParserType::RECURSIVE_DESCENT:
+      return std::shared_ptr<Parser>(new RecursiveDescentParser(scanner));
+    case ParserType::PRATT_PARSER:
+      return std::shared_ptr<Parser>(new PrattParser(scanner));
+    default:
+      return nullptr;
+  }
+}
+std::shared_ptr<Parser> Parser::Make(std::string type, Scanner* scanner) {
+  static std::map<std::string, ParserType> _map = {{std::string("RecursiveDescent"), ParserType::RECURSIVE_DESCENT},
+                                                   {std::string("PrattParser"), ParserType::PRATT_PARSER}};
+  return Make(_map[type], scanner);
+}
+
+ExprPtr ParserWithExprUtils::ParseCallExpr(ExprPtr expr) {
+  std::vector<ExprPtr> arguments;
+  if (!Check(TokenType::RIGHT_PAREN)) {
+    do {
+      arguments.push_back(AnyExpression());
+    } while (AdvanceIfMatchAny<TokenType::COMMA>());
+  }
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
+  expr = ASTNode::Make<CallExpr>(CallExprAttr{}, std::move(expr), std::move(arguments));
+  return expr;
+}
+
+ExprPtr ParserWithExprUtils::ParseAssignOrSetAttr(ExprPtr left_expr, ExprPtr right_expr, Token equal_token) {
+  if (auto var_node = left_expr->DynAs<VariableExpr>()) {
+    Token name = var_node->attr->name;
+    return ASTNode::Make<lox::AssignExpr>(AssignExprAttr{.name = name}, std::move(right_expr));
+  } else if (auto get_attr_node = left_expr->DynAs<GetAttrExpr>()) {
+    return ASTNode::Make<SetAttrExpr>(SetAttrExprAttr{.attr_name = get_attr_node->attr->attr_name},
+                                      std::move(get_attr_node->src_object), std::move(right_expr));
+  }
+  Error(equal_token, "Only identifier or attribute can be assigned");
+  return ExprPtr();
+}
+
+template <lox::ExprPtr (RecursiveDescentParser::*HIGHER_PRECEDENCE_EXPRESSION)(),
+          TokenType... SAME_PRECEDENCE_OPRATOR_TOKEN_TYPES>
+ExprPtr RecursiveDescentParser::BinaryExpr() {
+  // This function is the " left_expr (op right_expr)* "
+
+  // All token before this->current has been parsed into the left_expr
+  auto left_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
+
+  // if this->current is the operator token, we should parse an expression as right_expr.
+  // if this->current is not matched, we could just return the left_expr
+  // Because there could be multi same precedence operator, we use a loop to parse multiple times
+  while (AdvanceIfMatchAny<SAME_PRECEDENCE_OPRATOR_TOKEN_TYPES...>()) {
+    Token op = Previous();
+    auto right_expr = (this->*HIGHER_PRECEDENCE_EXPRESSION)();
+    left_expr = ASTNode::Make<lox::BinaryExpr>(BinaryExprAttr{.op = op}, std::move(left_expr), std::move(right_expr));
+  }
+  // ok now it's done
+  return left_expr;
+}
+
+ExprPtr RecursiveDescentParser::AnyExpression() { return AssignExpr(); }
+
+ExprPtr RecursiveDescentParser::AssignExpr() {
+  ExprPtr expr = OrExpr();
+
+  if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
+    Token equal_token = Previous();
+    ExprPtr right_expr = AssignExpr();  // use recurse to impl the right-associative
+    return ParseAssignOrSetAttr(std::move(expr), std::move(right_expr), equal_token);
+  }
+
+  return expr;
+}
+
+ExprPtr RecursiveDescentParser::OrExpr() {
+  auto left_expr = AndExpr();
+
+  while (AdvanceIfMatchAny<TokenType::OR>()) {
+    Token op = Previous();
+    auto right_expr = AndExpr();
+    left_expr = ASTNode::Make<LogicalExpr>(LogicalExprAttr{.op = op}, std::move(left_expr), std::move(right_expr));
+  }
+  return left_expr;
+}
+ExprPtr RecursiveDescentParser::AndExpr() {
+  auto left_expr = EqualityExpr();
+
+  while (AdvanceIfMatchAny<TokenType::AND>()) {
+    Token op = Previous();
+    auto right_expr = EqualityExpr();
+    left_expr = ASTNode::Make<LogicalExpr>(LogicalExprAttr{.op = op}, std::move(left_expr), std::move(right_expr));
+  }
+  return left_expr;
+}
+
+ExprPtr RecursiveDescentParser::EqualityExpr() {
+  return BinaryExpr<&RecursiveDescentParser::ComparisonExpr, TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL>();
+}
+ExprPtr RecursiveDescentParser::ComparisonExpr() {
+  return BinaryExpr<&RecursiveDescentParser::TermExpr, TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS,
+                    TokenType::LESS_EQUAL>();
+}
+ExprPtr RecursiveDescentParser::TermExpr() {
+  return BinaryExpr<&RecursiveDescentParser::FactorExpr, TokenType::MINUS, TokenType::PLUS>();
+}
+ExprPtr RecursiveDescentParser::FactorExpr() {
+  return BinaryExpr<&RecursiveDescentParser::UnaryExpr, TokenType::SLASH, TokenType::STAR>();
+}
+ExprPtr RecursiveDescentParser::UnaryExpr() {
+  if (AdvanceIfMatchAny<TokenType::BANG, TokenType::MINUS>()) {
+    Token op = Previous();
+    auto right = UnaryExpr();  // just use recurse to parse multi unary operator with right-associative
+    return ASTNode::Make<lox::UnaryExpr>(UnaryExprAttr{.op = op}, std::move(right));
+  }
+  return CallExpr();
+}
+
+ExprPtr RecursiveDescentParser::CallExpr() {
+  ExprPtr expr = Primary();
+  // 1. We treat `a.b.c...` as a call to GetAttr, and `a.b.c=d` as a call to SetAttr
+  // 2. operator dot and operator left_paren has same precedence
+  while (true) {
+    if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
+      expr = ParseCallExpr(std::move(expr));
+    } else if (AdvanceIfMatchAny<TokenType::DOT>()) {
+      Token name = Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
+      expr = ASTNode::Make<GetAttrExpr>(GetAttrExprAttr{.attr_name = name}, std::move(expr));
+    } else {
+      break;
+    }
+  }
+
+  return expr;
+}
+
+ExprPtr RecursiveDescentParser::Primary() {
+  if (AdvanceIfMatchAny<TokenType::FALSE_TOKEN, TokenType::TRUE_TOKEN, TokenType::NIL, TokenType::NUMBER,
+                        TokenType::STRING>())
+    return ASTNode::Make<LiteralExpr>(LiteralExprAttr{.value = Previous()});
+
+  if (AdvanceIfMatchAny<TokenType::IDENTIFIER, TokenType::THIS, TokenType::SUPER>()) {
+    return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = Previous()});
+  }
+
+  if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
+    auto expr = AnyExpression();
+    Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+    return ASTNode::Make<GroupingExpr>(GroupingExprAttr{}, std::move(expr));
+  }
+  Advance();  // Consume the error token and error
+  Error(Peek(), "Primary get unknown token");
+  return nullptr;
+}
+
+InfixOpInfoMap::InfixOpInfoMap() {
+#define RULE_ITEM(TOKEN_T, PRECEDENCE_V, ASSOCIATIVITY_V)                                      \
+  {                                                                                            \
+    TokenType::TOKEN_T, { InfixPrecedence::PRECEDENCE_V, InfixAssociativity::ASSOCIATIVITY_V } \
+  }
+  // clang-format off
+  auto map_tmp = std::map<TokenType,InfixOpInfo> {
+      RULE_ITEM(LEFT_PAREN    , CALL_OR_DOT , LEFT_TO_RIGHT) ,
+      RULE_ITEM(DOT           , CALL_OR_DOT , LEFT_TO_RIGHT) ,
+      RULE_ITEM(MINUS         , TERM        , LEFT_TO_RIGHT) ,
+      RULE_ITEM(PLUS          , TERM        , LEFT_TO_RIGHT) ,
+      RULE_ITEM(SLASH         , FACTOR      , LEFT_TO_RIGHT) ,
+      RULE_ITEM(STAR          , FACTOR      , LEFT_TO_RIGHT) ,
+      RULE_ITEM(BANG_EQUAL    , EQUALITY    , LEFT_TO_RIGHT) ,
+      RULE_ITEM(EQUAL         , ASSIGNMENT  , RIGHT_TO_LEFT) ,
+      RULE_ITEM(EQUAL_EQUAL   , EQUALITY    , LEFT_TO_RIGHT) ,
+      RULE_ITEM(GREATER       , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(GREATER_EQUAL , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(LESS          , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(LESS_EQUAL    , COMPARISON  , LEFT_TO_RIGHT) ,
+      RULE_ITEM(AND           , AND         , LEFT_TO_RIGHT) ,
+      RULE_ITEM(OR            , OR          , LEFT_TO_RIGHT) ,
+  };
+  // clang-format on
+#undef RULE_ITEM
+
+  data = std::move(map_tmp);
+}
+InfixOpInfoMap& InfixOpInfoMap::Instance() {
+  static InfixOpInfoMap instance;
+  return instance;
+}
+InfixOpInfoMap::InfixOpInfo* InfixOpInfoMap::Get(TokenType type) {
+  if (InfixOpInfoMap::Instance().data.contains(type)) {
+    return &InfixOpInfoMap::Instance().data[type];
+  }
+  return nullptr;
+}
+ExprPtr PrattParser::DoAnyExpression(InfixPrecedence lower_bound) {
+  auto bak = last_expr_lower_bound;
+  last_expr_lower_bound = lower_bound;
+  Advance();
+  auto ret = PrefixExpr();
+  while (auto op_info = InfixOpInfoMap::Get(current)) {
+    if ((op_info->precedence > lower_bound ||
+         (op_info->precedence == lower_bound && op_info->associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
+      Advance();
+      ret = InfixExpr(std::move(ret));
+    } else {
+      break;
+    }
+  }
+  last_expr_lower_bound = bak;
+  return ret;
+}
+ExprPtr PrattParser::PrefixExpr() {
+  auto bak_previous = previous;
+  switch (previous->type) {
+    case TokenType::LEFT_PAREN: {
+      auto expr = DoAnyExpression();
+      Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+      return ASTNode::Make<GroupingExpr>(GroupingExprAttr{}, std::move(expr));
+    }
+    case TokenType::MINUS:
+      [[fallthrough]];
+    case TokenType::BANG: {
+      auto right_expr = DoAnyExpression(InfixPrecedence::UNARY);
+      return ASTNode::Make<UnaryExpr>(UnaryExprAttr{.op = bak_previous}, std::move(right_expr));
+    }
+    case TokenType::SUPER:
+      [[fallthrough]];
+    case TokenType::THIS:
+      [[fallthrough]];
+    case TokenType::IDENTIFIER: {
+      return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = bak_previous});
+    }
+    case TokenType::STRING:
+      [[fallthrough]];
+    case TokenType::NUMBER:
+      [[fallthrough]];
+    case TokenType::TRUE_TOKEN:
+      [[fallthrough]];
+    case TokenType::FALSE_TOKEN:
+      [[fallthrough]];
+    case TokenType::NIL:
+      return ASTNode::Make<LiteralExpr>(LiteralExprAttr{.value = bak_previous});
+    default:
+      Error(previous, "Expect expression.");
+  }
+  return ExprPtr();
+}
+
+ExprPtr PrattParser::InfixExpr(ExprPtr left_side_expr) {
+  Token bak_previous = previous;
+  switch (previous->type) {
+    case TokenType::LEFT_PAREN: {
+      return ParseCallExpr(std::move(left_side_expr));
+    }
+    case TokenType::DOT: {
+      Token name = Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
+      return ASTNode::Make<GetAttrExpr>(GetAttrExprAttr{.attr_name = name}, std::move(left_side_expr));
+    }
+    case TokenType::EQUAL: {
+      // todo: refactor me
+      auto right_expr = DoAnyExpression();
+      return ParseAssignOrSetAttr(std::move(left_side_expr), std::move(right_expr), bak_previous);
+    }
+    case TokenType::MINUS:
+      [[fallthrough]];
+    case TokenType::PLUS:
+      [[fallthrough]];
+    case TokenType::SLASH:
+      [[fallthrough]];
+    case TokenType::STAR:
+      [[fallthrough]];
+    case TokenType::BANG_EQUAL:
+      [[fallthrough]];
+    case TokenType::EQUAL_EQUAL:
+      [[fallthrough]];
+    case TokenType::GREATER:
+      [[fallthrough]];
+    case TokenType::GREATER_EQUAL:
+      [[fallthrough]];
+    case TokenType::LESS:
+      [[fallthrough]];
+    case TokenType::LESS_EQUAL: {
+      auto right_expr = DoAnyExpression(InfixOpInfoMap::Get(bak_previous)->precedence);
+      return ASTNode::Make<BinaryExpr>(BinaryExprAttr{.op = bak_previous}, std::move(left_side_expr),
+                                       std::move(right_expr));
+    }
+    case TokenType::AND:
+      [[fallthrough]];
+    case TokenType::OR: {
+      auto right_expr = DoAnyExpression(InfixOpInfoMap::Get(bak_previous)->precedence);
+      return ASTNode::Make<LogicalExpr>(LogicalExprAttr{.op = bak_previous}, std::move(left_side_expr),
+                                        std::move(right_expr));
+    }
+    default:
+      Error(bak_previous, "Expect expression.");
+  }
+  return ExprPtr();
+}
 }  // namespace lox

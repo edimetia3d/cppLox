@@ -28,29 +28,11 @@
 
 #include "lox/backend/virtual_machine/core/function_unit.h"
 #include "lox/frontend/scanner.h"
+#include "lox/frontend/parser.h"  // compiler will use some definitions from rd-parser
 #include "lox/object/gc.h"
 #include "lox/backend/virtual_machine/object/value.h"
 
 namespace lox::vm {
-
-/**
- * The int value of InfixPrecedence will be used in comparison, the order or the enum item is very important.
- */
-enum class InfixPrecedence {
-  ASSIGNMENT,   // =
-  OR,           // or
-  AND,          // and
-  EQUALITY,     // == !=
-  COMPARISON,   // < > <= >=
-  TERM,         // + -
-  FACTOR,       // * /
-  UNARY,        // ! -
-  CALL_OR_DOT,  // . ()
-};
-enum class InfixAssociativity {
-  LEFT_TO_RIGHT,
-  RIGHT_TO_LEFT,
-};
 
 class Compiler {
  public:

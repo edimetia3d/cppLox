@@ -9,7 +9,7 @@ There are (will be) three versions of Lox interpreter, they all share a same fro
 1. Frontend contains:
     - [x] A scanner to build tokens from raw code.
     - [x] A RD Parser.
-    - [ ] WIP: A Pratt Parser.
+    - [x] A Pratt Parser.
     - [x] An AST definition with a simple pass-manager.
 
 2. Backend contains:
@@ -18,6 +18,20 @@ There are (will be) three versions of Lox interpreter, they all share a same fro
      pass compilation, which convert tokens to bytecode directly.
    - [ ] WIP: A MLIR based JIT interpreter, it will first run a pass on AST to generate an MLIR IR of Lox Dialect, and
      then lower to LLVM dialect, so we can leverage the LLVM JIT utilities to do a JIT run.
+
+# What's the difference ?
+
+1. Pure C++ implementation, no need to know Java things.
+   * Because of this, the jlox and clox implementation shares a lot of code, which make transition from jlox to clox
+     much easier.
+   * An object system with GC that used for both jlox and clox.
+2. A more clear implementation, code is (hopefully) more readable more.
+   * Especially true when comparing with original clox's c style code.
+3. Files are C++ CMake style organized.
+   * `bin/lox`: the main executable, which is a wrapper of the `liblox` library.
+   * `bin/lox-format`: a tool to format Lox code, which is based on the AST Printer.
+   * `src/**`: just look at the file-tree, it tells itself.
+4. A standalone AST implementation, which is a good way to understand the AST.
 
 # Build
 

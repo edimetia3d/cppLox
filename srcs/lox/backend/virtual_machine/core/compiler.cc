@@ -17,74 +17,7 @@
 // there is always a stack used by function pointer
 namespace lox::vm {
 
-struct InfixOpInfoMap {
-  struct InfixOpInfo {
-    InfixPrecedence precedence;
-    InfixAssociativity associativity;
-    ;
-  };
 
-  static InfixOpInfoMap &Instance() {
-    static InfixOpInfoMap instance;
-    return instance;
-  }
-
-  static InfixOpInfo *Get(TokenType type) {
-    if (InfixOpInfoMap::Instance().data.contains(type)) {
-      return &InfixOpInfoMap::Instance().data[type];
-    }
-    return nullptr;
-  }
-
-  static InfixOpInfo *Get(Token token) { return Get(token->type); }
-
-  std::map<TokenType, InfixOpInfo> data;
-
- private:
-  InfixOpInfoMap() {
-    /**
-     * There is no rule for the `operator=`, or the `TokenType::EQUAL`, because our implement of compiler will need more
-     * tracking utils to support assignment, which will introduce unnecessary complexity.
-     *
-     * Assignment have only three cases
-     * 1. `var a = expression`, initialization.
-     * 2. `a = expression`, assignment.
-     * 3. `a.b = expression`, set attribute.
-     *
-     * With only one token ahead is known. We can hardly know what the operator='s real meaning.
-     * e.g. `a.b.c.d.e = expression`, when the compiler saw the `=`, it will only see a `e` as previous token,
-     * it could be a global, a local, or a attribute, for these three cases would
-     * generate different code, we would never go without knowing what the `e` is.
-     *
-     */
-#define RULE_ITEM(TOKEN_T, PRECEDENCE_V, ASSOCIATIVITY_V)                                      \
-  {                                                                                            \
-    TokenType::TOKEN_T, { InfixPrecedence::PRECEDENCE_V, InfixAssociativity::ASSOCIATIVITY_V } \
-  }
-    // clang-format off
-    auto map_tmp = std::map<TokenType,InfixOpInfo> {
-      RULE_ITEM(LEFT_PAREN    , CALL_OR_DOT , LEFT_TO_RIGHT) ,
-      RULE_ITEM(DOT           , CALL_OR_DOT , LEFT_TO_RIGHT) ,
-      RULE_ITEM(MINUS         , TERM        , LEFT_TO_RIGHT) ,
-      RULE_ITEM(PLUS          , TERM        , LEFT_TO_RIGHT) ,
-      RULE_ITEM(SLASH         , FACTOR      , LEFT_TO_RIGHT) ,
-      RULE_ITEM(STAR          , FACTOR      , LEFT_TO_RIGHT) ,
-      RULE_ITEM(BANG_EQUAL    , EQUALITY    , LEFT_TO_RIGHT) ,
-      RULE_ITEM(EQUAL         , ASSIGNMENT  , RIGHT_TO_LEFT) ,
-      RULE_ITEM(EQUAL_EQUAL   , EQUALITY    , LEFT_TO_RIGHT) ,
-      RULE_ITEM(GREATER       , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(GREATER_EQUAL , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(LESS          , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(LESS_EQUAL    , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(AND           , AND         , LEFT_TO_RIGHT) ,
-      RULE_ITEM(OR            , OR          , LEFT_TO_RIGHT) ,
-    };
-    // clang-format on
-#undef RULE_ITEM
-
-    data = std::move(map_tmp);
-  };
-};
 
 enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION, CLASS };
 
@@ -721,6 +654,22 @@ bool Compiler::IsAccessingClassAttr(Token class_name, Token next_token) {
 }
 
 void Compiler::EmitInfix() {
+  /**
+   * There is no rule for the `operator=`, or the `TokenType::EQUAL`, because our implement of compiler will need more
+   * tracking utils to support assignment, which will introduce unnecessary complexity.
+   *
+   * Assignment have only three cases
+   * 1. `var a = expression`, initialization.
+   * 2. `a = expression`, assignment.
+   * 3. `a.b = expression`, set attribute.
+   *
+   * With only one token ahead is known. We can hardly know what the operator='s real meaning.
+   * e.g. `a.b.c.d.e = expression`, when the compiler saw the `=`, it will only see a `e` as previous token,
+   * it could be a global, a local, or a attribute, for these three cases would
+   * generate different code, we would never go without knowing what the `e` is.
+   *
+   */
+
   switch (previous->type) {
     case TokenType::LEFT_PAREN: {
       cu_->EmitBytes(OpCode::OP_CALL, ArgumentList());

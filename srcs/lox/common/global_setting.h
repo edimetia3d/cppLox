@@ -13,6 +13,7 @@ struct LoxGlobalSetting {
   bool single_step_mode = false;
   RuntimeDumpFrequency runtime_dump_frequency = RuntimeDumpFrequency::EVERY_LINE;
   std::string backend = "VirtualMachine";
+  std::string parser = "PrattParser";
 };
 
 LoxGlobalSetting& GlobalSetting();

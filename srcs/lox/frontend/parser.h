@@ -6,6 +6,7 @@
 #define CPPLOX_INCLUDES_LOX_PARSER_H_
 
 #include <iostream>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -20,6 +21,11 @@ class ParserError : public LoxErrorWithExitCode<EX_DATAERR> {
   using LoxErrorWithExitCode<EX_DATAERR>::LoxErrorWithExitCode;
 };
 
+enum class ParserType {
+  RECURSIVE_DESCENT,
+  PRATT_PARSER,
+};
+
 /**
  * Parser will error only when parsing cannot be continued. In other word, only Syntactic error will prevent ast
  * generation, all semantic error will be delayed to semantic check.
@@ -28,6 +34,8 @@ class ParserError : public LoxErrorWithExitCode<EX_DATAERR> {
  */
 class Parser {
  public:
+  static std::shared_ptr<Parser> Make(ParserType type, Scanner* scanner);
+  static std::shared_ptr<Parser> Make(std::string type, Scanner* scanner);
   explicit Parser(Scanner* scanner) : scanner_(scanner) { current = scanner_->ScanOne(); }
 
   std::unique_ptr<lox::FunctionStmt> Parse();
@@ -90,7 +98,17 @@ class Parser {
   bool err_found = false;
 };
 
-class RecursiveDescentParser : public Parser {
+class ParserWithExprUtils : public Parser {
+ public:
+  using Parser::Parser;
+  ExprPtr ParseCallExpr(ExprPtr expr);
+  ExprPtr ParseAssignOrSetAttr(ExprPtr left_expr, ExprPtr right_expr, Token equal_token);
+};
+
+class RecursiveDescentParser : public ParserWithExprUtils {
+ public:
+  using ParserWithExprUtils::ParserWithExprUtils;
+
  protected:
   ExprPtr AnyExpression() override;
   ExprPtr AssignExpr();
@@ -104,9 +122,59 @@ class RecursiveDescentParser : public Parser {
   ExprPtr CallExpr();
   ExprPtr Primary();
 
-  template <ExprPtr (Parser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
+  template <ExprPtr (RecursiveDescentParser::*HIGHER_PRECEDENCE_EXPRESSION)(), TokenType... MATCH_TYPES>
   ExprPtr BinaryExpr();
+};
 
+/**
+ * The int value of InfixPrecedence will be used in comparison, the order or the enum item is very important.
+ */
+enum class InfixPrecedence {
+  ASSIGNMENT,   // =
+  OR,           // or
+  AND,          // and
+  EQUALITY,     // == !=
+  COMPARISON,   // < > <= >=
+  TERM,         // + -
+  FACTOR,       // * /
+  UNARY,        // ! -
+  CALL_OR_DOT,  // . ()
+};
+
+enum class InfixAssociativity {
+  LEFT_TO_RIGHT,
+  RIGHT_TO_LEFT,
+};
+
+struct InfixOpInfoMap {
+  struct InfixOpInfo {
+    InfixPrecedence precedence;
+    InfixAssociativity associativity;
+    ;
+  };
+
+  static InfixOpInfoMap& Instance();
+
+  static InfixOpInfo* Get(TokenType type);
+
+  static InfixOpInfo* Get(Token token) { return Get(token->type); }
+
+  std::map<TokenType, InfixOpInfo> data;
+
+ private:
+  InfixOpInfoMap();
+};
+
+class PrattParser : public ParserWithExprUtils {
+ public:
+  using ParserWithExprUtils::ParserWithExprUtils;
+
+ protected:
+  ExprPtr AnyExpression() override { return DoAnyExpression(); }
+  ExprPtr DoAnyExpression(InfixPrecedence lower_bound = InfixPrecedence::ASSIGNMENT);
+  ExprPtr PrefixExpr();
+  ExprPtr InfixExpr(ExprPtr left_side_expr);
+  InfixPrecedence last_expr_lower_bound;
 };
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_PARSER_H_

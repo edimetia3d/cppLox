@@ -18,8 +18,8 @@ int main(int argn, char* argv[]) {
   std::ifstream infile(file_path);
   std::string all_line((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
   Scanner scanner(all_line, file_path);
-  Parser parser(&scanner);
-  auto root = parser.Parse();
+  auto parser = Parser::Make(ParserType::RECURSIVE_DESCENT, &scanner);
+  auto root = parser->Parse();
   AstPrinter printer;
   for (auto& stmt : root->body) {
     std::cout << printer.Print(stmt.get());

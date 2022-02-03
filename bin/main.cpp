@@ -29,6 +29,9 @@ void ArgsDef(CLI::App& app, CLIArgs& args) {
   app.add_option("--backend", GlobalSetting().backend,
                  "Specify the backend, "
                  "could be one of{\"TreeWalker\",\"VirtualMachine\"}, default is \"VirtualMachine\"");
+  app.add_option("--parser", GlobalSetting().parser,
+                 "Specify the frontend parser, VirtualMachine backend will ignore this option."
+                 "could be one of{\"RecursiveDescent\",\"PrattParser\"}, default is \"PrattParser\"");
   app.add_option("--man", args.just_man, "Print user manual and return");
   app.add_option("--log_level", args.log_level, "Set the log level");
   app.add_flag("--debug", GlobalSetting().debug, "Enable debug mode");

@@ -35,6 +35,9 @@ pushd craftinginterpreters
 echo "Testing with virtual machine"
 dart tool/bin/test.dart clox --interpreter "$BINARY_PATH"
 
-echo "Testing with tree walker"
-dart tool/bin/test.dart jlox --interpreter "$BINARY_PATH"  --loose_mode --arguments --backend="TreeWalker"
+echo "Testing with tree walker and pratt parser"
+dart tool/bin/test.dart jlox --interpreter "$BINARY_PATH"  --loose_mode --arguments --backend="TreeWalker" --arguments --parser="PrattParser"
+
+echo "Testing with tree walker and recursive descent parser"
+dart tool/bin/test.dart jlox --interpreter "$BINARY_PATH"  --loose_mode --arguments --backend="TreeWalker" --arguments --parser="RecursiveDescent"
 popd

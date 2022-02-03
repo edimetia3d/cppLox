@@ -14,8 +14,8 @@
 namespace lox::twalker {
 TreeWalker::TreeWalker() { evaluator_ = std::make_shared<Evaluator>(); }
 void TreeWalker::Run(Scanner &scanner) {
-  Parser parser(&scanner);
-  auto root = parser.Parse();
+  auto parser = Parser::Make(GlobalSetting().parser, &scanner);
+  auto root = parser->Parse();
   if (!root) {
     throw ParserError("Parse failed");
   }
