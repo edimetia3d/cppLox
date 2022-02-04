@@ -433,8 +433,6 @@ InfixOpInfoMap::InfixOpInfo* InfixOpInfoMap::Get(TokenType type) {
   return nullptr;
 }
 ExprPtr PrattParser::DoAnyExpression(InfixPrecedence lower_bound) {
-  auto bak = last_expr_lower_bound;
-  last_expr_lower_bound = lower_bound;
   Advance();
   auto ret = PrefixExpr();
   while (auto op_info = InfixOpInfoMap::Get(current)) {
@@ -446,7 +444,6 @@ ExprPtr PrattParser::DoAnyExpression(InfixPrecedence lower_bound) {
       break;
     }
   }
-  last_expr_lower_bound = bak;
   return ret;
 }
 ExprPtr PrattParser::PrefixExpr() {
@@ -497,7 +494,6 @@ ExprPtr PrattParser::InfixExpr(ExprPtr left_side_expr) {
       return ASTNode::Make<GetAttrExpr>(GetAttrExprAttr{.attr_name = name}, std::move(left_side_expr));
     }
     case TokenType::EQUAL: {
-      // todo: refactor me
       auto right_expr = DoAnyExpression();
       return ParseAssignOrSetAttr(std::move(left_side_expr), std::move(right_expr), bak_previous);
     }

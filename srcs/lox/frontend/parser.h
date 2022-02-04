@@ -141,6 +141,11 @@ enum class InfixPrecedence {
   CALL_OR_DOT,  // . ()
 };
 
+/**
+ * Note:
+ * 1. All the PrefixExpr are RIGHT_TO_LEFT associative.
+ * 2. RIGHT_TO_LEFT is implemented by recursion.
+ */
 enum class InfixAssociativity {
   LEFT_TO_RIGHT,
   RIGHT_TO_LEFT,
@@ -150,7 +155,6 @@ struct InfixOpInfoMap {
   struct InfixOpInfo {
     InfixPrecedence precedence;
     InfixAssociativity associativity;
-    ;
   };
 
   static InfixOpInfoMap& Instance();
@@ -174,7 +178,6 @@ class PrattParser : public ParserWithExprUtils {
   ExprPtr DoAnyExpression(InfixPrecedence lower_bound = InfixPrecedence::ASSIGNMENT);
   ExprPtr PrefixExpr();
   ExprPtr InfixExpr(ExprPtr left_side_expr);
-  InfixPrecedence last_expr_lower_bound;
 };
 }  // namespace lox
 #endif  // CPPLOX_INCLUDES_LOX_PARSER_H_
