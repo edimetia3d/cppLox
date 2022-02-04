@@ -41,6 +41,10 @@ class AstPrinter : public AstNodeVisitor<std::string> {
   void Visit(ClassStmt* node) override;
   void Visit(BlockStmt* node) override;
   void Visit(IfStmt* node) override;
+  void Visit(CommaExpr* node) override;
+  void Visit(ListExpr* node) override;
+  void Visit(GetItemExpr* node) override;
+
   int semantic_level = 0;
   struct SemanticLevelGuard {
     SemanticLevelGuard(AstPrinter* printer_) : printer(printer_) { ++printer->semantic_level; }

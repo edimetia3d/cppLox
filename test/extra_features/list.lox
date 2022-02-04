@@ -1,0 +1,5 @@
+var foo = [];
+var bar =[1,2,"3",false];
+print foo; // expect: []
+print bar; // expect: [1, 2, 3, false]
+print bar[2]; // expect: 3

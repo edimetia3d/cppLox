@@ -5,17 +5,21 @@ Expr:
   Grouping: { child: "ExprPtr expression" }
   Literal: { attr: "Token value" }
   Unary: { attr: "Token op",child: "ExprPtr right" }
-  Call: { attr: "Token src_token",child: [ "ExprPtr callee", "std::vector<ExprPtr> arguments" ] }
+  Call: { attr: "Token src_token",child: [ "ExprPtr callee", "ExprPtr comma_expr_args" ] }
   GetAttr: { attr: "Token attr_name",child: "ExprPtr src_object" }
   SetAttr: { attr: "Token attr_name",child: [ "ExprPtr src_object","ExprPtr value" ] }
   Variable: { attr: "Token name" }
+  Comma: { attr: "Token src_token", child: "std::vector<ExprPtr> elements" }
+  List: { attr: "Token src_token", child: "ExprPtr comma_expr" }
+  GetItem: { attr: "Token src_token", child: [ "ExprPtr src_object", "ExprPtr index" ] }
+#  Tensor: { attr: [ "Token src_token", "std::string dtype" ], child: [ "ExprPtr shape","ExprPtr data" ] }
 
 Stmt:
   VarDecl: { attr: "Token name",child: "ExprPtr initializer" }
   While: { attr: "Token src_token", child: [ "ExprPtr condition", "StmtPtr body" ] }
   For: { attr: "Token src_token", child: [ "StmtPtr initializer", "ExprPtr condition","ExprPtr increment", "StmtPtr body" ] }
   Expr: { child: "ExprPtr expression" }
-  Function: { attr: [ "Token name","std::vector<Token> params" ],child: [ "std::vector<StmtPtr> body" ] }
+  Function: { attr: [ "Token name" ],child: [ "ExprPtr comma_expr_params", "std::vector<StmtPtr> body" ] }
   Class: { attr: "Token name", child: [ "ExprPtr superclass", "std::vector<StmtPtr> methods" ] }
   Print: { child: "ExprPtr expression" }
   Return: { attr: "Token src_token", child: "ExprPtr value" }

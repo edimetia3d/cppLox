@@ -74,10 +74,19 @@ class String : public TWObject<std::string> {
 
 class Nil : public lox::Object {
  public:
+  using lox::Object::Object;
   bool IsTrue() const override { return false; }
   std::string Str() const override { return "nil"; }
   std::vector<Object*> References() override { return {}; }
   bool Equal(const Object* rhs) const override { return rhs->DynAs<Nil>(); }
+};
+
+class List : public TWObject<std::vector<ObjectPtr>> {
+ public:
+  using TWObject<DataType>::TWObject;
+  std::string Str() const override;
+  std::vector<Object*> References() override { return {}; }
+  bool Equal(const Object* rhs) const override;
 };
 
 class Klass;

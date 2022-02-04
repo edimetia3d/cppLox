@@ -9,7 +9,13 @@
 
 namespace lox::twalker {
 
-int Closure::Arity() { return data.function->attr->params.size(); }
+int Closure::Arity() {
+  if (auto p = data.function->comma_expr_params.get()) {
+    return p->DynAs<CommaExpr>()->elements.size();
+  } else {
+    return 0;
+  }
+}
 
 ObjectPtr Closure::Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) {
   assert(this == this_in_sp->obj());
@@ -19,7 +25,8 @@ ObjectPtr Closure::Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<
   Finally finally([evaluator, bakup]() { evaluator->SwitchEnv(bakup); });
   int N = Arity();
   for (int i = 0; i < N; ++i) {
-    evaluator->WorkEnv()->Define(data.function->attr->params[i]->lexeme, arguments[i]);
+    auto argi = data.function->comma_expr_params->DynAs<CommaExpr>()->elements[i]->DynAs<VariableExpr>();
+    evaluator->WorkEnv()->Define(argi->attr->name->lexeme, arguments[i]);
   }
   auto ret = NullObject();
   try {
@@ -96,4 +103,32 @@ void Klass::AddMethod(const std::string &name, ObjectPtr method) {
 std::string Instance::Str() const { return data.klass->obj()->Str() + " instance"; }
 
 InstanceData::InstanceData() noexcept : dict_(std::make_shared<DictT>()) {}
+std::string List::Str() const {
+  std::string ret = "[";
+  int count = 0;
+  for (auto &item : data) {
+    if (count > 0) {
+      ret += ", ";
+    }
+    ret += item->obj()->Str();
+    ++count;
+  }
+  ret += "]";
+  return ret;
+}
+
+bool List::Equal(const Object *rhs) const {
+  if (!rhs->DynAs<List>()) {
+    return false;
+  }
+  if (rhs->As<List>()->data.size() != data.size()) {
+    return false;
+  }
+  bool equal = true;
+
+  for (int i = 0; i < data.size(); i++) {
+    equal = equal && data[i]->obj()->Equal(rhs->As<List>()->data[i]->obj());
+  }
+  return equal;
+}
 }  // namespace lox::twalker

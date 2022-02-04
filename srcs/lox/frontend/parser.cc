@@ -4,6 +4,7 @@
 
 #include "lox/frontend/parser.h"
 
+#include <cassert>
 #include <iostream>
 #include <map>
 
@@ -66,7 +67,7 @@ std::unique_ptr<lox::FunctionStmt> lox::Parser::Parse() {
     return std::unique_ptr<lox::FunctionStmt>();
   }
   auto script = ASTNode::Make<lox::FunctionStmt>(FunctionStmtAttr{.name = Token(TokenType::IDENTIFIER, "<script>", -1)},
-                                                 std::move(statements));
+                                                 ExprPtr(), std::move(statements));
   return std::unique_ptr<lox::FunctionStmt>(script.release()->As<lox::FunctionStmt>());
 }
 
@@ -195,16 +196,20 @@ StmtPtr Parser::BreakStmt() {
 StmtPtr Parser::FunStmt(const std::string& kind) {
   Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
   Consume(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
-  std::vector<Token> parameters;
+  auto comma_expr = ExprPtr();
   if (!Check(TokenType::RIGHT_PAREN)) {
-    do {
-      parameters.push_back(Consume(TokenType::IDENTIFIER, "Expect parameter name."));
-    } while (AdvanceIfMatchAny<TokenType::COMMA>());
+    comma_expr = AnyExpression();
+    // AnyExpression may return a single expression when there is no comma.
+    if (comma_expr && !comma_expr->DynAs<CommaExpr>()) {
+      std::vector<ExprPtr> args;
+      args.push_back(std::move(comma_expr));
+      comma_expr = ASTNode::Make<CommaExpr>(CommaExprAttr{}, std::move(args));
+    }
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
   Consume(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
   std::vector<StmtPtr> body = GetBlocks();
-  return ASTNode::Make<FunctionStmt>(FunctionStmtAttr{.name = name, .params = parameters}, std::move(body));
+  return ASTNode::Make<FunctionStmt>(FunctionStmtAttr{.name = name}, std::move(comma_expr), std::move(body));
 }
 StmtPtr Parser::ReturnStmt() {
   Token keyword = Previous();
@@ -257,11 +262,9 @@ std::shared_ptr<Parser> Parser::Make(std::string type, Scanner* scanner) {
 }
 
 ExprPtr ParserWithExprUtils::ParseCallExpr(ExprPtr expr) {
-  std::vector<ExprPtr> arguments;
+  ExprPtr arguments;
   if (!Check(TokenType::RIGHT_PAREN)) {
-    do {
-      arguments.push_back(AnyExpression());
-    } while (AdvanceIfMatchAny<TokenType::COMMA>());
+    arguments = ForceCommaExpr();
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
   expr = ASTNode::Make<CallExpr>(CallExprAttr{}, std::move(expr), std::move(arguments));
@@ -278,6 +281,22 @@ ExprPtr ParserWithExprUtils::ParseAssignOrSetAttr(ExprPtr left_expr, ExprPtr rig
   }
   Error(equal_token, "Only identifier or attribute can be assigned");
   return ExprPtr();
+}
+ExprPtr ParserWithExprUtils::ParseGetItemExpr(ExprPtr left_side) {
+  ExprPtr item = AnyExpression();
+  Consume(TokenType::RIGHT_SQUARE, "Expect ']' after get item.");
+  return ASTNode::Make<GetItemExpr>(GetItemExprAttr{}, std::move(left_side), std::move(item));
+}
+
+ExprPtr ParserWithExprUtils::ForceCommaExpr() {
+  // AnyExpression may return a single expression when there is no comma.
+  auto comma_expr = AnyExpression();
+  if (comma_expr && !comma_expr->DynAs<CommaExpr>()) {
+    std::vector<ExprPtr> elements;
+    elements.push_back(std::move(comma_expr));
+    comma_expr = ASTNode::Make<CommaExpr>(CommaExprAttr{}, std::move(elements));
+  }
+  return comma_expr;
 }
 
 template <lox::ExprPtr (RecursiveDescentParser::*HIGHER_PRECEDENCE_EXPRESSION)(),
@@ -300,7 +319,22 @@ ExprPtr RecursiveDescentParser::BinaryExpr() {
   return left_expr;
 }
 
-ExprPtr RecursiveDescentParser::AnyExpression() { return AssignExpr(); }
+ExprPtr RecursiveDescentParser::AnyExpression() { return CommaExpr(); }
+
+ExprPtr RecursiveDescentParser::CommaExpr() {
+  ExprPtr ret = AssignExpr();
+  if (AdvanceIfMatchAny<TokenType::COMMA>()) {
+    std::vector<ExprPtr> elements;
+    Token src_token = Previous();
+    elements.push_back(std::move(ret));
+    elements.push_back(AssignExpr());
+    while (AdvanceIfMatchAny<TokenType::COMMA>()) {
+      elements.push_back(AssignExpr());
+    }
+    ret = ASTNode::Make<lox::CommaExpr>(CommaExprAttr{.src_token = src_token}, std::move(elements));
+  }
+  return ret;
+}
 
 ExprPtr RecursiveDescentParser::AssignExpr() {
   ExprPtr expr = OrExpr();
@@ -367,6 +401,9 @@ ExprPtr RecursiveDescentParser::CallExpr() {
     } else if (AdvanceIfMatchAny<TokenType::DOT>()) {
       Token name = Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
       expr = ASTNode::Make<GetAttrExpr>(GetAttrExprAttr{.attr_name = name}, std::move(expr));
+    } else if (AdvanceIfMatchAny<TokenType::LEFT_SQUARE>()) {
+      expr = ParseGetItemExpr(std::move(expr));
+      break;
     } else {
       break;
     }
@@ -389,6 +426,17 @@ ExprPtr RecursiveDescentParser::Primary() {
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
     return ASTNode::Make<GroupingExpr>(GroupingExprAttr{}, std::move(expr));
   }
+
+  if (AdvanceIfMatchAny<TokenType::LEFT_SQUARE>()) {
+    if (AdvanceIfMatchAny<TokenType::RIGHT_SQUARE>()) {
+      return ASTNode::Make<ListExpr>(ListExprAttr{}, ExprPtr());
+    }
+    auto src_token = Previous();
+    auto expr = ForceCommaExpr();
+    Consume(TokenType::RIGHT_SQUARE, "Expect ']' after list expression.");
+    return ASTNode::Make<lox::ListExpr>(ListExprAttr{.src_token = src_token}, std::move(expr));
+  }
+
   Advance();  // Consume the error token and error
   Error(Peek(), "Primary get unknown token");
   return nullptr;
@@ -401,22 +449,25 @@ InfixOpInfoMap::InfixOpInfoMap() {
   }
   // clang-format off
   auto map_tmp = std::map<TokenType,InfixOpInfo> {
-      RULE_ITEM(LEFT_PAREN    , CALL_OR_DOT , LEFT_TO_RIGHT) ,
-      RULE_ITEM(DOT           , CALL_OR_DOT , LEFT_TO_RIGHT) ,
-      RULE_ITEM(MINUS         , TERM        , LEFT_TO_RIGHT) ,
-      RULE_ITEM(PLUS          , TERM        , LEFT_TO_RIGHT) ,
-      RULE_ITEM(SLASH         , FACTOR      , LEFT_TO_RIGHT) ,
-      RULE_ITEM(STAR          , FACTOR      , LEFT_TO_RIGHT) ,
-      RULE_ITEM(BANG_EQUAL    , EQUALITY    , LEFT_TO_RIGHT) ,
-      RULE_ITEM(EQUAL         , ASSIGNMENT  , RIGHT_TO_LEFT) ,
-      RULE_ITEM(EQUAL_EQUAL   , EQUALITY    , LEFT_TO_RIGHT) ,
-      RULE_ITEM(GREATER       , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(GREATER_EQUAL , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(LESS          , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(LESS_EQUAL    , COMPARISON  , LEFT_TO_RIGHT) ,
-      RULE_ITEM(AND           , AND         , LEFT_TO_RIGHT) ,
-      RULE_ITEM(OR            , OR          , LEFT_TO_RIGHT) ,
+  RULE_ITEM(COMMA         , COMMA                , LEFT_TO_RIGHT) ,
+  RULE_ITEM(LEFT_PAREN    , CALL_OR_DOT_OR_INDEX , LEFT_TO_RIGHT) ,
+  RULE_ITEM(LEFT_SQUARE   , CALL_OR_DOT_OR_INDEX , LEFT_TO_RIGHT) ,
+  RULE_ITEM(DOT           , CALL_OR_DOT_OR_INDEX , LEFT_TO_RIGHT) ,
+  RULE_ITEM(MINUS         , TERM                 , LEFT_TO_RIGHT) ,
+  RULE_ITEM(PLUS          , TERM                 , LEFT_TO_RIGHT) ,
+  RULE_ITEM(SLASH         , FACTOR               , LEFT_TO_RIGHT) ,
+  RULE_ITEM(STAR          , FACTOR               , LEFT_TO_RIGHT) ,
+  RULE_ITEM(BANG_EQUAL    , EQUALITY             , LEFT_TO_RIGHT) ,
+  RULE_ITEM(EQUAL         , ASSIGNMENT           , RIGHT_TO_LEFT) ,
+  RULE_ITEM(EQUAL_EQUAL   , EQUALITY             , LEFT_TO_RIGHT) ,
+  RULE_ITEM(GREATER       , COMPARISON           , LEFT_TO_RIGHT) ,
+  RULE_ITEM(GREATER_EQUAL , COMPARISON           , LEFT_TO_RIGHT) ,
+  RULE_ITEM(LESS          , COMPARISON           , LEFT_TO_RIGHT) ,
+  RULE_ITEM(LESS_EQUAL    , COMPARISON           , LEFT_TO_RIGHT) ,
+  RULE_ITEM(AND           , AND                  , LEFT_TO_RIGHT) ,
+  RULE_ITEM(OR            , OR                   , LEFT_TO_RIGHT) ,
   };
+
   // clang-format on
 #undef RULE_ITEM
 
@@ -450,9 +501,18 @@ ExprPtr PrattParser::PrefixExpr() {
   auto bak_previous = previous;
   switch (previous->type) {
     case TokenType::LEFT_PAREN: {
-      auto expr = DoAnyExpression();
+      auto expr = AnyExpression();
       Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
       return ASTNode::Make<GroupingExpr>(GroupingExprAttr{}, std::move(expr));
+    }
+    case TokenType::LEFT_SQUARE: {
+      if (Peek()->type == TokenType::RIGHT_SQUARE) {
+        Advance();
+        return ASTNode::Make<lox::ListExpr>(ListExprAttr{.src_token = bak_previous}, nullptr);
+      }
+      auto expr = ForceCommaExpr();
+      Consume(TokenType::RIGHT_SQUARE, "Expect ']' after expression.");
+      return ASTNode::Make<ListExpr>(ListExprAttr{.src_token = bak_previous}, std::move(expr));
     }
     case TokenType::MINUS:
       [[fallthrough]];
@@ -489,12 +549,29 @@ ExprPtr PrattParser::InfixExpr(ExprPtr left_side_expr) {
     case TokenType::LEFT_PAREN: {
       return ParseCallExpr(std::move(left_side_expr));
     }
+    case TokenType::LEFT_SQUARE: {
+      return ParseGetItemExpr(std::move(left_side_expr));
+    }
+    case TokenType::COMMA: {
+      auto right_expr = DoAnyExpression(InfixPrecedence::COMMA);
+      if (left_side_expr->DynAs<CommaExpr>()) {
+        // we need to flatten the comma expression
+        left_side_expr->As<CommaExpr>()->elements.push_back(std::move(right_expr));
+        return ASTNode::Make<CommaExpr>(CommaExprAttr{.src_token = bak_previous},
+                                        std::move(left_side_expr->As<CommaExpr>()->elements));
+      } else {
+        std::vector<ExprPtr> exprs;
+        exprs.push_back(std::move(left_side_expr));
+        exprs.push_back(std::move(right_expr));
+        return ASTNode::Make<CommaExpr>(CommaExprAttr{.src_token = bak_previous}, std::move(exprs));
+      }
+    }
     case TokenType::DOT: {
       Token name = Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
       return ASTNode::Make<GetAttrExpr>(GetAttrExprAttr{.attr_name = name}, std::move(left_side_expr));
     }
     case TokenType::EQUAL: {
-      auto right_expr = DoAnyExpression();
+      auto right_expr = DoAnyExpression(InfixPrecedence::ASSIGNMENT);
       return ParseAssignOrSetAttr(std::move(left_side_expr), std::move(right_expr), bak_previous);
     }
     case TokenType::MINUS:

@@ -48,6 +48,10 @@ class Evaluator : public AstNodeVisitor<ObjectPtr> {
   void Visit(CallExpr* node) override;
   void Visit(GetAttrExpr* node) override;
   void Visit(SetAttrExpr* node) override;
+  void Visit(CommaExpr* node) override;
+  void Visit(ListExpr* node) override;
+  void Visit(GetItemExpr* node) override;
+
   void Visit(PrintStmt* node) override;
   void Visit(ReturnStmt* state) override;
   void Visit(WhileStmt* state) override;

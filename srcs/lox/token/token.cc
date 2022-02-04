@@ -25,7 +25,8 @@ static std::map<std::string,TokenType> g_reserved_map{
     {"while",  TokenType::WHILE},
     {"break",  TokenType::BREAK},
     {"continue",  TokenType::CONTINUE},
-    {"super",  TokenType::SUPER}
+    {"super",  TokenType::SUPER},
+    {"Tensor",TokenType::TENSOR},
 };
 // clang-format on
 

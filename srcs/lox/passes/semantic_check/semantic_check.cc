@@ -102,17 +102,32 @@ Pass::IsModified SemanticCheck::PreNode(ASTNode* ast_node) {
       }
     }
     AddNamedValue(p->attr->name->lexeme);
-    if (p->attr->params.size() >= 255) {
-      throw SemanticError("Lox Can't have more than 255 arguments.");
-    } else {
-      for (auto param : p->attr->params) {
-        AddNamedValue(param->lexeme);
+    if (p->comma_expr_params) {
+      if (!p->comma_expr_params->DynAs<CommaExpr>()) {
+        throw SemanticError("Semantic Error: " + p->attr->name->Dump() +
+                            " Function parameter must be a comma separated list");
+      }
+      if (p->comma_expr_params->As<CommaExpr>()->elements.size() >= 255) {
+        throw SemanticError("Lox Can't have more than 255 parameter.");
+      } else {
+        for (auto& param : p->comma_expr_params->As<CommaExpr>()->elements) {
+          if (!param->DynAs<VariableExpr>()) {
+            throw SemanticError("Semantic Error: " + p->attr->name->Dump() + " Function parameter must be variable");
+          }
+          AddNamedValue(param->As<VariableExpr>()->attr->name->lexeme);
+        }
       }
     }
   }
   if (auto p = ast_node->DynAs<CallExpr>()) {
-    if (p->arguments.size() >= 255) {
-      throw SemanticError("Lox Can't have more than 255 arguments.");
+    if (p->comma_expr_args) {
+      if (!p->comma_expr_args->DynAs<CommaExpr>()) {
+        throw SemanticError("Semantic Error: Call arguments must be a comma separated list");
+      }
+
+      if (p->comma_expr_args->As<CommaExpr>()->elements.size() >= 255) {
+        throw SemanticError("Lox Can't have more than 255 arguments.");
+      }
     }
   }
   if (auto p = ast_node->DynAs<ReturnStmt>()) {

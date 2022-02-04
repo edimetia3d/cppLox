@@ -32,6 +32,10 @@ There are (will be) three versions of Lox interpreter, they all share a same fro
    * `bin/lox-format`: a tool to format Lox code, which is based on the AST Printer.
    * `src/**`: just look at the file-tree, it tells itself.
 4. A standalone AST implementation, which is a good way to understand the AST.
+5. More language features:
+   * `break/continue` in loops.
+   * comma expression, `[a,b,c,d]` style list expression and `a[i]` style element indexing.
+   * built in `Tensor`(n-dimension dense matrix) support.
 
 # Build
 

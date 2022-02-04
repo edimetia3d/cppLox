@@ -30,14 +30,7 @@ void AstPrinter::Visit(AssignExpr* node) { VisitorReturn(node->attr->name->lexem
 void AstPrinter::Visit(CallExpr* node) {
   std::string ret = "";
   ret = ret + Print(node->callee.get()) + "(";
-  int i = 0;
-  for (auto& arg : node->arguments) {
-    if (i > 0) {
-      ret += ", ";
-    }
-    ret += Print(arg.get());
-    ++i;
-  }
+  ret += Print(node->comma_expr_args.get());
   VisitorReturn(ret + ")");
 }
 
@@ -115,14 +108,7 @@ void AstPrinter::Visit(BreakStmt* node) { VisitorReturn(node->attr->src_token->l
 void AstPrinter::Visit(FunctionStmt* node) {
   auto indentation = Indentation();
   std::string ret = indentation + "fun " + node->attr->name->lexeme + "(";
-  int i = 0;
-  for (auto& param : node->attr->params) {
-    if (i > 0) {
-      ret += ", ";
-    }
-    ret += param->lexeme;
-    ++i;
-  }
+  ret += Print(node->comma_expr_params.get());
   ret += ") {\n";
   SemanticLevelGuard guard(this);
   for (auto& stmt : node->body) {
@@ -161,6 +147,29 @@ void AstPrinter::Visit(SetAttrExpr* node) {
   std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme;
   ret += " = ";
   ret += Print(node->value.get());
+  VisitorReturn(ret);
+}
+void AstPrinter::Visit(CommaExpr* node) {
+  std::string ret = "";
+  int i = 0;
+  for (auto& expr : node->elements) {
+    if (i > 0) {
+      ret += ", ";
+    }
+    ret += Print(expr.get());
+    ++i;
+  }
+  VisitorReturn(ret);
+}
+
+void AstPrinter::Visit(ListExpr* node) {
+  std::string ret = "[";
+  ret += Print(node->comma_expr.get());
+  ret += "]";
+  VisitorReturn(ret);
+}
+void AstPrinter::Visit(GetItemExpr* node) {
+  std::string ret = Print(node->src_object.get()) + "[" + Print(node->index.get()) + "]";
   VisitorReturn(ret);
 }
 

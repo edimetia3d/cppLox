@@ -197,8 +197,10 @@ void Evaluator::Visit(CallExpr* node) {
   }
 
   std::vector<ObjectPtr> arguments;
-  for (auto& arg_expr : node->arguments) {
-    arguments.push_back(Eval(arg_expr.get()));
+  if (auto p = node->comma_expr_args.get()) {
+    for (auto& arg_expr : p->DynAs<CommaExpr>()->elements) {
+      arguments.push_back(Eval(arg_expr.get()));
+    }
   }
 
   if (arguments.size() != callable->Arity()) {
@@ -364,5 +366,41 @@ EnvPtr Evaluator::ForkEnv() {
   auto env = WorkEnv();
   work_env_ = Environment::Make(env);
   return env;
+}
+void Evaluator::Visit(CommaExpr* node) {
+  ObjectPtr ret;
+  for (auto& expr : node->elements) {
+    ret = Eval(expr.get());
+  }
+  VisitorReturn(ret);
+}
+void Evaluator::Visit(ListExpr* node) {
+  std::vector<ObjectPtr> elements;
+  if (auto p = node->comma_expr.get()) {
+    for (auto& expr : p->DynAs<CommaExpr>()->elements) {
+      elements.push_back(Eval(expr.get()));
+    }
+  }
+
+  VisitorReturn(Object::MakeShared<List>(elements));
+}
+
+void Evaluator::Visit(GetItemExpr* node) {
+  auto list_obj = Eval(node->src_object.get());
+  auto index = Eval(node->index.get());
+  if (list_obj->obj()->Is<List>()) {
+    auto list = list_obj->obj()->As<List>();
+    if (index->obj()->Is<Number>()) {
+      int idx = int(index->obj()->As<Number>()->data);
+      if (idx < 0 || idx >= list->data.size()) {
+        Error("Index out of range");
+      }
+      VisitorReturn(list->data[idx]);
+    } else {
+      Error("Index must be an number");
+    }
+  } else {
+    Error("Object is not a list");
+  }
 }
 }  // namespace lox::twalker

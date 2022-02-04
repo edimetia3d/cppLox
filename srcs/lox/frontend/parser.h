@@ -103,6 +103,8 @@ class ParserWithExprUtils : public Parser {
   using Parser::Parser;
   ExprPtr ParseCallExpr(ExprPtr expr);
   ExprPtr ParseAssignOrSetAttr(ExprPtr left_expr, ExprPtr right_expr, Token equal_token);
+  ExprPtr ParseGetItemExpr(ExprPtr left_side);
+  ExprPtr ForceCommaExpr();
 };
 
 class RecursiveDescentParser : public ParserWithExprUtils {
@@ -111,6 +113,7 @@ class RecursiveDescentParser : public ParserWithExprUtils {
 
  protected:
   ExprPtr AnyExpression() override;
+  ExprPtr CommaExpr();
   ExprPtr AssignExpr();
   ExprPtr OrExpr();
   ExprPtr AndExpr();
@@ -130,15 +133,17 @@ class RecursiveDescentParser : public ParserWithExprUtils {
  * The int value of InfixPrecedence will be used in comparison, the order or the enum item is very important.
  */
 enum class InfixPrecedence {
-  ASSIGNMENT,   // =
-  OR,           // or
-  AND,          // and
-  EQUALITY,     // == !=
-  COMPARISON,   // < > <= >=
-  TERM,         // + -
-  FACTOR,       // * /
-  UNARY,        // ! -
-  CALL_OR_DOT,  // . ()
+  LOWEST = 0,            // should not used
+  COMMA,                 // ,
+  ASSIGNMENT,            // =
+  OR,                    // or
+  AND,                   // and
+  EQUALITY,              // == !=
+  COMPARISON,            // < > <= >=
+  TERM,                  // + -
+  FACTOR,                // * /
+  UNARY,                 // ! -
+  CALL_OR_DOT_OR_INDEX,  // . () []
 };
 
 /**
@@ -175,7 +180,7 @@ class PrattParser : public ParserWithExprUtils {
 
  protected:
   ExprPtr AnyExpression() override { return DoAnyExpression(); }
-  ExprPtr DoAnyExpression(InfixPrecedence lower_bound = InfixPrecedence::ASSIGNMENT);
+  ExprPtr DoAnyExpression(InfixPrecedence lower_bound = InfixPrecedence::LOWEST);
   ExprPtr PrefixExpr();
   ExprPtr InfixExpr(ExprPtr left_side_expr);
 };

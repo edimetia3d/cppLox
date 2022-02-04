@@ -26,6 +26,8 @@ Token Scanner::ScanOne() {
   switch (c) {
     case '(': return AddToken(TokenType::LEFT_PAREN);
     case ')': return AddToken(TokenType::RIGHT_PAREN);
+    case '[': return AddToken(TokenType::LEFT_SQUARE);
+    case ']': return AddToken(TokenType::RIGHT_SQUARE);
     case '{': return AddToken(TokenType::LEFT_BRACE);
     case '}': return AddToken(TokenType::RIGHT_BRACE);
     case ',': return AddToken(TokenType::COMMA);
