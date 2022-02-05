@@ -1,2 +1,5 @@
 var a = Tensor("fp64",[1,2,2,1],[]);
 print a;
+
+var b = Tensor("fp64", [2, 3], [1, 2, 3, 4, 5, 6]);
+print b;
