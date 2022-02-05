@@ -164,12 +164,22 @@ void AstPrinter::Visit(CommaExpr* node) {
 
 void AstPrinter::Visit(ListExpr* node) {
   std::string ret = "[";
-  ret += Print(node->comma_expr.get());
+  if (node->comma_expr) {
+    ret += Print(node->comma_expr.get());
+  }
   ret += "]";
   VisitorReturn(ret);
 }
 void AstPrinter::Visit(GetItemExpr* node) {
   std::string ret = Print(node->src_object.get()) + "[" + Print(node->index.get()) + "]";
+  VisitorReturn(ret);
+}
+void AstPrinter::Visit(TensorExpr* node) {
+  std::string ret = "Tensor(";
+  ret += Print(node->dtype.get()) + ", ";
+  ret += Print(node->shape.get()) + ",";
+  ret += Print(node->data.get());
+  ret += ")";
   VisitorReturn(ret);
 }
 

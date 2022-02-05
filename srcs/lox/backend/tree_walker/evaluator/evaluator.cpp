@@ -403,4 +403,22 @@ void Evaluator::Visit(GetItemExpr* node) {
     Error("Object is not a list");
   }
 }
+void Evaluator::Visit(TensorExpr* node) {
+  auto dtype_str = Eval(node->dtype.get())->obj()->As<String>()->data;
+  std::vector<int> shape;
+  auto shape_list = Eval(node->shape.get());
+  for (auto& dim : shape_list->obj()->As<List>()->data) {
+    shape.push_back(int(dim->obj()->As<Number>()->data));
+  }
+  std::vector<double> data;
+  auto data_list = Eval(node->data.get());
+  for (auto& item : data_list->obj()->As<List>()->data) {
+    data.push_back(item->obj()->As<Number>()->data);
+  }
+  return VisitorReturn(Object::MakeShared<Tensor>(TensorData{
+      .dtype = DataType::DOUBLE,
+      .shape = shape,
+      .data = data,
+  }));
+}
 }  // namespace lox::twalker

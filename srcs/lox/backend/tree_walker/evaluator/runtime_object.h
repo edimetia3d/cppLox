@@ -89,6 +89,25 @@ class List : public TWObject<std::vector<ObjectPtr>> {
   bool Equal(const Object* rhs) const override;
 };
 
+// todo: support more dtype
+enum class DataType {
+  DOUBLE,
+};
+
+struct TensorData {
+  DataType dtype = DataType::DOUBLE;
+  std::vector<int> shape;
+  std::vector<double> data;
+};
+
+class Tensor : public TWObject<TensorData> {
+ public:
+  using TWObject<DataType>::TWObject;
+  std::string Str() const override;
+  std::vector<Object*> References() override { return {}; }
+  bool Equal(const Object* rhs) const override;
+};
+
 class Klass;
 struct InstanceData {
   using DictT = std::map<std::string, ObjectPtr>;

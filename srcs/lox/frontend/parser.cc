@@ -298,6 +298,15 @@ ExprPtr ParserWithExprUtils::ForceCommaExpr() {
   }
   return comma_expr;
 }
+ExprPtr ParserWithExprUtils::ParseTensorExpr() {
+  auto src_token = Previous();
+  Consume(TokenType::LEFT_PAREN, "Expect '(' after Tensor");
+  auto args = ForceCommaExpr();
+  auto p_comma_expr = args->As<lox::CommaExpr>();
+  Consume(TokenType::RIGHT_PAREN, "Expect ')' after Tensor");
+  return ASTNode::Make<TensorExpr>(TensorExprAttr{.src_token = src_token}, std::move(p_comma_expr->elements[0]),
+                                   std::move(p_comma_expr->elements[1]), std::move(p_comma_expr->elements[2]));
+}
 
 template <lox::ExprPtr (RecursiveDescentParser::*HIGHER_PRECEDENCE_EXPRESSION)(),
           TokenType... SAME_PRECEDENCE_OPRATOR_TOKEN_TYPES>
@@ -421,6 +430,10 @@ ExprPtr RecursiveDescentParser::Primary() {
     return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = Previous()});
   }
 
+  if (AdvanceIfMatchAny<TokenType::TENSOR>()) {
+    return ParseTensorExpr();
+  }
+
   if (AdvanceIfMatchAny<TokenType::LEFT_PAREN>()) {
     auto expr = AnyExpression();
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
@@ -537,6 +550,9 @@ ExprPtr PrattParser::PrefixExpr() {
       [[fallthrough]];
     case TokenType::NIL:
       return ASTNode::Make<LiteralExpr>(LiteralExprAttr{.value = bak_previous});
+    case TokenType::TENSOR: {
+      return ParseTensorExpr();
+    }
     default:
       Error(previous, "Expect expression.");
   }

@@ -105,6 +105,7 @@ class ParserWithExprUtils : public Parser {
   ExprPtr ParseAssignOrSetAttr(ExprPtr left_expr, ExprPtr right_expr, Token equal_token);
   ExprPtr ParseGetItemExpr(ExprPtr left_side);
   ExprPtr ForceCommaExpr();
+  ExprPtr ParseTensorExpr();
 };
 
 class RecursiveDescentParser : public ParserWithExprUtils {

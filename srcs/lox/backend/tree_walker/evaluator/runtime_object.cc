@@ -131,4 +131,16 @@ bool List::Equal(const Object *rhs) const {
   }
   return equal;
 }
+bool Tensor::Equal(const Object *rhs) const {
+  return rhs->DynAs<Tensor>() && rhs->As<Tensor>()->data.data == data.data &&
+         rhs->As<Tensor>()->data.shape == data.shape;
+}
+std::string Tensor::Str() const {
+  std::string shape_string = "[";
+  for (auto i : data.shape) {
+    shape_string += std::to_string(i) + " ";
+  }
+  shape_string += "]";
+  return "Tensor of shape " + shape_string + " and dtype " + std::to_string(int(data.dtype));
+}
 }  // namespace lox::twalker

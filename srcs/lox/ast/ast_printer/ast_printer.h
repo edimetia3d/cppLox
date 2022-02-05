@@ -44,6 +44,7 @@ class AstPrinter : public AstNodeVisitor<std::string> {
   void Visit(CommaExpr* node) override;
   void Visit(ListExpr* node) override;
   void Visit(GetItemExpr* node) override;
+  void Visit(TensorExpr* node) override;
 
   int semantic_level = 0;
   struct SemanticLevelGuard {

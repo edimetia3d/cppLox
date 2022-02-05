@@ -12,7 +12,7 @@ Expr:
   Comma: { attr: "Token src_token", child: "std::vector<ExprPtr> elements" }
   List: { attr: "Token src_token", child: "ExprPtr comma_expr" }
   GetItem: { attr: "Token src_token", child: [ "ExprPtr src_object", "ExprPtr index" ] }
-#  Tensor: { attr: [ "Token src_token", "std::string dtype" ], child: [ "ExprPtr shape","ExprPtr data" ] }
+  Tensor: { attr: [ "Token src_token" ], child: [ "ExprPtr dtype","ExprPtr shape","ExprPtr data" ] }
 
 Stmt:
   VarDecl: { attr: "Token name",child: "ExprPtr initializer" }
