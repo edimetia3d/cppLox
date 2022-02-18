@@ -1,0 +1,5 @@
+fun main() {
+  var a = Tensor("fp64",[2, 3], [88,99,100]);
+  var c = transpose(a);
+  print c;
+}

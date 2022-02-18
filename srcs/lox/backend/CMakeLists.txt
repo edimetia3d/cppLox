@@ -7,5 +7,6 @@ add_subdirectory(virtual_machine)
 target_link_libraries(backend PRIVATE tree_walker virtual_machine)
 
 if (ENABLE_MLIR_JIT_BACKEND)
-    add_dependencies(backend llvm_mlir)
+    add_subdirectory(jit)
+    target_link_libraries(backend PRIVATE jit_backend)
 endif ()

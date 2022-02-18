@@ -17,7 +17,8 @@ file_template = """
 namespace lox{{
 {class_forward_decl}
 class IASTNodeVisitor {{
-
+public:
+virtual ~IASTNodeVisitor() = default;
 protected:
 {virtual_visit_decls}
 }};

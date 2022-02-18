@@ -21,7 +21,7 @@ Stmt:
   Expr: { child: "ExprPtr expression" }
   Function: { attr: [ "Token name" ],child: [ "ExprPtr comma_expr_params", "std::vector<StmtPtr> body" ] }
   Class: { attr: "Token name", child: [ "ExprPtr superclass", "std::vector<StmtPtr> methods" ] }
-  Print: { child: "ExprPtr expression" }
+  Print: { attr: "Token src_token", child: "ExprPtr expression" }
   Return: { attr: "Token src_token", child: "ExprPtr value" }
   Block: { child: "std::vector<StmtPtr> statements" }
   If: { child: [ "ExprPtr condition", "StmtPtr then_branch", "StmtPtr else_branch" ] }

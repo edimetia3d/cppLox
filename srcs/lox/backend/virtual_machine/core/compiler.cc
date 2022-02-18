@@ -627,7 +627,7 @@ void Compiler::EmitPrefix() {
 }
 void Compiler::EmitClassAttrAccess(Token class_token) {
   cu_->ForceCloseValue(class_token);
-  GetNamedValue(Token(TokenType::THIS, "this", previous->line));
+  GetNamedValue(Token(TokenType::THIS, "this", previous->line, -1, "Unkown"));
   cu_->EmitByte(OpCode::OP_INSTANCE_TYPE_CAST);
 }
 bool Compiler::IsAccessingClassAttr(Token class_name, Token next_token) {

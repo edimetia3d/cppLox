@@ -20,17 +20,20 @@ class TokenState {
   std::string lexeme;
   TokenType type;
   int line;
+  int col = 0;
+  std::string file_name = "Unkown";
 
  protected:
   friend class Token;
-  explicit TokenState(const TokenType& type, const std::string& lexeme, int line)
-      : type(type), line(line), lexeme(std::move(lexeme)) {}
+  explicit TokenState(TokenType type, std::string lexeme, int line, int col, std::string file_name)
+      : lexeme(std::move(lexeme)), type(type), line(line), col(col), file_name(std::move(file_name)) {}
 };
 
-struct Token {
+class Token {
+ public:
   Token() = default;
-  Token(const TokenType& type, const std::string& lexeme, int line) {
-    state_ = std::shared_ptr<TokenState>(new TokenState(type, lexeme, line));
+  Token(TokenType type, const std::string& lexeme, int line, int col, std::string file_name) {
+    state_ = std::shared_ptr<TokenState>(new TokenState(type, lexeme, line, col, file_name));
   }
 
   static TokenType GetIdentifierType(const std::string& identifier);

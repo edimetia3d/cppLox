@@ -18,7 +18,7 @@ std::vector<Token> Scanner::ScanAll() {
 
 Token Scanner::ScanOne() {
   if (IsAtEnd()) {
-    return Token(TokenType::EOF_TOKEN, "EOF", line_);
+    return Token(TokenType::EOF_TOKEN, "EOF", line_, col_, src_file_name);
   }
   ResetTokenBeg();
   char c = Advance();
@@ -54,7 +54,7 @@ Token Scanner::ScanOne() {
     case '\t':
       return ScanOne();
     case '\n':
-      line_++;
+      StartNewLine();
       return ScanOne();
     case '"':
       return AddStringToken();
@@ -74,16 +74,17 @@ Token Scanner::ScanOne() {
   return Token();
 }
 Token Scanner::AddToken(TokenType type) {
-  auto ret = Token(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_);
+  auto ret = Token(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_, col_,
+                   src_file_name);
   ResetTokenBeg();
   return ret;
-  ;
 }
 void Scanner::ResetTokenBeg() { start_lex_pos_ = current_lex_pos_; }
 
 char Scanner::Advance() {
   auto ret = LastChar();
   ++current_lex_pos_;
+  ++col_;
   return ret;
 }
 
@@ -101,7 +102,7 @@ char Scanner::Peek(int offset) {
 
 Token Scanner::AddStringToken() {
   while (Peek() != '"' && !IsAtEnd()) {
-    if (Peek() == '\n') line_++;
+    if (Peek() == '\n') StartNewLine();
     Advance();
   }
 

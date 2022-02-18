@@ -57,12 +57,18 @@ class Scanner {
 
   char Advance();
 
+  void StartNewLine() {
+    line_++;
+    col_ = 0;
+  }
+
   Token AddIdentifierToken();
 
   const std::string* srcs_;
   int start_lex_pos_ = 0;
   int current_lex_pos_ = 0;
   int line_ = 0;
+  int col_ = 0;
   std::string src_file_name;
   void ResetTokenBeg();
 };

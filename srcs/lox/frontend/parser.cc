@@ -66,8 +66,9 @@ std::unique_ptr<lox::FunctionStmt> lox::Parser::Parse() {
   if (err_found) {
     return std::unique_ptr<lox::FunctionStmt>();
   }
-  auto script = ASTNode::Make<lox::FunctionStmt>(FunctionStmtAttr{.name = Token(TokenType::IDENTIFIER, "<script>", -1)},
-                                                 ExprPtr(), std::move(statements));
+  auto script = ASTNode::Make<lox::FunctionStmt>(
+      FunctionStmtAttr{.name = Token(TokenType::IDENTIFIER, "<script>", -1, -1, "Unknown")}, ExprPtr(),
+      std::move(statements));
   return std::unique_ptr<lox::FunctionStmt>(script.release()->As<lox::FunctionStmt>());
 }
 
@@ -116,9 +117,10 @@ StmtPtr lox::Parser::VarDefStmt() {
   return ASTNode::Make<lox::VarDeclStmt>(VarDeclStmtAttr{.name = name}, std::move(init_expr));
 }
 StmtPtr Parser::PrintStmt() {
+  auto src_token = previous;
   ExprPtr value = AnyExpression();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  return ASTNode::Make<lox::PrintStmt>(PrintStmtAttr{}, std::move(value));
+  return ASTNode::Make<lox::PrintStmt>(PrintStmtAttr{.src_token=src_token}, std::move(value));
 }
 StmtPtr Parser::ExpressionStmt() {
   ExprPtr expr = AnyExpression();
@@ -262,12 +264,13 @@ std::shared_ptr<Parser> Parser::Make(std::string type, Scanner* scanner) {
 }
 
 ExprPtr ParserWithExprUtils::ParseCallExpr(ExprPtr expr) {
+  auto src_token = previous;
   ExprPtr arguments;
   if (!Check(TokenType::RIGHT_PAREN)) {
     arguments = ForceCommaExpr();
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
-  expr = ASTNode::Make<CallExpr>(CallExprAttr{}, std::move(expr), std::move(arguments));
+  expr = ASTNode::Make<CallExpr>(CallExprAttr{.src_token=src_token}, std::move(expr), std::move(arguments));
   return expr;
 }
 

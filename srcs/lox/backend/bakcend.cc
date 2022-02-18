@@ -5,6 +5,7 @@
 #include "lox/backend/backend.h"
 #include "lox/backend/tree_walker/tree_walker.h"
 #include "lox/backend/virtual_machine/virtual_machine.h"
+#include "lox/backend/jit/mlir_jit.h"
 #include "lox/common/lox_error.h"
 
 namespace lox {
@@ -12,6 +13,9 @@ namespace lox {
 static void LoadBuiltinBackEnd(BackEndRegistry* registry) {
   registry->Register("TreeWalker", []() { return std::shared_ptr<BackEnd>(new twalker::TreeWalker()); });
   registry->Register("VirtualMachine", []() { return std::shared_ptr<BackEnd>(new vm::VirtualMachine()); });
+#ifdef ENABLE_MLIR_JIT_BACKEND
+  registry->Register("MLIRJIT", []() { return std::shared_ptr<BackEnd>(new jit::MLIRJIT()); });
+#endif
 }
 
 BackEndRegistry& BackEndRegistry::Instance() {
