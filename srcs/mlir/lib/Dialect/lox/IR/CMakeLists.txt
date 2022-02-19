@@ -6,4 +6,6 @@ add_mlir_dialect_library(MLIRLox
 
         LINK_LIBS PUBLIC
         MLIRIR
+        MLIRCastInterfaces
+        MLIRCallInterfaces
         )

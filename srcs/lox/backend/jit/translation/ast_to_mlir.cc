@@ -206,6 +206,9 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
     // return llvm::none by default , we could update it later
     auto function = mlir::FuncOp::create(fn_location, fn_info.FnName(), builder.getFunctionType(arg_types, llvm::None));
 
+    if (fn_info.FnName()[0] == '_') {
+      function.setPrivate();
+    }
     bool something_wrong = true;
     Finally function_guard([&] {
       if (something_wrong) {

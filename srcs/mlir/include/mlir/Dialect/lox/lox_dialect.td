@@ -2,7 +2,6 @@
 #define LOX_DIALECT
 
 include "mlir/IR/OpBase.td"
-include "mlir/Interfaces/SideEffectInterfaces.td"
 
 def LoxDialect : Dialect {
   let name = "lox";

@@ -3,6 +3,10 @@
 
 include "lox_dialect.td"
 
+include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/Interfaces/CastInterfaces.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
+
 class LoxOp<string mnemonic, list<OpTrait> traits = []> :
     Op<LoxDialect, mnemonic, traits>;
 
@@ -58,7 +62,8 @@ def AddOp : LoxOp<"add", [NoSideEffect]> {
   ];
 }
 
-def GenericCallOp : LoxOp<"generic_call"> {
+def GenericCallOp : LoxOp<"generic_call",
+                          [DeclareOpInterfaceMethods<CallOpInterface>]> {
   let summary = "generic call operation";
   let description = [{
     Generic calls represent calls to a user defined function that needs to
@@ -112,7 +117,7 @@ def MulOp : LoxOp<"mul", [NoSideEffect]> {
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
 }
-def PrintOp : LoxOp<"print", [NoSideEffect]> {
+def PrintOp : LoxOp<"print"> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -182,6 +187,26 @@ def TransposeOp : LoxOp<"transpose", [NoSideEffect]> {
   let verifier = [{ return ::verify(*this); }];
 
   let hasCanonicalizer = 1;
+}
+
+def CastOp : LoxOp<"cast", [
+     DeclareOpInterfaceMethods<CastOpInterface>,
+     NoSideEffect,
+     SameOperandsAndResultShape
+  ]> {
+  let summary = "shape cast operation";
+  let description = [{
+    The "cast" operation converts a tensor from one type to an equivalent type
+    without changing any data elements. The source and destination types must
+    both be tensor types with the same element type. If both are ranked, then
+    shape is required to match. The operation is invalid if converting to a
+    mismatching constant dimension.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
 
 #endif // LOX_OPS

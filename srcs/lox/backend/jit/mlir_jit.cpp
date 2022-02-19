@@ -45,8 +45,10 @@ void MLIRJIT::Run(Scanner &scanner) {
     // Apply any generic pass manager command line options and run the pipeline.
     applyPassManagerCLOptions(pm);
 
+    pm.addPass(mlir::createInlinerPass());
     // Add a run of the canonicalizer to optimize the mlir module.
     pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
+
     if (mlir::failed(pm.run(*module))) throw LoxError("Optimization failed");
   }
   module->dump();

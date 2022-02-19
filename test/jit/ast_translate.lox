@@ -1,10 +1,10 @@
-fun multiply_transpose(a, b) {
+fun _multiply_transpose(a, b) {
   return transpose(a) * transpose(b);
 }
 
 fun main() {
   var a = Tensor("fp64",[2, 3], [88,99,100]);
   var b = Tensor("fp64",[2, 3], [1,2]);
-  var c = multiply_transpose(a,b);
+  var c = _multiply_transpose(a,b);
   print c;
 }

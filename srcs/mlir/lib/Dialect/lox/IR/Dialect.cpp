@@ -4,17 +4,42 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/Transforms/InliningUtils.h>
 
 using namespace mlir;
 using namespace mlir::lox;
 
 #include "mlir/Dialect/lox/loxDialect.cpp.inc"
 
+struct ToyInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  bool isLegalToInline(Operation *call, Operation *callable, bool wouldBeCloned) const final { return true; }
+
+  bool isLegalToInline(Operation *, Region *, bool, BlockAndValueMapping &) const final { return true; }
+
+  void handleTerminator(Operation *op, ArrayRef<Value> valuesToRepl) const final {
+    // Only "return" needs to be handled here.
+    auto returnOp = cast<ReturnOp>(op);
+
+    // Replace the values directly with the return operands.
+    assert(returnOp.getNumOperands() == valuesToRepl.size());
+    for (const auto &it : llvm::enumerate(returnOp.getOperands()))
+      valuesToRepl[it.index()].replaceAllUsesWith(it.value());
+  }
+
+  Operation *materializeCallConversion(OpBuilder &builder, Value input, Type resultType,
+                                       Location conversionLoc) const final {
+    return builder.create<CastOp>(conversionLoc, resultType, input);
+  }
+};
+
 void LoxDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "mlir/Dialect/lox/lox.cpp.inc"
       >();
+  addInterfaces<ToyInlinerInterface>();
 }
 
 static mlir::ParseResult parseBinaryOp(mlir::OpAsmParser &parser, mlir::OperationState &result) {
@@ -163,13 +188,27 @@ static mlir::LogicalResult verify(TransposeOp op) {
     return mlir::success();
 
   auto inputShape = inputType.getShape();
-  if (!std::equal(inputShape.begin(), inputShape.end(),
-                  resultType.getShape().rbegin())) {
-    return op.emitError()
-           << "expected result shape to be a transpose of the input";
+  if (!std::equal(inputShape.begin(), inputShape.end(), resultType.getShape().rbegin())) {
+    return op.emitError() << "expected result shape to be a transpose of the input";
   }
   return mlir::success();
 }
+
+bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
+  if (inputs.size() != 1 || outputs.size() != 1) return false;
+  // The inputs must be Tensors with the same element type.
+  TensorType input = inputs.front().dyn_cast<TensorType>();
+  TensorType output = outputs.front().dyn_cast<TensorType>();
+  if (!input || !output || input.getElementType() != output.getElementType()) return false;
+  // The shape is required to match if both types are ranked.
+  return !input.hasRank() || !output.hasRank() || input == output;
+}
+
+CallInterfaceCallable GenericCallOp::getCallableForCallee() { return (*this)->getAttrOfType<SymbolRefAttr>("callee"); }
+
+/// Get the argument operands to the called function, this is required by the
+/// call interface.
+Operation::operand_range GenericCallOp::getArgOperands() { return inputs(); }
 
 #define GET_OP_CLASSES
 #include "mlir/Dialect/lox/lox.cpp.inc"
