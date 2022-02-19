@@ -108,7 +108,9 @@ void AstPrinter::Visit(BreakStmt* node) { VisitorReturn(node->attr->src_token->l
 void AstPrinter::Visit(FunctionStmt* node) {
   auto indentation = Indentation();
   std::string ret = indentation + "fun " + node->attr->name->lexeme + "(";
-  ret += Print(node->comma_expr_params.get());
+  if (node->comma_expr_params) {
+    ret += Print(node->comma_expr_params.get());
+  }
   ret += ") {\n";
   SemanticLevelGuard guard(this);
   for (auto& stmt : node->body) {

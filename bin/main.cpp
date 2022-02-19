@@ -34,15 +34,17 @@ void ArgsDef(CLI::App& app, CLIArgs& args) {
                  "could be one of{\"RecursiveDescent\",\"PrattParser\"}, default is \"PrattParser\"");
   app.add_option("--man", args.just_man, "Print user manual and return");
   app.add_option("--log_level", args.log_level, "Set the log level");
+  app.add_option("--mlir_cli_options", GlobalSetting().mlir_cli_options,
+                 "When using MLIRJIT backend, this option is used to pass the options to mlir-cli. Note that to use "
+                 "the quote mark when passing multiple options.");
   app.add_flag("--debug", GlobalSetting().debug, "Enable debug mode");
 }
 
-int main(int argn, char* argv[]) {
+int main(int argn, const char* argv[]) {
   CLI::App app{"Lox Interpreter"};
   CLIArgs args;
   ArgsDef(app, args);
   CLI11_PARSE(app, argn, argv);
-
   if (args.just_man) {
     PrintBuildInfo();
     std::cout << LoxInterpreter::CLIHelpString() << std::endl;

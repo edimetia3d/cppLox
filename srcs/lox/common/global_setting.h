@@ -14,6 +14,7 @@ struct LoxGlobalSetting {
   RuntimeDumpFrequency runtime_dump_frequency = RuntimeDumpFrequency::EVERY_LINE;
   std::string backend = "VirtualMachine";
   std::string parser = "PrattParser";
+  std::string mlir_cli_options = "";
 };
 
 LoxGlobalSetting& GlobalSetting();

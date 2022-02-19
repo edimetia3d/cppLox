@@ -11,6 +11,7 @@ namespace lox::jit {
   class MLIRJIT : public BackEnd {
    public:
     void Run(Scanner& scanner) override;
+    void HandleMLIROpitons();
   };
 };
 

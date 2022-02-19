@@ -1,5 +1,9 @@
+fun multiply_transpose(a, b) {
+  return transpose(a) + transpose(b);
+}
+
 fun main() {
   var a = Tensor("fp64",[2, 3], [88,99,100]);
-  var c = transpose(a);
+  var c = multiply_transpose(a);
   print c;
 }

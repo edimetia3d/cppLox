@@ -4,6 +4,9 @@
 
 #include "mlir_jit.h"
 
+#include <llvm/Support/CommandLine.h>
+#include <mlir/IR/AsmState.h>
+
 #include "lox/ast/ast_printer/ast_printer.h"
 #include "lox/backend/jit/translation/ast_to_mlir.h"
 #include "lox/common/global_setting.h"
@@ -14,21 +17,18 @@
 
 namespace lox::jit {
 
-void MLIRJIT::Run(Scanner& scanner) {
+void MLIRJIT::Run(Scanner &scanner) {
   auto parser = Parser::Make(GlobalSetting().parser, &scanner);
   auto root = parser->Parse();
   if (!root) {
     throw ParserError("Parse failed");
   }
-#ifndef NDEBUG
-  if (root && GlobalSetting().debug) {
-    AstPrinter printer;
-    std::cout << printer.Print(root.get()) << std::endl;
-  }
-#endif
   PassRunner pass_runner;
   pass_runner.SetPass({std::make_shared<SemanticCheck>()});
   pass_runner.Run(root.get());
+
+  HandleMLIROpitons();
+
   mlir::MLIRContext context;
   // Load our Dialect in this MLIR Context.
   context.getOrLoadDialect<mlir::lox::LoxDialect>();
@@ -39,4 +39,37 @@ void MLIRJIT::Run(Scanner& scanner) {
   }
   module->dump();
 }
-}  // namespace lox::MLIRJIT
+void MLIRJIT::HandleMLIROpitons() {
+  std::string raw_args = GlobalSetting().mlir_cli_options;
+  std::vector<const char *> args;
+  args.push_back("lox");
+  if (GlobalSetting().debug) {
+    args.push_back("-mlir-print-debuginfo");
+  }
+  auto iter = raw_args.begin();
+  while (iter != raw_args.end() && *iter == ' ') {
+    ++iter;
+  }
+  if (iter != raw_args.end()) {
+    args.push_back(&*iter);
+  }
+  bool new_blank = false;
+  while (iter != raw_args.end()) {
+    if (*iter == ' ') {
+      new_blank = true;
+      *iter = '\0';
+    } else {
+      if (new_blank) {
+        args.push_back(&*iter);
+      }
+      new_blank = false;
+    }
+    ++iter;
+  }
+
+  mlir::registerAsmPrinterCLOptions();
+  mlir::registerMLIRContextCLOptions();
+
+  llvm::cl::ParseCommandLineOptions(args.size(), args.data(), "Lox MLIR JIT");
+}
+}  // namespace lox::jit
