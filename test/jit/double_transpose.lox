@@ -1,0 +1,3 @@
+fun transpose_transpose(x) {
+  return transpose(transpose(x));
+}

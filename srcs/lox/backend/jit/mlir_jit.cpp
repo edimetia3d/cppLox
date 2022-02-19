@@ -6,6 +6,9 @@
 
 #include <llvm/Support/CommandLine.h>
 #include <mlir/IR/AsmState.h>
+#include <mlir/Pass/Pass.h>
+#include <mlir/Pass/PassManager.h>
+#include <mlir/Transforms/Passes.h>
 
 #include "lox/ast/ast_printer/ast_printer.h"
 #include "lox/backend/jit/translation/ast_to_mlir.h"
@@ -36,6 +39,15 @@ void MLIRJIT::Run(Scanner &scanner) {
   mlir::OwningModuleRef module = ConvertASTToMLIR(context, root.get());
   if (!module) {
     throw ParserError("Translation failed");
+  }
+  if (GlobalSetting().opt_level) {
+    mlir::PassManager pm(&context);
+    // Apply any generic pass manager command line options and run the pipeline.
+    applyPassManagerCLOptions(pm);
+
+    // Add a run of the canonicalizer to optimize the mlir module.
+    pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
+    if (mlir::failed(pm.run(*module))) throw LoxError("Optimization failed");
   }
   module->dump();
 }
@@ -69,6 +81,7 @@ void MLIRJIT::HandleMLIROpitons() {
 
   mlir::registerAsmPrinterCLOptions();
   mlir::registerMLIRContextCLOptions();
+  mlir::registerPassManagerCLOptions();
 
   llvm::cl::ParseCommandLineOptions(args.size(), args.data(), "Lox MLIR JIT");
 }

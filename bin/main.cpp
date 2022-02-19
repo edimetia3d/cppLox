@@ -37,6 +37,7 @@ void ArgsDef(CLI::App& app, CLIArgs& args) {
   app.add_option("--mlir_cli_options", GlobalSetting().mlir_cli_options,
                  "When using MLIRJIT backend, this option is used to pass the options to mlir-cli. Note that to use "
                  "the quote mark when passing multiple options.");
+  app.add_option("--opt", GlobalSetting().opt_level, "Set the optimization level, could be one of {0,1}, default is 1");
   app.add_flag("--debug", GlobalSetting().debug, "Enable debug mode");
 }
 

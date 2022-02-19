@@ -15,6 +15,7 @@ struct LoxGlobalSetting {
   std::string backend = "VirtualMachine";
   std::string parser = "PrattParser";
   std::string mlir_cli_options = "";
+  int opt_level = 1;
 };
 
 LoxGlobalSetting& GlobalSetting();

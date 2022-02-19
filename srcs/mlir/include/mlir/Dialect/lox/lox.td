@@ -180,6 +180,8 @@ def TransposeOp : LoxOp<"transpose", [NoSideEffect]> {
 
   // Invoke a static verify method to verify this transpose operation.
   let verifier = [{ return ::verify(*this); }];
+
+  let hasCanonicalizer = 1;
 }
 
 #endif // LOX_OPS
