@@ -38,7 +38,7 @@ def TensorOp : LoxOp<"tensor", [NoSideEffect]> {
   ];
 }
 
-def AddOp : LoxOp<"add"> {
+def AddOp : LoxOp<"add", [NoSideEffect]> {
   let summary = "element-wise addition operation";
   let description = [{
     The "add" operation performs element-wise addition between two tensors.
@@ -93,7 +93,26 @@ def GenericCallOp : LoxOp<"generic_call"> {
   ];
 }
 
-def PrintOp : LoxOp<"print"> {
+def MulOp : LoxOp<"mul", [NoSideEffect]> {
+  let summary = "element-wise multiplication operation";
+  let description = [{
+    The "mul" operation performs element-wise multiplication between two
+    tensors. The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
+  let results = (outs F64Tensor);
+
+  // Specify a parser and printer method.
+  let parser = [{ return ::parseBinaryOp(parser, result); }];
+  let printer = [{ return ::printBinaryOp(p, *this); }];
+
+  // Allow building a MulOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+def PrintOp : LoxOp<"print", [NoSideEffect]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -144,7 +163,7 @@ def ReturnOp : LoxOp<"return", [NoSideEffect, HasParent<"FuncOp">,
   let verifier = [{ return ::verify(*this); }];
 }
 
-def TransposeOp : LoxOp<"transpose"> {
+def TransposeOp : LoxOp<"transpose", [NoSideEffect]> {
   let summary = "transpose operation";
 
   let arguments = (ins F64Tensor:$input);

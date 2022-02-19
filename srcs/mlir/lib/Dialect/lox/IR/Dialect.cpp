@@ -116,6 +116,11 @@ void GenericCallOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   state.addAttribute("callee", builder.getSymbolRefAttr(callee));
 }
 
+void MulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value lhs, mlir::Value rhs) {
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands({lhs, rhs});
+}
+
 static mlir::LogicalResult verify(ReturnOp op) {
   // We know that the parent operation is a function, because of the 'HasParent'
   // trait attached to the operation definition.

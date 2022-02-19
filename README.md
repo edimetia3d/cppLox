@@ -44,8 +44,11 @@ There are (will be) three versions of Lox interpreter, they all share a same fro
 
 ### For Buiding
 
-A C++20 compiler is all you need. GCC >= 10.0 or clang >= 10.0 sould be fine,
-check [cppreference](https://en.cppreference.com/w/cpp/compiler_support/20) to see more.
+* A C++20 compiler is all you need. GCC >= 10.0 or clang >= 10.0 sould be fine,
+  check [cppreference](https://en.cppreference.com/w/cpp/compiler_support/20) to see more.
+* [Optional] Prebuild LLVM
+   * For LLVM is a huge project to download/build, when jit backend is not enabled, llvm project will not be needed.
+   * If you want to build with the jit backend, run the `third_party/prepare_mlir.sh` to download/prebuild llvm.
 
 ### For Testing
 
@@ -72,6 +75,8 @@ make
 1. `-DUPSTREAM_STYLE_ERROR_MSG=ON`. This impl's parsing(compiling)/err-handling logic is a little different from
    upstream. Enable this flag will make error messages behaves like upstream. It is OFF by default, but for the unit
    tests, it is set to ON.
+2. `-DENABLE_MLIR_JIT_BACKEND=ON`. Enable the jit backend, OFF by default. Note that you may need to prebuild LLVM to
+   use this option.
 
 # Test
 

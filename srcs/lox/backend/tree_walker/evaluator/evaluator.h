@@ -28,7 +28,7 @@ namespace lox::twalker {
  * Note that most semantic error had been caught by semantic checker, so evaluator will use static cast when
  * possible.
  */
-class Evaluator : public AstNodeVisitor<ObjectPtr> {
+class Evaluator : public ASTNodeVisitor<ObjectPtr> {
  public:
   Evaluator();
   void LaunchScript(FunctionStmt* script);

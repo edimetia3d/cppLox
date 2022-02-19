@@ -11,12 +11,11 @@
 #include "lox/ast/ast.h"
 
 namespace lox {
-class AstPrinter : public AstNodeVisitor<std::string> {
+class AstPrinter : public ASTNodeVisitor<std::string> {
  public:
   std::string Print(ASTNode* node) {
     assert(node);
-    node->Accept(this);
-    return PopRet();
+    return ValueVisit(node);
   }
 
  protected:

@@ -346,8 +346,7 @@ Evaluator::Evaluator() : work_env_(Environment::Make()), global_env_(work_env_) 
 
 ObjectPtr Evaluator::Eval(ASTNode* node) {
   assert(node);
-  node->Accept(this);
-  return PopRet();
+  return ValueVisit(node);
 }
 
 void Evaluator::Error(const std::string& msg) { throw RuntimeError(msg); }
@@ -415,7 +414,7 @@ void Evaluator::Visit(TensorExpr* node) {
   for (auto& item : data_list->obj()->As<List>()->data) {
     data.push_back(item->obj()->As<Number>()->data);
   }
-  return VisitorReturn(Object::MakeShared<Tensor>(TensorData{
+  VisitorReturn(Object::MakeShared<Tensor>(TensorData{
       .dtype = DataType::DOUBLE,
       .shape = shape,
       .data = data,
