@@ -10,6 +10,7 @@ class Pass;
 namespace lox {
 std::unique_ptr<Pass> createShapeInferencePass();
 std::unique_ptr<Pass> createLowerToAffinePass();
+std::unique_ptr<Pass> createLowerToLLVMPass();
 }  // namespace lox
 }  // end namespace mlir
 

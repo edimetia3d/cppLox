@@ -5,6 +5,7 @@ add_llvm_library(lox_transforms
         transpose_rewriter.cpp
         ShapeInferencePass.cpp
         LoxLoopsToAffine.cpp
+        LoxAffineToLLVM.cpp
         )
 
 llvm_update_compile_flags(lox_transforms)
