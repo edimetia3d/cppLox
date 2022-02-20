@@ -5,14 +5,20 @@
 #ifndef LOX_MLIR_JIT_H
 #define LOX_MLIR_JIT_H
 
+#include <memory>
+
 #include "lox/backend/backend.h"
 
 namespace lox::jit {
-  class MLIRJIT : public BackEnd {
-   public:
-    void Run(Scanner& scanner) override;
-    void HandleMLIROpitons();
-  };
+class MLIRJITImpl;
+class MLIRJIT : public BackEnd {
+ public:
+  MLIRJIT();
+  void Run(Scanner& scanner) override;
+
+ private:
+  std::shared_ptr<MLIRJITImpl> impl_;
 };
+};  // namespace lox::jit
 
 #endif  // LOX_MLIR_JIT_H

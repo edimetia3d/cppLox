@@ -5,8 +5,8 @@
 #include "mlir_jit.h"
 
 #include <llvm/Support/CommandLine.h>
+#include <mlir/Dialect/Affine/Passes.h>
 #include <mlir/IR/AsmState.h>
-#include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
@@ -16,23 +16,26 @@
 #include "lox/frontend/parser.h"
 #include "lox/passes/pass_runner.h"
 #include "lox/passes/semantic_check/semantic_check.h"
-
 #include "mlir/Dialect/lox/Dialect.h"
 #include "mlir/Dialect/lox/Passes.h"
 
 namespace lox::jit {
 
-void MLIRJIT::Run(Scanner &scanner) {
-  auto parser = Parser::Make(GlobalSetting().parser, &scanner);
-  auto root = parser->Parse();
-  if (!root) {
-    throw ParserError("Parse failed");
-  }
-  PassRunner pass_runner;
-  pass_runner.SetPass({std::make_shared<SemanticCheck>()});
-  pass_runner.Run(root.get());
+class MLIRJITImpl {
+ public:
+  MLIRJITImpl();
+  void Run(Scanner &scanner);
+  void HandleMLIROpitons();
+  std::unique_ptr<FunctionStmt> GetLoxAST(Scanner &scanner) const;
+};
 
-  HandleMLIROpitons();
+MLIRJIT::MLIRJIT() { impl_ = std::make_shared<MLIRJITImpl>(); }
+void MLIRJIT::Run(Scanner &scanner) { impl_->Run(scanner); }
+
+MLIRJITImpl::MLIRJITImpl() { HandleMLIROpitons(); }
+
+void MLIRJITImpl::Run(Scanner &scanner) {
+  std::unique_ptr<FunctionStmt> root = GetLoxAST(scanner);
 
   mlir::MLIRContext context;
   // Load our Dialect in this MLIR Context.
@@ -42,25 +45,46 @@ void MLIRJIT::Run(Scanner &scanner) {
   if (!module) {
     throw ParserError("Translation failed");
   }
+  mlir::PassManager pm(&context);
+  // Apply any generic pass manager command line options and run the pipeline.
+  applyPassManagerCLOptions(pm);
+
+  pm.addPass(mlir::createInlinerPass());  // always inline to support infer-shape
+  // Now that there is only one function, we can infer the shapes of each of
+  // the operations.
+  mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
+  optPM.addPass(mlir::lox::createShapeInferencePass());
+  optPM.addPass(mlir::createCanonicalizerPass());
+  optPM.addPass(mlir::createCSEPass());
+
+  // Partially lower the toy dialect with a few cleanups afterwards.
+  optPM.addPass(mlir::lox::createLowerToAffinePass());
+  optPM.addPass(mlir::createCanonicalizerPass());
+  optPM.addPass(mlir::createCSEPass());
+
   if (GlobalSetting().opt_level) {
-    mlir::PassManager pm(&context);
-    // Apply any generic pass manager command line options and run the pipeline.
-    applyPassManagerCLOptions(pm);
-
-    pm.addPass(mlir::createInlinerPass());
-
-    // Now that there is only one function, we can infer the shapes of each of
-    // the operations.
-    mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
-    optPM.addPass(mlir::lox::createShapeInferencePass());
-    optPM.addPass(mlir::createCanonicalizerPass());
-    optPM.addPass(mlir::createCSEPass());
-
-    if (mlir::failed(pm.run(*module))) throw LoxError("Optimization failed");
+    // Add optimizations if enabled.
+    optPM.addPass(mlir::createLoopFusionPass());
+    optPM.addPass(mlir::createAffineScalarReplacementPass());
   }
+
+  if (mlir::failed(pm.run(*module))) throw LoxError("Optimization failed");
   module->dump();
 }
-void MLIRJIT::HandleMLIROpitons() {
+
+std::unique_ptr<FunctionStmt> MLIRJITImpl::GetLoxAST(Scanner &scanner) const {
+  auto parser = Parser::Make(GlobalSetting().parser, &scanner);
+  auto root = parser->Parse();
+  if (!root) {
+    throw ParserError("Parse failed");
+  }
+  PassRunner pass_runner;
+  pass_runner.SetPass({std::make_shared<SemanticCheck>()});
+  pass_runner.Run(root.get());
+  return root;
+}
+
+void MLIRJITImpl::HandleMLIROpitons() {
   std::string raw_args = GlobalSetting().mlir_cli_options;
   std::vector<const char *> args;
   args.push_back("lox");
@@ -94,4 +118,5 @@ void MLIRJIT::HandleMLIROpitons() {
 
   llvm::cl::ParseCommandLineOptions(args.size(), args.data(), "Lox MLIR JIT");
 }
+
 }  // namespace lox::jit
