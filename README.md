@@ -28,6 +28,8 @@ There are (will be) three versions of Lox interpreter, they all share a same fro
    * An object system with GC that used for both jlox and clox.
 2. A more clear implementation, code is (hopefully) more readable more.
    * Especially true when comparing with original clox's c style code.
+   * Performance is not a big concern, though "optimizing" is an important part of the original tutorial. Because I am
+     experienced in optimizing, for a toy/tutorial project, I care about performance more.
 3. Files are C++ CMake style organized.
    * `bin/lox`: the main executable, which is a wrapper of the `liblox` library.
    * `bin/lox-format`: a tool to format Lox code, which is based on the AST Printer.
@@ -37,6 +39,12 @@ There are (will be) three versions of Lox interpreter, they all share a same fro
    * `break/continue` in loops.
    * comma expression, `[a,b,c,d]` style list expression and `a[i]` style element indexing.
    * built in `Tensor`(n-dimension dense matrix) support.
+
+# More about JIT
+
+* The JIT backend is intended to be a tutorial too, the initial implementation is basically a copy
+  of [MLIR Toy Tutorial](https://mlir.llvm.org/docs/Tutorials/Toy), check the commit `79e477` to see a how the Toy6 is
+  implemented in Lox
 
 # Build
 
