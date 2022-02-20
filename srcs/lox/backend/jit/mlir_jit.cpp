@@ -16,7 +16,9 @@
 #include "lox/frontend/parser.h"
 #include "lox/passes/pass_runner.h"
 #include "lox/passes/semantic_check/semantic_check.h"
+
 #include "mlir/Dialect/lox/Dialect.h"
+#include "mlir/Dialect/lox/Passes.h"
 
 namespace lox::jit {
 
@@ -46,8 +48,13 @@ void MLIRJIT::Run(Scanner &scanner) {
     applyPassManagerCLOptions(pm);
 
     pm.addPass(mlir::createInlinerPass());
-    // Add a run of the canonicalizer to optimize the mlir module.
-    pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
+
+    // Now that there is only one function, we can infer the shapes of each of
+    // the operations.
+    mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
+    optPM.addPass(mlir::lox::createShapeInferencePass());
+    optPM.addPass(mlir::createCanonicalizerPass());
+    optPM.addPass(mlir::createCSEPass());
 
     if (mlir::failed(pm.run(*module))) throw LoxError("Optimization failed");
   }

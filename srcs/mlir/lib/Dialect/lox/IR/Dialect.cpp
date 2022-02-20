@@ -127,11 +127,11 @@ static mlir::LogicalResult verify(TensorOp op) {
   return mlir::success();
 }
 
-
 void AddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value lhs, mlir::Value rhs) {
   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
   state.addOperands({lhs, rhs});
 }
+void AddOp::inferShapes() { getResult().setType(getOperand(0).getType()); }
 
 void GenericCallOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, StringRef callee,
                           ArrayRef<mlir::Value> arguments) {
@@ -145,6 +145,8 @@ void MulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::V
   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
   state.addOperands({lhs, rhs});
 }
+
+void MulOp::inferShapes() { getResult().setType(getOperand(0).getType()); }
 
 static mlir::LogicalResult verify(ReturnOp op) {
   // We know that the parent operation is a function, because of the 'HasParent'
@@ -175,17 +177,21 @@ static mlir::LogicalResult verify(ReturnOp op) {
                         << resultType << ")";
 }
 
-void TransposeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                        mlir::Value value) {
+void TransposeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value value) {
   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
   state.addOperands(value);
+}
+
+void TransposeOp::inferShapes() {
+  auto arrayTy = getOperand().getType().cast<RankedTensorType>();
+  SmallVector<int64_t, 2> dims(llvm::reverse(arrayTy.getShape()));
+  getResult().setType(RankedTensorType::get(dims, arrayTy.getElementType()));
 }
 
 static mlir::LogicalResult verify(TransposeOp op) {
   auto inputType = op.getOperand().getType().dyn_cast<RankedTensorType>();
   auto resultType = op.getType().dyn_cast<RankedTensorType>();
-  if (!inputType || !resultType)
-    return mlir::success();
+  if (!inputType || !resultType) return mlir::success();
 
   auto inputShape = inputType.getShape();
   if (!std::equal(inputShape.begin(), inputShape.end(), resultType.getShape().rbegin())) {
@@ -203,6 +209,8 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
   // The shape is required to match if both types are ranked.
   return !input.hasRank() || !output.hasRank() || input == output;
 }
+
+void CastOp::inferShapes() { getResult().setType(getOperand().getType()); }
 
 CallInterfaceCallable GenericCallOp::getCallableForCallee() { return (*this)->getAttrOfType<SymbolRefAttr>("callee"); }
 

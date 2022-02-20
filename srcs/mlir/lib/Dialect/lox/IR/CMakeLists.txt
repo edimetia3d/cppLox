@@ -3,6 +3,7 @@ add_mlir_dialect_library(MLIRLox
 
         DEPENDS
         MLIRloxIncGen
+        MLIRShapeInferenceInterfaceIncGen
 
         LINK_LIBS PUBLIC
         MLIRIR

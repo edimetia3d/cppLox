@@ -1,11 +1,12 @@
 #ifndef LOX_OPS
 #define LOX_OPS
 
-include "lox_dialect.td"
-
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+
+include "lox_dialect.td"
+include "ShapeInferenceInterface.td"
 
 class LoxOp<string mnemonic, list<OpTrait> traits = []> :
     Op<LoxDialect, mnemonic, traits>;
@@ -42,7 +43,10 @@ def TensorOp : LoxOp<"tensor", [NoSideEffect]> {
   ];
 }
 
-def AddOp : LoxOp<"add", [NoSideEffect]> {
+def AddOp : LoxOp<"add",[
+                   NoSideEffect,
+                   DeclareOpInterfaceMethods<ShapeInferenceOpInterface>
+                   ]> {
   let summary = "element-wise addition operation";
   let description = [{
     The "add" operation performs element-wise addition between two tensors.
@@ -98,7 +102,10 @@ def GenericCallOp : LoxOp<"generic_call",
   ];
 }
 
-def MulOp : LoxOp<"mul", [NoSideEffect]> {
+def MulOp : LoxOp<"mul", [
+                   NoSideEffect,
+                   DeclareOpInterfaceMethods<ShapeInferenceOpInterface>
+                   ]> {
   let summary = "element-wise multiplication operation";
   let description = [{
     The "mul" operation performs element-wise multiplication between two
@@ -168,7 +175,10 @@ def ReturnOp : LoxOp<"return", [NoSideEffect, HasParent<"FuncOp">,
   let verifier = [{ return ::verify(*this); }];
 }
 
-def TransposeOp : LoxOp<"transpose", [NoSideEffect]> {
+def TransposeOp : LoxOp<"transpose",[
+                         NoSideEffect,
+                         DeclareOpInterfaceMethods<ShapeInferenceOpInterface>
+                         ]> {
   let summary = "transpose operation";
 
   let arguments = (ins F64Tensor:$input);
@@ -191,6 +201,7 @@ def TransposeOp : LoxOp<"transpose", [NoSideEffect]> {
 
 def CastOp : LoxOp<"cast", [
      DeclareOpInterfaceMethods<CastOpInterface>,
+     DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
      NoSideEffect,
      SameOperandsAndResultShape
   ]> {

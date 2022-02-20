@@ -1,1 +1,3 @@
 add_mlir_dialect(lox lox)
+
+add_mlir_interface(ShapeInferenceInterface)
