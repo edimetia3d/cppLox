@@ -7,13 +7,13 @@ set(LLVM_LINK_COMPONENTS
 
 add_subdirectory(translation)
 
-add_library(jit_backend mlir_jit.cpp)
+add_library(mlir_backend mlir_jit.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
-target_link_libraries(jit_backend
+target_link_libraries(mlir_backend
         PRIVATE
         ${dialect_libs}
         ${translation_libs}

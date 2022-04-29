@@ -301,11 +301,11 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
 
 }  // namespace
 
-namespace lox::jit {
+namespace lox::mlir_jit {
 
 // The public API for codegen.
 mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::Module *lox_module) {
   return ASTToMLIR(context).Convert(lox_module->Statements());
 }
 
-}  // namespace lox::jit
+}  // namespace lox::mlir_jit

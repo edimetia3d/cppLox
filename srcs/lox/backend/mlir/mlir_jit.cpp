@@ -5,18 +5,18 @@
 #include "mlir_jit.h"
 
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/TargetSelect.h>
 #include <mlir/Dialect/Affine/Passes.h>
-#include <mlir/IR/AsmState.h>
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/Passes.h>
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
+#include <mlir/IR/AsmState.h>
+#include <mlir/Pass/PassManager.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
-#include <llvm/Support/TargetSelect.h>
+#include <mlir/Transforms/Passes.h>
 
 #include "lox/ast/ast_printer/ast_printer.h"
-#include "lox/backend/jit/translation/ast_to_mlir.h"
+#include "lox/backend/mlir/translation/ast_to_mlir.h"
 #include "lox/common/global_setting.h"
 #include "lox/frontend/parser.h"
 #include "lox/passes/pass_runner.h"
@@ -24,7 +24,7 @@
 #include "mlir/Dialect/lox/Dialect.h"
 #include "mlir/Dialect/lox/Passes.h"
 
-namespace lox::jit {
+namespace lox::mlir_jit {
 
 class MLIRJITImpl {
  public:
@@ -186,4 +186,4 @@ void MLIRJITImpl::HandleMLIROpitons() {
   llvm::cl::ParseCommandLineOptions(args.size(), args.data(), "Lox MLIR JIT");
 }
 
-}  // namespace lox::jit
+}  // namespace lox::mlir_jit

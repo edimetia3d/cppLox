@@ -17,7 +17,7 @@ struct BackEndRegistry {
 
   static BackEndRegistry &Instance();
 
-  void Register(const std::string name, BackEndCreateFn fn);
+  void Register(const std::string &name, BackEndCreateFn fn);
 
   BackEndCreateFn Get(const std::string &name);
 
