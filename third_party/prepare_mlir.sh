@@ -19,7 +19,7 @@ cd $BUILD_DIR
 git checkout 75e33f71c2dae584b13a7d1186ae0a038ba98838 # LLVM 13.0.1
 
 cmake -G Ninja ../llvm \
-  -DLLVM_ENABLE_PROJECTS=mlir \
+  -DLLVM_ENABLE_PROJECTS="mlir;clang" \
   -DLLVM_PARALLEL_LINK_JOBS=1 \
   -DLLVM_USE_LINKER=lld \
   -DLLVM_OPTIMIZED_TABLEGEN=ON \
