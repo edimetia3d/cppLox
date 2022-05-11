@@ -53,7 +53,26 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(VarDeclStmt *node) override {}
 
-  void Visit(WhileStmt *node) override {}
+  void Visit(WhileStmt *node) override {
+    llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(context_, "while.cond");
+    llvm::BasicBlock *while_body_bb = llvm::BasicBlock::Create(context_, "while.body");
+    llvm::BasicBlock *after_while_bb = llvm::BasicBlock::Create(context_, "after.while");
+    // branch to while_cond_bb
+    builder_.CreateBr(while_cond_bb);
+
+    // switch to while_cond_bb
+    builder_.SetInsertPoint(while_cond_bb);
+    llvm::Value *cond = ValueVisit(node->condition);
+    builder_.CreateCondBr(cond, while_body_bb, after_while_bb);
+
+    // switch to while_body_bb
+    builder_.SetInsertPoint(while_body_bb);
+    NoValueVisit(node->body);
+    builder_.CreateBr(while_cond_bb);
+
+    // switch back
+    builder_.SetInsertPoint(after_while_bb);
+  }
 
   void Visit(ForStmt *node) override {}
 
