@@ -9,6 +9,17 @@
 
 namespace lox::llvm_jit {
 
+struct BasicBlockDef {
+  // Maps the variable (or formal parameter) to its definition.
+  llvm::DenseMap<llvm::StringRef, llvm::TrackingVH<llvm::Value>> Defs;
+  // Set of incompleted phi instructions.
+  llvm::DenseMap<llvm::PHINode *, llvm::StringRef> IncompletePhis;
+  // Block is sealed, that is, no more predecessors will be added.
+  unsigned Sealed : 1;
+
+  BasicBlockDef() : Sealed(0) {}
+};
+
 class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
  public:
   explicit ASTToLLVM(llvm::LLVMContext &context) : context_(context), builder_(context) {
@@ -115,6 +126,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
  protected:
   llvm::Type *double_ty_;
+
+  llvm::DenseMap<llvm::BasicBlock *, BasicBlockDef> CurrentDef;
 
   llvm::LLVMContext &context_;
   std::unique_ptr<llvm::Module> ll_module_;
