@@ -65,24 +65,26 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(VarDeclStmt *node) override {}
 
   void Visit(WhileStmt *node) override {
-    llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(context_, "while.cond");
-    llvm::BasicBlock *while_body_bb = llvm::BasicBlock::Create(context_, "while.body");
-    llvm::BasicBlock *after_while_bb = llvm::BasicBlock::Create(context_, "after.while");
+    assert(function_hierarchy_.size() > 0);  // while is only allowed in function.
+    auto fn = function_hierarchy_.back();
+    llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(context_, "while.cond", fn);
+    llvm::BasicBlock *while_body_bb = llvm::BasicBlock::Create(context_, "while.body", fn);
+    llvm::BasicBlock *after_while_bb = llvm::BasicBlock::Create(context_, "after.while", fn);
     // branch to while_cond_bb
     builder_.CreateBr(while_cond_bb);
 
     // switch to while_cond_bb
-    builder_.SetInsertPoint(while_cond_bb);
+    SwitchBB(while_cond_bb);
     llvm::Value *cond = ValueVisit(node->condition);
     builder_.CreateCondBr(cond, while_body_bb, after_while_bb);
 
     // switch to while_body_bb
-    builder_.SetInsertPoint(while_body_bb);
+    SwitchBB(while_body_bb);
     NoValueVisit(node->body);
     builder_.CreateBr(while_cond_bb);
 
     // switch back
-    builder_.SetInsertPoint(after_while_bb);
+    SwitchBB(after_while_bb);
   }
 
   void Visit(ForStmt *node) override {}
@@ -98,18 +100,25 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     llvm::IRBuilder<>::InsertPointGuard guard(builder_);
 
     // create fn
+    assert(node->attr->name->lexeme == "main");  // only main is supported by now
     llvm::FunctionType *fn_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context_), {}, false);
     llvm::Function *fn = llvm::Function::Create(fn_type, llvm::GlobalValue::ExternalLinkage, "main", ll_module_.get());
+
+    // add new function to back as active function
+    function_hierarchy_.push_back(fn);
 
     // add entry bb and switch insert point to it
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(context_, "entry", fn);
 
-    builder_.SetInsertPoint(BB);
+    SwitchBB(BB);
     for (auto &stmt : node->body) {
       NoValueVisit(stmt);
     }
     // always inject a return 0 at the end of the function
     builder_.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context_), 0));
+
+    // pop the function to disable it
+    function_hierarchy_.pop_back();
   }
 
   void Visit(ClassStmt *node) override {}
@@ -132,6 +141,12 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   llvm::LLVMContext &context_;
   std::unique_ptr<llvm::Module> ll_module_;
   llvm::IRBuilder<> builder_;
+  std::vector<llvm::Function *> function_hierarchy_;
+  llvm::BasicBlock *active_bb_;
+  void SwitchBB(llvm::BasicBlock *bb) {
+    active_bb_ = bb;
+    builder_.SetInsertPoint(active_bb_);
+  }
 };
 
 std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::ASTNode *root) {
