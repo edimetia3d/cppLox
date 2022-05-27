@@ -26,12 +26,11 @@
 
 namespace lox::mlir_jit {
 
-class MLIRJITImpl {
+class MLIRJITImpl : public BackEnd {
  public:
   MLIRJITImpl();
-  void Run(Scanner &scanner);
+  void Run(Scanner &scanner) override;
   void HandleMLIROpitons();
-  std::unique_ptr<lox::Module> GetLoxAST(Scanner &scanner) const;
 };
 
 MLIRJIT::MLIRJIT() { impl_ = std::make_shared<MLIRJITImpl>(); }
@@ -99,7 +98,7 @@ int runJit(mlir::ModuleOp module) {
 }
 
 void MLIRJITImpl::Run(Scanner &scanner) {
-  std::unique_ptr<lox::Module> lox_module = GetLoxAST(scanner);
+  std::unique_ptr<FunctionStmt> root = BuildAST(scanner);
 
   mlir::MLIRContext context;
   // Load our Dialect in this MLIR Context.
@@ -140,15 +139,6 @@ void MLIRJITImpl::Run(Scanner &scanner) {
   dumpLLVMIR(*module);
   std::cout << " ============== JIT Run =================" << std::endl;
   runJit(*module);
-}
-
-std::unique_ptr<lox::Module> MLIRJITImpl::GetLoxAST(Scanner &scanner) const {
-  auto parser = Parser::Make(GlobalSetting().parser, &scanner);
-  auto module = parser->Parse();
-  PassRunner pass_runner;
-  pass_runner.SetPass({std::make_shared<SemanticCheck>()});
-  pass_runner.Run(module.get());
-  return module;
 }
 
 void MLIRJITImpl::HandleMLIROpitons() {

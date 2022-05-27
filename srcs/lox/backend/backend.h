@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 
+#include "lox/ast/ast.h"
 #include "lox/frontend/scanner.h"
 
 namespace lox {
@@ -30,6 +31,9 @@ struct BackEndRegistry {
 class BackEnd {
  public:
   virtual void Run(Scanner &scanner) = 0;
+
+ protected:
+  static std::unique_ptr<FunctionStmt> BuildAST(Scanner &scanner);
 };
 
 }  // namespace lox

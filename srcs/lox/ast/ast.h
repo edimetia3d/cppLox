@@ -4,6 +4,7 @@
 
 #ifndef CPPLOX_SRCS_LOX_AST_AST_H_
 #define CPPLOX_SRCS_LOX_AST_AST_H_
+#include <cassert>
 #include <stack>
 
 #include "lox/ast/_ast_node.h"

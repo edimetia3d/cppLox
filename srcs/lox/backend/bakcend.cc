@@ -2,11 +2,16 @@
 // LICENSE: MIT
 //
 
+#include "lox/ast/ast_printer/ast_printer.h"
 #include "lox/backend/backend.h"
 #include "lox/backend/mlir/mlir_jit.h"
 #include "lox/backend/tree_walker/tree_walker.h"
 #include "lox/backend/virtual_machine/virtual_machine.h"
+#include "lox/common/global_setting.h"
 #include "lox/common/lox_error.h"
+#include "lox/frontend/parser.h"
+#include "lox/passes/pass_runner.h"
+#include "lox/passes/semantic_check/semantic_check.h"
 
 namespace lox {
 
@@ -31,5 +36,23 @@ BackEndRegistry::BackEndCreateFn BackEndRegistry::Get(const std::string& name) {
     throw LoxError("Backend not found: " + name);
   }
   return reg_[name];
+}
+
+std::unique_ptr<FunctionStmt> BackEnd::BuildAST(Scanner& scanner) {
+  auto parser = Parser::Make(GlobalSetting().parser, &scanner);
+  auto root = parser->Parse();
+  if (!root) {
+    throw ParserError("Parse failed");
+  }
+#ifndef NDEBUG
+  if (root && GlobalSetting().debug) {
+    AstPrinter printer;
+    std::cout << printer.Print(root.get()) << std::endl;
+  }
+#endif
+  PassRunner pass_runner;
+  pass_runner.SetPass({std::make_shared<SemanticCheck>()});
+  pass_runner.Run(root.get());
+  return root;
 }
 }  // namespace lox
