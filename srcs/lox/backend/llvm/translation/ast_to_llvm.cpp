@@ -7,6 +7,11 @@
 
 #include "lox/ast/ast.h"
 
+class LLVMTranslationError : public lox::LoxError {
+ public:
+  using LoxError::LoxError;
+};
+
 namespace lox::llvm_jit {
 
 struct BasicBlockDef {
@@ -24,6 +29,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
  public:
   explicit ASTToLLVM(llvm::LLVMContext &context) : context_(context), builder_(context) {
     double_ty_ = llvm::Type::getDoubleTy(context_);
+    int32_t_ty_ = llvm::Type::getInt32Ty(context_);
   }
 
   std::unique_ptr<llvm::Module> Convert(lox::FunctionStmt *ast_module, const std::string &output_module_name) {
@@ -34,15 +40,36 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     return std::move(ll_module_);
   }
 
-  void Visit(AssignExpr *node) override {}
+  void Visit(AssignExpr *node) override {
+    auto value = ValueVisit(node->value);
+    write_local_variable(active_bb_, node->attr->name->lexeme, value);
+  }
 
   void Visit(LogicalExpr *node) override {}
 
-  void Visit(BinaryExpr *node) override {}
+  void Visit(BinaryExpr *node) override {
+    switch (node->attr->op->type) {
+      case TokenType::PLUS: {
+        auto v0 = ValueVisit(node->left);
+        auto v1 = ValueVisit(node->right);
+        auto ret = llvm::BinaryOperator::Create(llvm::Instruction::FAdd, v0, v1, "add", active_bb_);
+        VisitorReturn(ret);
+      }
+      default:
+        throw LLVMTranslationError("not supported op");
+    }
+  }
 
   void Visit(GroupingExpr *node) override {}
 
-  void Visit(LiteralExpr *node) override {}
+  void Visit(LiteralExpr *node) override {
+    switch (node->attr->value->type) {
+      case TokenType::NUMBER:
+        VisitorReturn(llvm::ConstantFP::get(double_ty_, std::stod(node->attr->value->lexeme)));
+      default:
+        throw LLVMTranslationError("Not a valid Literal.");
+    }
+  }
 
   void Visit(UnaryExpr *node) override {}
 
@@ -52,7 +79,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(SetAttrExpr *node) override {}
 
-  void Visit(VariableExpr *node) override {}
+  void Visit(VariableExpr *node) override { VisitorReturn(readLocalVariable(active_bb_, node->attr->name->lexeme)); }
 
   void Visit(CommaExpr *node) override {}
 
@@ -62,7 +89,10 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(TensorExpr *node) override {}
 
-  void Visit(VarDeclStmt *node) override {}
+  void Visit(VarDeclStmt *node) override {
+    auto value = ValueVisit(node->initializer);
+    write_local_variable(active_bb_, node->attr->name->lexeme, value);
+  }
 
   void Visit(WhileStmt *node) override {
     assert(function_hierarchy_.size() > 0);  // while is only allowed in function.
@@ -91,15 +121,12 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(ForStmt *node) override {}
 
-  void Visit(ExprStmt *node) override {}
+  void Visit(ExprStmt *node) override { NoValueVisit(node->expression); }
 
   void Visit(FunctionStmt *node) override {
     // only a main function with no arguments is supported by now
     assert(node->attr->name->lexeme == "main");
-    assert(node->comma_expr_params->DynAs<CommaExpr>()->elements.empty());
-
-    // create a guard to switch back to the current BB after the function
-    llvm::IRBuilder<>::InsertPointGuard guard(builder_);
+    assert(!node->comma_expr_params || node->comma_expr_params->DynAs<CommaExpr>()->elements.empty());
 
     // create fn
     assert(node->attr->name->lexeme == "main");  // only main is supported by now
@@ -109,6 +136,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     // add new function to back as active function
     function_hierarchy_.push_back(fn);
 
+    // create a guard to switch back to the current BB after the function
+    llvm::IRBuilder<>::InsertPointGuard guard(builder_);
     // add entry bb and switch insert point to it
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(context_, "entry", fn);
 
@@ -117,7 +146,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       NoValueVisit(stmt);
     }
     // always inject a return 0 at the end of the function
-    builder_.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context_), 0));
+    builder_.CreateRet(llvm::ConstantInt::get(int32_t_ty_, 0));
 
     // pop the function to disable it
     function_hierarchy_.pop_back();
@@ -127,7 +156,13 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(PrintStmt *node) override {}
 
-  void Visit(ReturnStmt *node) override {}
+  void Visit(ReturnStmt *node) override {
+    assert(node->value);  // must return with value
+    auto value = ValueVisit(node->value);
+    assert(value->getType() == double_ty_);  // only number supported by now
+    auto *cast = llvm::CastInst::Create(llvm::Instruction::FPToSI, value, int32_t_ty_, "", active_bb_);
+    builder_.CreateRet(cast);
+  }
 
   void Visit(BlockStmt *node) override {}
 
@@ -137,6 +172,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
  protected:
   llvm::Type *double_ty_;
+  llvm::Type *int32_t_ty_;
 
   llvm::DenseMap<llvm::BasicBlock *, BasicBlockDef> current_defs_;
 
