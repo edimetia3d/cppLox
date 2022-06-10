@@ -218,6 +218,9 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     // branch to while_cond_bb
     builder_.CreateBr(while_cond_bb);
 
+    // seal the current active bb
+    bb_resolve_mgr.GetResolver(active_bb_).Seal();
+
     // switch to while_cond_bb
     SwitchBB(while_cond_bb);
     llvm::Value *cond = ValueVisit(node->condition);
@@ -262,9 +265,11 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     }
     // always inject a return 0 at the end of the function
     builder_.CreateRet(llvm::ConstantInt::get(int32_t_ty_, 0));
+    // Builder.CreateRetVoid(); will be fine too
 
     // pop the function to disable it
     function_hierarchy_.pop_back();
+    bb_resolve_mgr.GetResolver(active_bb_).Seal();
   }
 
   void Visit(ClassStmt *node) override {}
@@ -286,20 +291,40 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(BreakStmt *node) override {}
 
  protected:
+  void SwitchBB(llvm::BasicBlock *bb) {
+    active_bb_ = bb;
+    builder_.SetInsertPoint(active_bb_);
+  }
+  llvm::Value *readVariable(llvm::BasicBlock *BB, llvm::StringRef *var_name) {
+    // we will generate 3 kinds of inst to read local, read global, read param
+    // local is read through bb_resolve_mgr
+    // global is through a builder_.CreateLoad(mapType(D), CGM.getGlobal(D))
+    // param is treated as value on stack, which may also be a load instruction
+    // closure is not support yet
+    if (auto *V = llvm::dyn_cast<VariableDeclaration>(D)) {
+      if (V->getEnclosingDecl() == Proc)
+        return readLocalVariable(BB, var_name);
+      else if (V->getEnclosingDecl() == CGM.getModuleDeclaration()) {
+        return builder_.CreateLoad(mapType(D), CGM.getGlobal(D));
+      } else
+        llvm::report_fatal_error("Nested procedures not yet supported");
+    } else if (auto *FP = llvm::dyn_cast<FormalParameterDeclaration>(D)) {
+      if (FP->isVar()) {
+        return builder_.CreateLoad(mapType(FP)->getPointerElementType(), FormalParams[FP]);
+      } else
+        return readLocalVariable(BB, D);
+    } else
+      llvm::report_fatal_error("Unsupported declaration");
+  }
+
   llvm::Type *double_ty_;
   llvm::Type *int32_t_ty_;
-
   BasicBlockSymResolverManager bb_resolve_mgr;
-
   llvm::LLVMContext &context_;
   std::unique_ptr<llvm::Module> ll_module_;
   llvm::IRBuilder<> builder_;
   std::vector<llvm::Function *> function_hierarchy_;
   llvm::BasicBlock *active_bb_;
-  void SwitchBB(llvm::BasicBlock *bb) {
-    active_bb_ = bb;
-    builder_.SetInsertPoint(active_bb_);
-  }
 };
 
 std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::ASTNode *root) {
