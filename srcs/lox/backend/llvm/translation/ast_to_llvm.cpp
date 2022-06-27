@@ -172,7 +172,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     }
   }
 
-  void Visit(GroupingExpr *node) override {}
+  void Visit(GroupingExpr *node) override { VisitorReturn(ValueVisit(node->expression)); }
 
   void Visit(LiteralExpr *node) override {
     switch (node->attr->value->type) {
