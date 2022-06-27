@@ -178,6 +178,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     switch (node->attr->value->type) {
       case TokenType::NUMBER:
         VisitorReturn(llvm::ConstantFP::get(double_ty_, std::stod(node->attr->value->lexeme)));
+      case TokenType::STRING:
+        VisitorReturn(llvm::ConstantDataArray::getString(context_, node->attr->value->lexeme, true));
       default:
         throw LLVMTranslationError("Not a valid Literal.");
     }
