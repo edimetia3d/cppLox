@@ -160,10 +160,14 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(LogicalExpr *node) override {}
 
   void Visit(BinaryExpr *node) override {
+    // only numberic type can be used in binary expression for now
+    // todo: support string and boolean type
+    auto v0 = ValueVisit(node->left);
+    auto v1 = ValueVisit(node->right);
+    assert(v0->getType() == v1->getType());
+    assert(v0->getType() == double_ty_);
     switch (node->attr->op->type) {
       case TokenType::PLUS: {
-        auto v0 = ValueVisit(node->left);
-        auto v1 = ValueVisit(node->right);
         auto ret = llvm::BinaryOperator::Create(llvm::Instruction::FAdd, v0, v1, "add", active_bb_);
         VisitorReturn(ret);
       }
@@ -177,9 +181,15 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(LiteralExpr *node) override {
     switch (node->attr->value->type) {
       case TokenType::NUMBER:
-        VisitorReturn(llvm::ConstantFP::get(double_ty_, std::stod(node->attr->value->lexeme)));
+        VisitorReturn(llvm::ConstantFP::get(context_, llvm::APFloat(std::stod(node->attr->value->lexeme))));
       case TokenType::STRING:
         VisitorReturn(llvm::ConstantDataArray::getString(context_, node->attr->value->lexeme, true));
+      case TokenType::NIL:
+        VisitorReturn(llvm::Constant::getNullValue(double_ty_));
+      case TokenType::TRUE_TOKEN:
+        VisitorReturn(llvm::ConstantInt::getTrue(context_));
+      case TokenType::FALSE_TOKEN:
+        VisitorReturn(llvm::ConstantInt::getFalse(context_));
       default:
         throw LLVMTranslationError("Not a valid Literal.");
     }
