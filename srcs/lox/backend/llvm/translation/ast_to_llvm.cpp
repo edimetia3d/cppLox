@@ -166,14 +166,74 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     auto v1 = ValueVisit(node->right);
     assert(v0->getType() == v1->getType());
     assert(v0->getType() == double_ty_);
+    auto op_code = llvm::Instruction::FAdd;
+    auto cmp_code = llvm::CmpInst::FCMP_UEQ;
+    const char *code_name = "add";
+    bool is_logical = false;
     switch (node->attr->op->type) {
       case TokenType::PLUS: {
-        auto ret = llvm::BinaryOperator::Create(llvm::Instruction::FAdd, v0, v1, "add", active_bb_);
-        VisitorReturn(ret);
+        break;
       }
+      case TokenType::MINUS: {
+        op_code = llvm::Instruction::FSub;
+        code_name = "sub";
+        break;
+      }
+      case TokenType::STAR: {
+        op_code = llvm::Instruction::FMul;
+        code_name = "mul";
+        break;
+      }
+      case TokenType::SLASH: {
+        op_code = llvm::Instruction::FDiv;
+        code_name = "div";
+        break;
+      }
+      case TokenType::EQUAL_EQUAL: {
+        is_logical = true;
+        break;
+      }
+      case TokenType::BANG_EQUAL: {
+        cmp_code = llvm::CmpInst::FCMP_UNE;
+        code_name = "ne";
+        is_logical = true;
+        break;
+      }
+      case TokenType::LESS: {
+        cmp_code = llvm::CmpInst::FCMP_ULT;
+        code_name = "lt";
+        is_logical = true;
+        break;
+      }
+      case TokenType::LESS_EQUAL: {
+        cmp_code = llvm::CmpInst::FCMP_ULE;
+        code_name = "le";
+        is_logical = true;
+        break;
+      }
+      case TokenType::GREATER: {
+        cmp_code = llvm::CmpInst::FCMP_UGT;
+        code_name = "gt";
+        is_logical = true;
+        break;
+      }
+      case TokenType::GREATER_EQUAL: {
+        cmp_code = llvm::CmpInst::FCMP_UGE;
+        code_name = "ge";
+        is_logical = true;
+        break;
+      }
+
       default:
         throw LLVMTranslationError("not supported op");
     }
+    llvm::Value *ret = nullptr;
+    if (is_logical) {
+      ret = builder_.CreateFCmp(cmp_code, v0, v1, code_name);  // i1
+    } else {
+      ret = llvm::BinaryOperator::Create(op_code, v0, v1, code_name);  // fp
+    }
+    VisitorReturn(ret);
   }
 
   void Visit(GroupingExpr *node) override { VisitorReturn(ValueVisit(node->expression)); }
