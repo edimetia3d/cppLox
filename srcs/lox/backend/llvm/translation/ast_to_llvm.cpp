@@ -257,7 +257,24 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(UnaryExpr *node) override {}
 
-  void Visit(CallExpr *node) override {}
+  void Visit(CallExpr *node) override {
+    // Look up the name in the global module table.
+    // fixme: function pointer and lambda function are not supported yet.
+    auto *calle_fn = ll_module_->getFunction(node->callee->DynAs<VariableExpr>()->attr->name->lexeme);
+    if (!calle_fn) throw LLVMTranslationError("Unknown function referenced");
+
+    // If argument mismatch error.
+    auto &args = node->comma_expr_args->As<CommaExpr>()->elements;
+    if (calle_fn->arg_size() != args.size()) throw LLVMTranslationError("Incorrect # arguments passed");
+
+    std::vector<llvm::Value *> args_value;
+    for (unsigned i = 0, e = args.size(); i != e; ++i) {
+      args_value.push_back(ValueVisit(args[i]));
+      if (!args_value.back()) throw LLVMTranslationError("Incorrect # arguments values");
+    }
+
+    VisitorReturn(builder_.CreateCall(calle_fn, args_value, "calltmp"));
+  }
 
   void Visit(GetAttrExpr *node) override {}
 
