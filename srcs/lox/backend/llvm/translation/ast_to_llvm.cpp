@@ -2,6 +2,7 @@
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Verifier.h>
 
 #include <memory>
 
@@ -338,7 +339,14 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     // create fn
     assert(node->attr->name->lexeme == "main");  // only main is supported by now
     llvm::FunctionType *fn_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context_), {}, false);
-    llvm::Function *fn = llvm::Function::Create(fn_type, llvm::GlobalValue::ExternalLinkage, "main", ll_module_.get());
+    llvm::Function *fn =
+        llvm::Function::Create(fn_type, llvm::GlobalValue::ExternalLinkage, node->attr->name->lexeme, ll_module_.get());
+
+    // set arg names
+    for (auto &arg : fn->args()) {
+      // todo: fill name from node->comma_expr_params
+      arg.setName("arg." + std::to_string(arg.getArgNo()));
+    }
 
     // add new function to back as active function
     function_hierarchy_.push_back(fn);
@@ -349,16 +357,22 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(context_, "entry", fn);
 
     SwitchBB(BB);
+
+    // bind value to arg names
+    for (unsigned i = 0, e = fn->arg_size(); i != e; ++i) {
+      // todo : update me
+    }
+
     for (auto &stmt : node->body) {
       NoValueVisit(stmt);
     }
-    // always inject a return 0 at the end of the function
-    builder_.CreateRet(llvm::ConstantInt::get(int32_t_ty_, 0));
-    // Builder.CreateRetVoid(); will be fine too
+    // always inject a return void at the end of the function
+    builder_.CreateRetVoid();
 
     // pop the function to disable it
     function_hierarchy_.pop_back();
     bb_resolve_mgr.GetResolver(active_bb_).Seal();
+    llvm::verifyFunction(*fn);
   }
 
   void Visit(ClassStmt *node) override {}
