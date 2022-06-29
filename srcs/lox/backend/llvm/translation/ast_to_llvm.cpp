@@ -142,7 +142,6 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
  public:
   explicit ASTToLLVM(llvm::LLVMContext &context) : context_(context), builder_(context) {
     double_ty_ = llvm::Type::getDoubleTy(context_);
-    int32_t_ty_ = llvm::Type::getInt32Ty(context_);
   }
 
   std::unique_ptr<llvm::Module> Convert(lox::FunctionStmt *ast_module, const std::string &output_module_name) {
@@ -338,7 +337,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
     // create fn
     assert(node->attr->name->lexeme == "main");  // only main is supported by now
-    llvm::FunctionType *fn_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context_), {}, false);
+    llvm::FunctionType *fn_type = llvm::FunctionType::get(double_ty_, {}, false);
     llvm::Function *fn =
         llvm::Function::Create(fn_type, llvm::GlobalValue::ExternalLinkage, node->attr->name->lexeme, ll_module_.get());
 
@@ -366,8 +365,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     for (auto &stmt : node->body) {
       NoValueVisit(stmt);
     }
-    // always inject a return void at the end of the function
-    builder_.CreateRetVoid();
+    // todo: check return type and inject a valid return value
 
     // pop the function to disable it
     function_hierarchy_.pop_back();
@@ -380,11 +378,13 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(PrintStmt *node) override {}
 
   void Visit(ReturnStmt *node) override {
-    assert(node->value);  // must return with value
-    auto value = ValueVisit(node->value);
-    assert(value->getType() == double_ty_);  // only number supported by now
-    auto *cast = llvm::CastInst::Create(llvm::Instruction::FPToSI, value, int32_t_ty_, "", active_bb_);
-    builder_.CreateRet(cast);
+    if (node->value) {
+      auto value = ValueVisit(node->value);
+      assert(value->getType() == double_ty_);  // only number supported by now
+      builder_.CreateRet(value);
+    } else {
+      builder_.CreateRetVoid();
+    }
   }
 
   void Visit(BlockStmt *node) override {}
@@ -421,7 +421,6 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   }
 
   llvm::Type *double_ty_;
-  llvm::Type *int32_t_ty_;
   BasicBlockSymResolverManager bb_resolve_mgr;
   llvm::LLVMContext &context_;
   std::unique_ptr<llvm::Module> ll_module_;
