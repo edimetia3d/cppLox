@@ -1,0 +1,27 @@
+
+// NOTE: this test could ONLY passed when using JIT or treewalker
+
+// full hints
+fun Foo0 bar(a:Foo1, b:Foo2) {
+    var c:Foo3 = 4;
+    return a + b + c;
+}
+
+// partial hints
+fun bar(a:Foo1, b:Foo2) {
+    var c:Foo3 = 4;
+    return a + b + c;
+}
+
+fun Foo0 bar(a, b:Foo2) {
+    var c:Foo3 = 4;
+    return a + b + c;
+}
+
+fun Foo0 bar(a:Foo1, b:Foo2) {
+    var c = 4;
+    return a + b + c;
+}
+
+var a:Foo3=1; // with hint
+var b:Foo5; // without hint

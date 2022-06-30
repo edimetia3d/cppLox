@@ -109,18 +109,22 @@ StmtPtr lox::Parser::DoAnyStatement() {
 }
 StmtPtr lox::Parser::VarDefStmt() {
   auto name = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after key `var`.");
+  Token type_hint;
+  if (AdvanceIfMatchAny<TokenType::COLON>()) {
+    type_hint = Consume(TokenType::IDENTIFIER, "Expect IDENTIFIER after `:`.");
+  }
   ExprPtr init_expr;
   if (AdvanceIfMatchAny<TokenType::EQUAL>()) {
     init_expr = AnyExpression();
   }
   Consume(TokenType::SEMICOLON, "Expect ; when var decl finish.");
-  return ASTNode::Make<lox::VarDeclStmt>(VarDeclStmtAttr{.name = name}, std::move(init_expr));
+  return ASTNode::Make<lox::VarDeclStmt>(VarDeclStmtAttr{.name = name, .type_hint = type_hint}, std::move(init_expr));
 }
 StmtPtr Parser::PrintStmt() {
   auto src_token = previous;
   ExprPtr value = AnyExpression();
   Consume(TokenType::SEMICOLON, "Expect ';' after value.");
-  return ASTNode::Make<lox::PrintStmt>(PrintStmtAttr{.src_token=src_token}, std::move(value));
+  return ASTNode::Make<lox::PrintStmt>(PrintStmtAttr{.src_token = src_token}, std::move(value));
 }
 StmtPtr Parser::ExpressionStmt() {
   ExprPtr expr = AnyExpression();
@@ -197,6 +201,11 @@ StmtPtr Parser::BreakStmt() {
 
 StmtPtr Parser::FunStmt(const std::string& kind) {
   Token name = Consume(TokenType::IDENTIFIER, "Expect " + kind + " name.");
+  Token ret_type_hint;
+  if (AdvanceIfMatchAny<TokenType::IDENTIFIER>()) {
+    ret_type_hint = name;
+    name = Previous();
+  }
   Consume(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
   auto comma_expr = ExprPtr();
   if (!Check(TokenType::RIGHT_PAREN)) {
@@ -211,7 +220,8 @@ StmtPtr Parser::FunStmt(const std::string& kind) {
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
   Consume(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
   std::vector<StmtPtr> body = GetBlocks();
-  return ASTNode::Make<FunctionStmt>(FunctionStmtAttr{.name = name}, std::move(comma_expr), std::move(body));
+  return ASTNode::Make<FunctionStmt>(FunctionStmtAttr{.name = name, .ret_type_hint = ret_type_hint},
+                                     std::move(comma_expr), std::move(body));
 }
 StmtPtr Parser::ReturnStmt() {
   Token keyword = Previous();
@@ -270,7 +280,7 @@ ExprPtr ParserWithExprUtils::ParseCallExpr(ExprPtr expr) {
     arguments = ForceCommaExpr();
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
-  expr = ASTNode::Make<CallExpr>(CallExprAttr{.src_token=src_token}, std::move(expr), std::move(arguments));
+  expr = ASTNode::Make<CallExpr>(CallExprAttr{.src_token = src_token}, std::move(expr), std::move(arguments));
   return expr;
 }
 
@@ -430,7 +440,11 @@ ExprPtr RecursiveDescentParser::Primary() {
     return ASTNode::Make<LiteralExpr>(LiteralExprAttr{.value = Previous()});
 
   if (AdvanceIfMatchAny<TokenType::IDENTIFIER, TokenType::THIS, TokenType::SUPER>()) {
-    return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = Previous()});
+    Token type_hint;
+    if (AdvanceIfMatchAny<TokenType::COLON>()) {
+      type_hint = Consume(TokenType::IDENTIFIER, "Expect type hint after ':'");
+    }
+    return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = Previous(), .type_hint = type_hint});
   }
 
   if (AdvanceIfMatchAny<TokenType::TENSOR>()) {
@@ -541,7 +555,11 @@ ExprPtr PrattParser::PrefixExpr() {
     case TokenType::THIS:
       [[fallthrough]];
     case TokenType::IDENTIFIER: {
-      return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = bak_previous});
+      Token type_hint;
+      if (AdvanceIfMatchAny<TokenType::COLON>()) {
+        type_hint = Consume(TokenType::IDENTIFIER, "Expect type hint after ':'");
+      }
+      return ASTNode::Make<VariableExpr>(VariableExprAttr{.name = bak_previous, .type_hint = type_hint});
     }
     case TokenType::STRING:
       [[fallthrough]];

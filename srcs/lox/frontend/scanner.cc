@@ -34,6 +34,7 @@ Token Scanner::ScanOne() {
     case '.': return AddToken(TokenType::DOT);
     case '-': return AddToken(TokenType::MINUS);
     case '+': return AddToken(TokenType::PLUS);
+    case ':': return AddToken(TokenType::COLON);
     case ';': return AddToken(TokenType::SEMICOLON);
     case '*': return AddToken(TokenType::STAR);
     case '!': return AddToken(MatchAndAdvance('=') ? TokenType::BANG_EQUAL : TokenType::BANG);

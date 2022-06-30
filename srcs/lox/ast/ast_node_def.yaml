@@ -8,18 +8,18 @@ Expr:
   Call: { attr: "Token src_token",child: [ "ExprPtr callee", "ExprPtr comma_expr_args" ] }
   GetAttr: { attr: "Token attr_name",child: "ExprPtr src_object" }
   SetAttr: { attr: "Token attr_name",child: [ "ExprPtr src_object","ExprPtr value" ] }
-  Variable: { attr: "Token name" }
+  Variable: { attr: [ "Token name", "Token type_hint" ] }
   Comma: { attr: "Token src_token", child: "std::vector<ExprPtr> elements" }
   List: { attr: "Token src_token", child: "ExprPtr comma_expr" }
   GetItem: { attr: "Token src_token", child: [ "ExprPtr src_object", "ExprPtr index" ] }
   Tensor: { attr: [ "Token src_token" ], child: [ "ExprPtr dtype","ExprPtr shape","ExprPtr data" ] }
 
 Stmt:
-  VarDecl: { attr: "Token name",child: "ExprPtr initializer" }
+  VarDecl: { attr: [ "Token name", "Token type_hint" ], child: "ExprPtr initializer" }
   While: { attr: "Token src_token", child: [ "ExprPtr condition", "StmtPtr body" ] }
   For: { attr: "Token src_token", child: [ "StmtPtr initializer", "ExprPtr condition","ExprPtr increment", "StmtPtr body" ] }
   Expr: { child: "ExprPtr expression" }
-  Function: { attr: [ "Token name" ],child: [ "ExprPtr comma_expr_params", "std::vector<StmtPtr> body" ] }
+  Function: { attr: [ "Token name", "Token ret_type_hint" ],child: [ "ExprPtr comma_expr_params", "std::vector<StmtPtr> body" ] }
   Class: { attr: "Token name", child: [ "ExprPtr superclass", "std::vector<StmtPtr> methods" ] }
   Print: { attr: "Token src_token", child: "ExprPtr expression" }
   Return: { attr: "Token src_token", child: "ExprPtr value" }
