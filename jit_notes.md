@@ -6,10 +6,11 @@ Someday in the future, lox might be a dialect of C++ language, but for now, I ju
 We will have two JIT backend, one is LLVM based, another one is MLIR based, I decided to do this just want to
 figure out how much power the Multi-Level IR can give me, comparing to the classical single level LLVM IR.
 
-Here is a  list of features that not supported by JIT (yet.)
-LLVM based JIT:
+Here is a list of features notes
 
-1. Nested class/function are not allowed, so there is no closure
+* LLVM based JIT:
+1. Only C style struct supported, the init() method will be used to define members, and only exprs like `self.var:int = 1;` are allowed.
+2. Nested function (closure) not supported.
 
 
 MLIR based JIT:
