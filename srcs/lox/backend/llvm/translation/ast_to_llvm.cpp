@@ -340,7 +340,6 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(ReturnStmt *node) override {
     if (node->value) {
       auto value = ValueVisit(node->value);
-      assert(value->getType() == cst_.num_ty);  // only number supported by now
       builder_.CreateRet(value);
     } else {
       builder_.CreateRetVoid();
@@ -381,7 +380,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     llvm::IRBuilder<> tmp_builder(&current_function_->getEntryBlock(), current_function_->getEntryBlock().begin());
     auto ret_inst = tmp_builder.CreateAlloca(ty, 0, var_name.c_str());
     if (init_value) {
-      tmp_builder.CreateStore(init_value, ret_inst);
+      builder_.CreateStore(init_value, ret_inst);
     }
     return ret_inst;
   }
