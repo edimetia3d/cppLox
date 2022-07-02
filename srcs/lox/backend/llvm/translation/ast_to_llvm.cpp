@@ -169,7 +169,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     if (is_logical) {
       ret = builder_.CreateFCmp(cmp_code, v0, v1, code_name);  // i1
     } else {
-      ret = llvm::BinaryOperator::Create(op_code, v0, v1, code_name);  // fp
+      ret = llvm::BinaryOperator::Create(op_code, v0, v1, code_name, builder_.GetInsertBlock());  // fp
     }
     VisitorReturn(ret);
   }
@@ -236,15 +236,33 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     VisitorReturn(builder_.CreateLoad(ty, addr, node->attr->name->lexeme));
   }
 
-  void Visit(CommaExpr *node) override {}
+  void Visit(CommaExpr *node) override { throw LLVMTranslationError("CommaExpr is not supported yet"); }
 
-  void Visit(ListExpr *node) override {}
+  void Visit(ListExpr *node) override { throw LLVMTranslationError("ListExpr is not supported yet"); }
 
-  void Visit(GetItemExpr *node) override {}
+  void Visit(GetItemExpr *node) override { throw LLVMTranslationError("GetItemExpr is not supported yet"); }
 
-  void Visit(TensorExpr *node) override {}
+  void Visit(TensorExpr *node) override { throw LLVMTranslationError("TensorExpr is not supported yet"); }
 
-  void Visit(VarDeclStmt *node) override { auto value = ValueVisit(node->initializer); }
+  void Visit(VarDeclStmt *node) override {
+    // Create global variable when at the global scope, or create local variable
+    llvm::Value *init_v = nullptr;
+    if (node->initializer) {
+      init_v = ValueVisit(node->initializer);
+    }
+    if (IsAtGlobal()) {
+      auto *var_type = GetType(node->attr->type_hint);
+      assert(ll_module_->getGlobalVariable(node->attr->name->lexeme) == nullptr);
+      ll_module_->getOrInsertGlobal(node->attr->name->lexeme, var_type);
+      auto global_var = ll_module_->getNamedGlobal(node->attr->name->lexeme);
+      if (init_v) {
+        global_var->setInitializer(llvm::dyn_cast<llvm::Constant>(init_v));
+      }
+    } else {
+      auto addr = EntryBlockAlloca(node->attr->name->lexeme, GetType(node->attr->type_hint), init_v);
+      local_sym_table_.insert(node->attr->name->lexeme, addr);
+    }
+  }
 
   void Visit(WhileStmt *node) override {
     auto fn = builder_.GetInsertBlock()->getParent();
@@ -296,8 +314,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     current_function_ = fn;
     lox::Finally finally([this]() { current_function_ = nullptr; });
 
-    // create a guard to switch back to the current BB after the function
-    llvm::IRBuilder<>::InsertPointGuard guard(builder_);
+    ScopeGuard new_scope(local_sym_table_);
     // add entry bb and switch insert point to it
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(context_, "entry", fn);
 
@@ -342,7 +359,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     builder_.SetInsertPoint(active_bb_);
   }
 
-  bool IsAtGlobal() { return current_function_; }
+  bool IsAtGlobal() { return current_function_ == nullptr; }
 
   const ConstantHelper cst_;
   llvm::LLVMContext &context_;
@@ -351,7 +368,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   llvm::Function *current_function_ = nullptr;
   llvm::BasicBlock *active_bb_;
 
-  llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *> local_sym_table;  // map from name to latest alloca address
+  llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *>
+      local_sym_table_;  // map from name to latest alloca address
   struct ScopeGuard {
     ScopeGuard(llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *> &symtable) : scope(symtable) {}
     llvm::ScopedHashTableScope<llvm::StringRef, llvm::AllocaInst *> scope;
@@ -375,8 +393,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       }
       return ret;
     } else {
-      assert(local_sym_table.count(name));
-      auto ret = local_sym_table.lookup(name);
+      assert(local_sym_table_.count(name));
+      auto ret = local_sym_table_.lookup(name);
       if (o_ty) {
         *o_ty = ret->getAllocatedType();
       }
@@ -394,7 +412,12 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       throw LLVMTranslationError("unknown type: " + name);
     }
   }
-  llvm::Type *GetType(const lox::Token &token) const { return GetType(token->lexeme); }
+  llvm::Type *GetType(const lox::Token &token) const {
+    if (!(bool)token) {
+      throw LLVMTranslationError("No type hint found");
+    }
+    return GetType(token->lexeme);
+  }
 };
 
 std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_module) {
