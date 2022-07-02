@@ -167,8 +167,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(VarDeclStmt *node) override { auto value = ValueVisit(node->initializer); }
 
   void Visit(WhileStmt *node) override {
-    assert(function_hierarchy_.size() > 0);  // while is only allowed in function.
-    auto fn = function_hierarchy_.back();
+    auto fn = builder_.GetInsertBlock()->getParent();
     llvm::BasicBlock *while_cond_bb = llvm::BasicBlock::Create(context_, "while.cond", fn);
     llvm::BasicBlock *while_body_bb = llvm::BasicBlock::Create(context_, "while.body", fn);
     llvm::BasicBlock *after_while_bb = llvm::BasicBlock::Create(context_, "after.while", fn);
@@ -196,8 +195,9 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(ExprStmt *node) override { NoValueVisit(node->expression); }
 
   void Visit(FunctionStmt *node) override {
-    // only a main function with no arguments is supported by now
-    assert(node->attr->name->lexeme == "main");
+    assert(IsAtGlobal());  // only global functions are allowed.
+
+    assert(node->attr->name->lexeme == "main");  // only a main function with no arguments is supported by now
     assert(!node->comma_expr_params || node->comma_expr_params->DynAs<CommaExpr>()->elements.empty());
 
     // create fn
@@ -262,6 +262,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     active_bb_ = bb;
     builder_.SetInsertPoint(active_bb_);
   }
+
+  bool IsAtGlobal() { return function_hierarchy_.size() == 0; }
 
   llvm::Type *double_ty_;
   llvm::LLVMContext &context_;
