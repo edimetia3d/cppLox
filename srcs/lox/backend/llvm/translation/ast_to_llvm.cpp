@@ -15,11 +15,45 @@ class LLVMTranslationError : public lox::LoxError {
 
 namespace lox::llvm_jit {
 
+/**
+ * Create frequently used LLVM types and values.
+ */
+struct ConstantHelper {
+  ConstantHelper(llvm::LLVMContext &context) {
+    num_ty = llvm::Type::getDoubleTy(context);
+    str_ty = llvm::Type::getInt8PtrTy(context);
+    bool_ty = llvm::Type::getInt1Ty(context);
+    nil_ty = llvm::Type::getVoidTy(context);
+
+    nil = llvm::Constant::getNullValue(nil_ty);
+    nil_num = llvm::Constant::getNullValue(num_ty);
+    nil_str = llvm::Constant::getNullValue(str_ty);
+    nil_bool = llvm::Constant::getNullValue(bool_ty);
+    true_v = llvm::ConstantInt::get(bool_ty, 1);
+    false_v = llvm::ConstantInt::get(bool_ty, 0);
+    num_0 = llvm::ConstantFP::get(num_ty, 0.0);
+    num_1 = llvm::ConstantFP::get(num_ty, 1.0);
+    num_2 = llvm::ConstantFP::get(num_ty, 2.0);
+  }
+  llvm::Type *num_ty;
+  llvm::Type *str_ty;
+  llvm::Type *bool_ty;
+  llvm::Type *nil_ty;
+
+  llvm::Value *nil;
+  llvm::Value *nil_num;
+  llvm::Value *nil_str;
+  llvm::Value *nil_bool;
+  llvm::Value *true_v;
+  llvm::Value *false_v;
+  llvm::Value *num_0;
+  llvm::Value *num_1;
+  llvm::Value *num_2;
+};
+
 class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
  public:
-  explicit ASTToLLVM(llvm::LLVMContext &context) : context_(context), builder_(context) {
-    double_ty_ = llvm::Type::getDoubleTy(context_);
-  }
+  explicit ASTToLLVM(llvm::LLVMContext &context) : cst_(context), context_(context), builder_(context) {}
 
   std::unique_ptr<llvm::Module> Convert(lox::FunctionStmt *ast_module, const std::string &output_module_name) {
     ll_module_ = std::make_unique<llvm::Module>(output_module_name, context_);
@@ -39,7 +73,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     auto v0 = ValueVisit(node->left);
     auto v1 = ValueVisit(node->right);
     assert(v0->getType() == v1->getType());
-    assert(v0->getType() == double_ty_);
+    assert(v0->getType() == cst_.num_ty);
     auto op_code = llvm::Instruction::FAdd;
     auto cmp_code = llvm::CmpInst::FCMP_UEQ;
     const char *code_name = "add";
@@ -119,7 +153,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       case TokenType::STRING:
         VisitorReturn(llvm::ConstantDataArray::getString(context_, node->attr->value->lexeme, true));
       case TokenType::NIL:
-        VisitorReturn(llvm::Constant::getNullValue(double_ty_));
+        VisitorReturn(cst_.nil);
       case TokenType::TRUE_TOKEN:
         VisitorReturn(llvm::ConstantInt::getTrue(context_));
       case TokenType::FALSE_TOKEN:
@@ -202,7 +236,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
     // create fn
     assert(node->attr->name->lexeme == "main");  // only main is supported by now
-    llvm::FunctionType *fn_type = llvm::FunctionType::get(double_ty_, {}, false);
+    llvm::FunctionType *fn_type = llvm::FunctionType::get(cst_.num_ty, {}, false);
     llvm::Function *fn =
         llvm::Function::Create(fn_type, llvm::GlobalValue::ExternalLinkage, node->attr->name->lexeme, ll_module_.get());
 
@@ -244,7 +278,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(ReturnStmt *node) override {
     if (node->value) {
       auto value = ValueVisit(node->value);
-      assert(value->getType() == double_ty_);  // only number supported by now
+      assert(value->getType() == cst_.num_ty);  // only number supported by now
       builder_.CreateRet(value);
     } else {
       builder_.CreateRetVoid();
@@ -265,7 +299,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   bool IsAtGlobal() { return function_hierarchy_.size() == 0; }
 
-  llvm::Type *double_ty_;
+  const ConstantHelper cst_;
   llvm::LLVMContext &context_;
   std::unique_ptr<llvm::Module> ll_module_;
   llvm::IRBuilder<> builder_;
