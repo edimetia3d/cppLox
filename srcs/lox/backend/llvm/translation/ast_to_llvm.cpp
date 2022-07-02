@@ -25,10 +25,10 @@ struct ConstantHelper {
     bool_ty = llvm::Type::getInt1Ty(context);
     nil_ty = llvm::Type::getVoidTy(context);
 
-    nil = llvm::Constant::getNullValue(nil_ty);
-    nil_num = llvm::Constant::getNullValue(num_ty);
-    nil_str = llvm::Constant::getNullValue(str_ty);
-    nil_bool = llvm::Constant::getNullValue(bool_ty);
+    nil = llvm::UndefValue::get(nil_ty);
+    nil_num = llvm::UndefValue::get(num_ty);
+    nil_str = llvm::UndefValue::get(str_ty);
+    nil_bool = llvm::UndefValue::get(bool_ty);
     true_v = llvm::ConstantInt::get(bool_ty, 1);
     false_v = llvm::ConstantInt::get(bool_ty, 0);
     num_0 = llvm::ConstantFP::get(num_ty, 0.0);
@@ -308,9 +308,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 };
 
 std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_module) {
-  auto ret = ASTToLLVM(context).Convert(lox_module->Statements(), "main_module");
-  ret->print(llvm::outs(), nullptr);  // todo: remove debug print later
-  return ret;
+  return ASTToLLVM(context).Convert(lox_module->Statements(), "main_module");
 }
 
 }  // namespace lox::llvm_jit

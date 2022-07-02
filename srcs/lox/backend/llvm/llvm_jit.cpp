@@ -24,10 +24,11 @@ void LLVMJITImpl::Run(Scanner &scanner) {
 
   auto context = llvm::LLVMContext();
 
-  auto module = ConvertASTToLLVM(context, lox_module.get());
-  if (!module) {
+  auto ll_module = ConvertASTToLLVM(context, lox_module.get());
+  if (!ll_module) {
     throw ParserError("Translation failed");
   }
+  ll_module->print(llvm::outs(), nullptr);  // todo: remove debug print later
 }
 
 }  // namespace lox::llvm_jit
