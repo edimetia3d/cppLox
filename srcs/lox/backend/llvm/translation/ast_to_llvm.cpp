@@ -1,5 +1,6 @@
 #include "ast_to_llvm.h"
 
+#include <llvm/ADT/ScopedHashTable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Verifier.h>
@@ -7,6 +8,7 @@
 #include <memory>
 
 #include "lox/ast/ast.h"
+#include "lox/common/finally.h"
 
 class LLVMTranslationError : public lox::LoxError {
  public:
@@ -247,7 +249,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     }
 
     // add new function to back as active function
-    function_hierarchy_.push_back(fn);
+    current_function_ = fn;
+    lox::Finally finally([this]() { current_function_ = nullptr; });
 
     // create a guard to switch back to the current BB after the function
     llvm::IRBuilder<>::InsertPointGuard guard(builder_);
@@ -266,8 +269,6 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     }
     // todo: check return type and inject a valid return value
 
-    // pop the function to disable it
-    function_hierarchy_.pop_back();
     llvm::verifyFunction(*fn);
   }
 
@@ -297,14 +298,31 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     builder_.SetInsertPoint(active_bb_);
   }
 
-  bool IsAtGlobal() { return function_hierarchy_.size() == 0; }
+  bool IsAtGlobal() { return current_function_; }
 
   const ConstantHelper cst_;
   llvm::LLVMContext &context_;
   std::unique_ptr<llvm::Module> ll_module_;
   llvm::IRBuilder<> builder_;
-  std::vector<llvm::Function *> function_hierarchy_;
+  llvm::Function *current_function_ = nullptr;
   llvm::BasicBlock *active_bb_;
+
+  llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *> local_sym_table;  // map from name to latest alloca address
+  struct ScopeGuard {
+    ScopeGuard(llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *> &symtable) : scope(symtable) {}
+    llvm::ScopedHashTableScope<llvm::StringRef, llvm::AllocaInst *> scope;
+  };
+
+  llvm::AllocaInst *EntryBlockAlloca(const std::string &var_name, llvm::Type *ty, llvm::Value *init_value) {
+    assert(!IsAtGlobal());
+    // use tmp builder to avoid basic block switch
+    llvm::IRBuilder<> tmp_builder(&current_function_->getEntryBlock(), current_function_->getEntryBlock().begin());
+    auto ret_inst = tmp_builder.CreateAlloca(ty, 0, var_name.c_str());
+    if (init_value) {
+      tmp_builder.CreateStore(init_value, ret_inst);
+    }
+    return ret_inst;
+  }
 };
 
 std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_module) {
