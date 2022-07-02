@@ -67,9 +67,9 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(AssignExpr *node) override {
     auto new_value = ValueVisit(node->value);
-    auto addr = SymLookup(node->attr->name->lexeme);
+    auto addr = SymAddrLookup(node->attr->name->lexeme);
     builder_.CreateStore(new_value, addr);
-    VisitorReturn(builder_.CreateLoad(new_value->getType(), addr));
+    VisitorReturn(builder_.CreateLoad(new_value->getType(), addr, node->attr->name->lexeme));
   }
 
   void Visit(LogicalExpr *node) override {
@@ -230,7 +230,11 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(SetAttrExpr *node) override { throw LLVMTranslationError("SetAttrExpr is not supported yet"); }
 
-  void Visit(VariableExpr *node) override {}
+  void Visit(VariableExpr *node) override {
+    llvm::Type *ty = nullptr;
+    auto addr = SymAddrLookup(node->attr->name->lexeme, &ty);
+    VisitorReturn(builder_.CreateLoad(ty, addr, node->attr->name->lexeme));
+  }
 
   void Visit(CommaExpr *node) override {}
 
@@ -363,14 +367,34 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     }
     return ret_inst;
   }
-  llvm::Value *SymLookup(const std::string &name) {
+  llvm::Value *SymAddrLookup(const std::string &name, llvm::Type **o_ty = nullptr) {
     if (IsAtGlobal()) {
-      return ll_module_->getGlobalVariable(name);
+      auto ret = ll_module_->getGlobalVariable(name);
+      if (o_ty) {
+        *o_ty = ret->getValueType();
+      }
+      return ret;
     } else {
       assert(local_sym_table.count(name));
-      return local_sym_table.lookup(name);
+      auto ret = local_sym_table.lookup(name);
+      if (o_ty) {
+        *o_ty = ret->getAllocatedType();
+      }
+      return ret;
     }
   }
+  llvm::Type *GetType(const std::string &name) const {
+    if (name == "float") {
+      return cst_.num_ty;
+    } else if (name == "bool") {
+      return cst_.bool_ty;
+    } else if (name == "str") {
+      return cst_.str_ty;
+    } else {
+      throw LLVMTranslationError("unknown type: " + name);
+    }
+  }
+  llvm::Type *GetType(const lox::Token &token) const { return GetType(token->lexeme); }
 };
 
 std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_module) {
