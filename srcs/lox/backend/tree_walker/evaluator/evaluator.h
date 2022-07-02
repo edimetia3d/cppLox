@@ -31,7 +31,7 @@ namespace lox::twalker {
 class Evaluator : public ASTNodeVisitor<ObjectPtr> {
  public:
   Evaluator();
-  void LaunchScript(FunctionStmt* script);
+  void LaunchStmts(std::vector<StmtPtr>& stmts);
   ObjectPtr Eval(ASTNode* node);
   void Error(const std::string& msg);
   EnvPtr WorkEnv() { return work_env_; }

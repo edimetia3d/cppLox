@@ -1,6 +1,6 @@
 #!/bin/sh
 SCRIPT_DIR=`realpath $(dirname "$0")`
-
+cd $SCRIPT_DIR
 if [ "$#" -lt 2 ]; then
   SRC_DIR=$SCRIPT_DIR/..
 else
@@ -8,12 +8,12 @@ else
 fi
 
 if [ "$#" -lt 1 ]; then
-  mkdir -p test_cache
   TEST_CACHE_DIR=$SCRIPT_DIR/test_cache
 else
   TEST_CACHE_DIR=$1
 fi
-
+echo CACHE_DIR: $TEST_CACHE_DIR
+mkdir -p $TEST_CACHE_DIR
 cd $TEST_CACHE_DIR
 
 mkdir -p build

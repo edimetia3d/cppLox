@@ -25,5 +25,15 @@ lox::Pass::IsModified PassRunner::Run(ASTNode* node) {
   }
   return is_modified ? Pass::IsModified::YES : Pass::IsModified::NO;
 }
+lox::Pass::IsModified PassRunner::Run(Module* module) {
+  assert(module);
+  bool is_modified = false;
+  for (auto pass : passes_) {
+    for (auto& stmt : module->Statements()) {
+      is_modified |= Pass::IsModified::YES == RunPass(stmt.get(), pass.get());
+    }
+  }
+  return is_modified ? Pass::IsModified::YES : Pass::IsModified::NO;
+}
 
 }  // namespace lox

@@ -31,7 +31,7 @@ class MLIRJITImpl {
   MLIRJITImpl();
   void Run(Scanner &scanner);
   void HandleMLIROpitons();
-  std::unique_ptr<FunctionStmt> GetLoxAST(Scanner &scanner) const;
+  std::unique_ptr<lox::Module> GetLoxAST(Scanner &scanner) const;
 };
 
 MLIRJIT::MLIRJIT() { impl_ = std::make_shared<MLIRJITImpl>(); }
@@ -99,13 +99,13 @@ int runJit(mlir::ModuleOp module) {
 }
 
 void MLIRJITImpl::Run(Scanner &scanner) {
-  std::unique_ptr<FunctionStmt> root = GetLoxAST(scanner);
+  std::unique_ptr<lox::Module> lox_module = GetLoxAST(scanner);
 
   mlir::MLIRContext context;
   // Load our Dialect in this MLIR Context.
   context.getOrLoadDialect<mlir::lox::LoxDialect>();
 
-  mlir::OwningModuleRef module = ConvertASTToMLIR(context, root.get());
+  mlir::OwningModuleRef module = ConvertASTToMLIR(context, lox_module.get());
   if (!module) {
     throw ParserError("Translation failed");
   }
@@ -142,16 +142,13 @@ void MLIRJITImpl::Run(Scanner &scanner) {
   runJit(*module);
 }
 
-std::unique_ptr<FunctionStmt> MLIRJITImpl::GetLoxAST(Scanner &scanner) const {
+std::unique_ptr<lox::Module> MLIRJITImpl::GetLoxAST(Scanner &scanner) const {
   auto parser = Parser::Make(GlobalSetting().parser, &scanner);
-  auto root = parser->Parse();
-  if (!root) {
-    throw ParserError("Parse failed");
-  }
+  auto module = parser->Parse();
   PassRunner pass_runner;
   pass_runner.SetPass({std::make_shared<SemanticCheck>()});
-  pass_runner.Run(root.get());
-  return root;
+  pass_runner.Run(module.get());
+  return module;
 }
 
 void MLIRJITImpl::HandleMLIROpitons() {

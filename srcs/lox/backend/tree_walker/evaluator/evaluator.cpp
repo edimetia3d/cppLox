@@ -356,8 +356,8 @@ EnvPtr Evaluator::SwitchEnv(EnvPtr new_env) {
   work_env_ = new_env;
   return old_env;
 }
-void Evaluator::LaunchScript(FunctionStmt* script) {
-  for (auto& stmt : script->body) {
+void Evaluator::LaunchStmts(std::vector<StmtPtr>& stmts) {
+  for (auto& stmt : stmts) {
     Eval(stmt.get());
   }
 }

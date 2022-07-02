@@ -11,7 +11,7 @@
 
 namespace lox::jit {
 
-mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::ASTNode *root);
+mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::Module *lox_module);
 }  // namespace lox::jit
 
 #endif  // LOX_AST_TO_MLIR_H

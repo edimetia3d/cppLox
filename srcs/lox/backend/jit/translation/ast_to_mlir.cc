@@ -93,9 +93,9 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
  public:
   ASTToMLIR(mlir::MLIRContext &context) : builder(&context) {}
 
-  mlir::ModuleOp Convert(FunctionStmt *root_func) {
+  mlir::ModuleOp Convert(std::vector<StmtPtr> &global_stmts) {
     theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
-    for (auto &stmt : root_func->body) {
+    for (auto &stmt : global_stmts) {
       NoValueVisit(stmt);
     }
     if (failed(mlir::verify(theModule))) {
@@ -304,8 +304,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
 namespace lox::jit {
 
 // The public API for codegen.
-mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::ASTNode *root) {
-  return ASTToMLIR(context).Convert(root->DynAs<FunctionStmt>());
+mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::Module *lox_module) {
+  return ASTToMLIR(context).Convert(lox_module->Statements());
 }
 
 }  // namespace lox::jit

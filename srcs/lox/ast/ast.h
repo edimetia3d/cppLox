@@ -6,10 +6,25 @@
 #define CPPLOX_SRCS_LOX_AST_AST_H_
 #include <stack>
 
-#include "lox/ast/ast_node.h"
+#include "lox/ast/_ast_node.h"
 #include "lox/ast/ast_nodes_decl.h.inc"
 
 namespace lox {
+
+class Module {
+ public:
+  Module() = default;
+  explicit Module(std::vector<StmtPtr>&& statements) {
+    group_ = ASTNode::Make<lox::BlockStmt>(BlockStmtAttr{}, std::move(statements));
+  }
+  std::vector<StmtPtr>& Statements() { return ViewAsBlock()->statements; }
+
+  BlockStmt* ViewAsBlock() { return group_->As<BlockStmt>(); }
+
+ private:
+  StmtPtr group_;
+};
+
 #define VisitorReturn(arg) \
   do {                     \
     Return(arg);           \

@@ -2,7 +2,8 @@
 // LICENSE: MIT
 //
 
-#include "ast_node.h"
+#include "ast.h"
+
 namespace lox {
 ASTNode* ASTNode::Parent() { return parent_; }
 std::vector<ASTNode*> ASTNode::Children() {

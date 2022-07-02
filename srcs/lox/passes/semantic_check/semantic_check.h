@@ -61,7 +61,7 @@ struct FunctionInfo {
 
 class SemanticCheck : public Pass {
  public:
-  explicit SemanticCheck() = default;
+  SemanticCheck() { function_infos.emplace_back(FunctionInfo(FunctionType::FUNCTION, "<script>")); };
   IsModified PreNode(ASTNode* ast_node) override;
   IsModified PostNode(ASTNode* ast_node) override;
 

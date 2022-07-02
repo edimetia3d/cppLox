@@ -87,19 +87,14 @@ Pass::IsModified SemanticCheck::PreNode(ASTNode* ast_node) {
   }
 
   if (auto p = ast_node->DynAs<FunctionStmt>()) {
-    if (function_infos.empty()) {
-      assert(p->attr->name->lexeme == "<script>");
-      function_infos.emplace_back(FunctionInfo(FunctionType::FUNCTION, p->attr->name->lexeme));
-    } else {
-      if (function_infos.back().scopes.back().type == ScopeType::CLASS) {
-        if (p->attr->name->lexeme == "init") {
-          function_infos.emplace_back(FunctionInfo{FunctionType::INITIALIZER, p->attr->name->lexeme});
-        } else {
-          function_infos.emplace_back(FunctionInfo{FunctionType::METHOD, p->attr->name->lexeme});
-        }
+    if (function_infos.back().scopes.back().type == ScopeType::CLASS) {
+      if (p->attr->name->lexeme == "init") {
+        function_infos.emplace_back(FunctionInfo{FunctionType::INITIALIZER, p->attr->name->lexeme});
       } else {
-        function_infos.emplace_back(FunctionInfo(FunctionType::FUNCTION, p->attr->name->lexeme));
+        function_infos.emplace_back(FunctionInfo{FunctionType::METHOD, p->attr->name->lexeme});
       }
+    } else {
+      function_infos.emplace_back(FunctionInfo(FunctionType::FUNCTION, p->attr->name->lexeme));
     }
     AddNamedValue(p->attr->name->lexeme);
     if (p->comma_expr_params) {

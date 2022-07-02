@@ -15,20 +15,17 @@ namespace lox::twalker {
 TreeWalker::TreeWalker() { evaluator_ = std::make_shared<Evaluator>(); }
 void TreeWalker::Run(Scanner &scanner) {
   auto parser = Parser::Make(GlobalSetting().parser, &scanner);
-  auto root = parser->Parse();
-  if (!root) {
-    throw ParserError("Parse failed");
-  }
+  auto module = parser->Parse();
 #ifndef NDEBUG
-  if (root && GlobalSetting().debug) {
+  if (module && GlobalSetting().debug) {
     AstPrinter printer;
-    std::cout << printer.Print(root.get()) << std::endl;
+    std::cout << printer.Print(module->ViewAsBlock()) << std::endl;
   }
 #endif
   PassRunner pass_runner;
   pass_runner.SetPass({std::make_shared<SemanticCheck>()});
-  pass_runner.Run(root.get());
-  evaluator_->LaunchScript(root.get());
+  pass_runner.Run(module.get());
+  evaluator_->LaunchStmts(module->Statements());
 }
 
 }  // namespace lox

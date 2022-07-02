@@ -83,6 +83,5 @@ using ExprPtr = std::unique_ptr<Expr>;
 
 using Stmt = ASTNode;
 using StmtPtr = std::unique_ptr<Stmt>;
-
 }  // namespace lox
 #endif  // CPPLOX_SRCS_LOX_AST_AST_NODE_H_

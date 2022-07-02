@@ -12,7 +12,7 @@ file_template = """
 #define LOX_AST_AST_NODE_DECL_H_INC
 #include <memory>
 #include "lox/token/token.h"
-#include "lox/ast/ast_node.h"
+#include "lox/ast/_ast_node.h"
 
 namespace lox{{
 {class_forward_decl}

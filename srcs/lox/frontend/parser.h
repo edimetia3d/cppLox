@@ -38,7 +38,7 @@ class Parser {
   static std::shared_ptr<Parser> Make(std::string type, Scanner* scanner);
   explicit Parser(Scanner* scanner) : scanner_(scanner) { current = scanner_->ScanOne(); }
 
-  std::unique_ptr<lox::FunctionStmt> Parse();
+  std::unique_ptr<lox::Module> Parse();
 
  protected:
   const Token& Peek() { return current; }

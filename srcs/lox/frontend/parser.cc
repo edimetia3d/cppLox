@@ -54,7 +54,7 @@ void lox::Parser::Synchronize() {
     Advance();
   }
 }
-std::unique_ptr<lox::FunctionStmt> lox::Parser::Parse() {
+std::unique_ptr<lox::Module> lox::Parser::Parse() {
   std::vector<StmtPtr> statements;
   err_found = false;
   while (!IsAtEnd()) {
@@ -64,12 +64,9 @@ std::unique_ptr<lox::FunctionStmt> lox::Parser::Parse() {
     }
   }
   if (err_found) {
-    return std::unique_ptr<lox::FunctionStmt>();
+    throw ParserError("Parse failed");
   }
-  auto script = ASTNode::Make<lox::FunctionStmt>(
-      FunctionStmtAttr{.name = Token(TokenType::IDENTIFIER, "<script>", -1, -1, "Unknown")}, ExprPtr(),
-      std::move(statements));
-  return std::unique_ptr<lox::FunctionStmt>(script.release()->As<lox::FunctionStmt>());
+  return std::make_unique<lox::Module>(std::move(statements));
 }
 
 StmtPtr lox::Parser::AnyStatement() {

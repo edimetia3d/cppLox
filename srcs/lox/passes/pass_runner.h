@@ -14,6 +14,7 @@ class PassRunner {
   PassRunner() = default;
   void SetPass(PassSequence passes) { passes_ = passes; }
   lox::Pass::IsModified Run(ASTNode* node);
+  lox::Pass::IsModified Run(Module* module);
 
  private:
   lox::Pass::IsModified RunPass(ASTNode* node, Pass* pass);

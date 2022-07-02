@@ -19,9 +19,9 @@ int main(int argn, char* argv[]) {
   std::string all_line((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
   Scanner scanner(all_line, file_path);
   auto parser = Parser::Make(ParserType::RECURSIVE_DESCENT, &scanner);
-  auto root = parser->Parse();
+  auto module = parser->Parse();
   AstPrinter printer;
-  for (auto& stmt : root->body) {
+  for (auto& stmt : module->Statements()) {
     std::cout << printer.Print(stmt.get());
   }
   std::cout << std::endl;
