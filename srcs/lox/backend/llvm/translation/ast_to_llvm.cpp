@@ -65,7 +65,12 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     return std::move(ll_module_);
   }
 
-  void Visit(AssignExpr *node) override { auto value = ValueVisit(node->value); }
+  void Visit(AssignExpr *node) override {
+    auto new_value = ValueVisit(node->value);
+    auto addr = SymLookup(node->attr->name->lexeme);
+    builder_.CreateStore(new_value, addr);
+    VisitorReturn(builder_.CreateLoad(new_value->getType(), addr));
+  }
 
   void Visit(LogicalExpr *node) override {}
 
@@ -322,6 +327,14 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       tmp_builder.CreateStore(init_value, ret_inst);
     }
     return ret_inst;
+  }
+  llvm::Value *SymLookup(const std::string &name) {
+    if (IsAtGlobal()) {
+      return ll_module_->getGlobalVariable(name);
+    } else {
+      assert(local_sym_table.count(name));
+      return local_sym_table.lookup(name);
+    }
   }
 };
 
