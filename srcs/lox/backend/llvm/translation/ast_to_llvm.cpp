@@ -72,7 +72,26 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     VisitorReturn(builder_.CreateLoad(new_value->getType(), addr));
   }
 
-  void Visit(LogicalExpr *node) override {}
+  void Visit(LogicalExpr *node) override {
+    // short circuit evaluation, we will create two basic blocks, one for else, and one for end
+    auto else_bb = llvm::BasicBlock::Create(context_, "else", current_function_);
+    auto end_bb = llvm::BasicBlock::Create(context_, "end", current_function_);
+    auto left_v = ValueVisit(node->left);
+    assert(left_v->getType() == cst_.bool_ty);
+    auto ret_addr = EntryBlockAlloca("tmp", left_v->getType(), left_v);
+    if (node->attr->op->type == TokenType::AND) {
+      builder_.CreateCondBr(left_v, else_bb, end_bb);
+    } else {
+      builder_.CreateCondBr(left_v, end_bb, else_bb);
+    }
+    SwitchBB(else_bb);
+    auto else_v = ValueVisit(node->right);
+    assert(else_v->getType() == cst_.bool_ty);
+    builder_.CreateStore(else_v, ret_addr);
+    builder_.CreateBr(end_bb);
+    SwitchBB(end_bb);
+    VisitorReturn(builder_.CreateLoad(cst_.bool_ty, ret_addr));
+  }
 
   void Visit(BinaryExpr *node) override {
     // only numberic type can be used in binary expression for now
