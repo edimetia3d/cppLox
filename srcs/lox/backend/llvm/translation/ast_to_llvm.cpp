@@ -106,6 +106,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     bool is_logical = false;
     switch (node->attr->op->type) {
       case TokenType::PLUS: {
+        op_code = llvm::Instruction::FAdd;
+        code_name = "add";
         break;
       }
       case TokenType::MINUS: {
@@ -124,6 +126,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
         break;
       }
       case TokenType::EQUAL_EQUAL: {
+        cmp_code = llvm::CmpInst::FCMP_UEQ;
+        code_name = "eq";
         is_logical = true;
         break;
       }
@@ -181,15 +185,27 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       case TokenType::NIL:
         VisitorReturn(cst_.nil);
       case TokenType::TRUE_TOKEN:
-        VisitorReturn(llvm::ConstantInt::getTrue(context_));
+        VisitorReturn(cst_.true_v);
       case TokenType::FALSE_TOKEN:
-        VisitorReturn(llvm::ConstantInt::getFalse(context_));
+        VisitorReturn(cst_.false_v);
       default:
         throw LLVMTranslationError("Not a valid Literal.");
     }
   }
 
-  void Visit(UnaryExpr *node) override {}
+  void Visit(UnaryExpr *node) override {
+    auto v = ValueVisit(node->right);
+    switch (node->attr->op->type) {
+      case TokenType::MINUS: {
+        VisitorReturn(llvm::UnaryOperator::Create(llvm::Instruction::FNeg, v, "minus"));
+      }
+      case TokenType::BANG: {
+        VisitorReturn(builder_.CreateNot(v, "not"));
+      }
+      default:
+        throw LLVMTranslationError("Not a valid Unary.");
+    }
+  }
 
   void Visit(CallExpr *node) override {
     // Look up the name in the global module table.
@@ -210,9 +226,9 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     VisitorReturn(builder_.CreateCall(calle_fn, args_value, "calltmp"));
   }
 
-  void Visit(GetAttrExpr *node) override {}
+  void Visit(GetAttrExpr *node) override { throw LLVMTranslationError("GetAttrExpr is not supported yet"); }
 
-  void Visit(SetAttrExpr *node) override {}
+  void Visit(SetAttrExpr *node) override { throw LLVMTranslationError("SetAttrExpr is not supported yet"); }
 
   void Visit(VariableExpr *node) override {}
 
