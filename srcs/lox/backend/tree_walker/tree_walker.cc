@@ -9,8 +9,8 @@
 namespace lox::twalker {
 TreeWalker::TreeWalker() { evaluator_ = std::make_shared<Evaluator>(); }
 void TreeWalker::Run(Scanner &scanner) {
-  std::unique_ptr<FunctionStmt> root = BuildAST(scanner);
-  evaluator_->LaunchScript(root.get());
+  auto lox_module = BuildASTModule(scanner);
+  evaluator_->LaunchStmts(lox_module->Statements());
 }
 
 }  // namespace lox

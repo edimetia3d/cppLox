@@ -20,11 +20,11 @@ LLVMJIT::LLVMJIT() { impl_ = std::make_shared<LLVMJITImpl>(); }
 void LLVMJIT::Run(Scanner &scanner) { impl_->Run(scanner); }
 
 void LLVMJITImpl::Run(Scanner &scanner) {
-  std::unique_ptr<FunctionStmt> root = BuildAST(scanner);
+  auto lox_module = BuildASTModule(scanner);
 
   auto context = llvm::LLVMContext();
 
-  auto module = ConvertASTToLLVM(context, root.get());
+  auto module = ConvertASTToLLVM(context, lox_module.get());
   if (!module) {
     throw ParserError("Translation failed");
   }

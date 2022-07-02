@@ -33,7 +33,7 @@ class BackEnd {
   virtual void Run(Scanner &scanner) = 0;
 
  protected:
-  static std::unique_ptr<FunctionStmt> BuildAST(Scanner &scanner);
+  static std::unique_ptr<Module> BuildASTModule(Scanner &scanner);
 };
 
 }  // namespace lox

@@ -98,7 +98,7 @@ int runJit(mlir::ModuleOp module) {
 }
 
 void MLIRJITImpl::Run(Scanner &scanner) {
-  std::unique_ptr<FunctionStmt> root = BuildAST(scanner);
+  auto lox_module = BuildASTModule(scanner);
 
   mlir::MLIRContext context;
   // Load our Dialect in this MLIR Context.

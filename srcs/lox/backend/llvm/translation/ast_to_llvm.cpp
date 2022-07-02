@@ -55,9 +55,9 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
  public:
   explicit ASTToLLVM(llvm::LLVMContext &context) : cst_(context), context_(context), builder_(context) {}
 
-  std::unique_ptr<llvm::Module> Convert(lox::FunctionStmt *ast_module, const std::string &output_module_name) {
+  std::unique_ptr<llvm::Module> Convert(std::vector<StmtPtr> &global_stmts, const std::string &output_module_name) {
     ll_module_ = std::make_unique<llvm::Module>(output_module_name, context_);
-    for (auto &stmt : ast_module->body) {
+    for (auto &stmt : global_stmts) {
       NoValueVisit(stmt);
     }
     return std::move(ll_module_);
@@ -307,8 +307,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   llvm::BasicBlock *active_bb_;
 };
 
-std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::ASTNode *root) {
-  auto ret = ASTToLLVM(context).Convert(root->DynAs<FunctionStmt>(), "main_module");
+std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_module) {
+  auto ret = ASTToLLVM(context).Convert(lox_module->Statements(), "main_module");
   ret->print(llvm::outs(), nullptr);  // todo: remove debug print later
   return ret;
 }

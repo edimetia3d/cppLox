@@ -40,21 +40,21 @@ BackEndRegistry::BackEndCreateFn BackEndRegistry::Get(const std::string& name) {
   return reg_[name];
 }
 
-std::unique_ptr<FunctionStmt> BackEnd::BuildAST(Scanner& scanner) {
+std::unique_ptr<Module> BackEnd::BuildASTModule(Scanner& scanner) {
   auto parser = Parser::Make(GlobalSetting().parser, &scanner);
-  auto root = parser->Parse();
-  if (!root) {
+  auto lox_module = parser->Parse();
+  if (!lox_module) {
     throw ParserError("Parse failed");
   }
 #ifndef NDEBUG
-  if (root && GlobalSetting().debug) {
+  if (lox_module && GlobalSetting().debug) {
     AstPrinter printer;
-    std::cout << printer.Print(root.get()) << std::endl;
+    std::cout << printer.Print(lox_module->ViewAsBlock()) << std::endl;
   }
 #endif
   PassRunner pass_runner;
   pass_runner.SetPass({std::make_shared<SemanticCheck>()});
-  pass_runner.Run(root.get());
-  return root;
+  pass_runner.Run(lox_module.get());
+  return lox_module;
 }
 }  // namespace lox
