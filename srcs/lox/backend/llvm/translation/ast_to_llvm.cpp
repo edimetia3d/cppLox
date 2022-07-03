@@ -220,8 +220,11 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       args_value.push_back(ValueVisit(args[i]));
       if (!args_value.back()) throw LLVMTranslationError("Incorrect arguments value");
     }
-
-    VisitorReturn(builder_.CreateCall(callee_fn, args_value, std::string("call_") + fn_name));
+    std::string ret_name;
+    if (!callee_fn->getReturnType()->isVoidTy()) {
+      ret_name = std::string("call_") + fn_name;
+    }
+    VisitorReturn(builder_.CreateCall(callee_fn, args_value, ret_name));
   }
 
   void Visit(GetAttrExpr *node) override { throw LLVMTranslationError("GetAttrExpr is not supported yet"); }
