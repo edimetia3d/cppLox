@@ -215,9 +215,16 @@ StmtPtr Parser::FunStmt(const std::string& kind) {
     }
   }
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
-  Consume(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
-  std::vector<StmtPtr> body = GetBlocks();
-  return ASTNode::Make<FunctionStmt>(FunctionStmtAttr{.name = name, .ret_type_hint = ret_type_hint},
+  std::vector<StmtPtr> body;
+  bool is_decl = true;
+  if (AdvanceIfMatchAny<TokenType::LEFT_BRACE>()) {
+    body = GetBlocks();
+    is_decl = false;
+  } else {
+    Consume(TokenType::SEMICOLON, "Expect ';' after " + kind + " forward declaration.");
+  }
+
+  return ASTNode::Make<FunctionStmt>(FunctionStmtAttr{.name = name, .ret_type_hint = ret_type_hint, .is_decl = is_decl},
                                      std::move(comma_expr), std::move(body));
 }
 StmtPtr Parser::ReturnStmt() {

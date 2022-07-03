@@ -19,7 +19,7 @@ Stmt:
   While: { attr: "Token src_token", child: [ "ExprPtr condition", "StmtPtr body" ] }
   For: { attr: "Token src_token", child: [ "StmtPtr initializer", "ExprPtr condition","ExprPtr increment", "StmtPtr body" ] }
   Expr: { child: "ExprPtr expression" }
-  Function: { attr: [ "Token name", "Token ret_type_hint" ],child: [ "ExprPtr comma_expr_params", "std::vector<StmtPtr> body" ] }
+  Function: { attr: [ "Token name", "Token ret_type_hint", "bool is_decl" ],child: [ "ExprPtr comma_expr_params", "std::vector<StmtPtr> body" ] }
   Class: { attr: "Token name", child: [ "ExprPtr superclass", "std::vector<StmtPtr> methods" ] }
   Print: { attr: "Token src_token", child: "ExprPtr expression" }
   Return: { attr: "Token src_token", child: "ExprPtr value" }

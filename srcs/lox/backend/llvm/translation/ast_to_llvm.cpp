@@ -337,8 +337,12 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       }
     }
     llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_ty, arg_tys, false);
-    llvm::Function *fn =
-        llvm::Function::Create(fn_type, llvm::GlobalValue::ExternalLinkage, node->attr->name->lexeme, ll_module_.get());
+    ll_module_->getOrInsertFunction(node->attr->name->lexeme, fn_type);
+    if (node->attr->is_decl) {
+      return;
+    }
+    llvm::Function *fn = ll_module_->getFunction(node->attr->name->lexeme);
+    fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
 
     // switch current_function
     current_function_ = fn;
