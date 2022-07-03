@@ -34,7 +34,7 @@ There are (will be) four versions of Lox interpreter, they all share a same fron
      clox uses a function map to dispatch the codegen-call, which make the implementation more structure, but at here,
      the dispatch is done by a plain switch-case, which is more easy to understand.
 3. Files/Modules are well organized, which may help you understand the relationship between each module easier.
-4. More language features:
+4. More language features (Virtual-Machine backend only support `break/continue`):
    * `break/continue` in loops.
    * Comma expression`a,b,c,d`, `[a,b,c,d]` style list expression and `a[i]` style element indexing.
    * Builtin `Tensor`(n-dimension dense matrix) support.

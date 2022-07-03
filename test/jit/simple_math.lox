@@ -1,5 +1,5 @@
-fun main() {
-    var a = 10;
+fun float main() {
+    var a:float = 10;
     a = a + 11;
     a = a + 12;
     a = a + 13;
