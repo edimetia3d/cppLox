@@ -9,7 +9,7 @@
 
 #include "lox/backend/backend.h"
 
-namespace lox::jit {
+namespace lox::mlir_jit {
 class MLIRJITImpl;
 class MLIRJIT : public BackEnd {
  public:
@@ -19,6 +19,6 @@ class MLIRJIT : public BackEnd {
  private:
   std::shared_ptr<MLIRJITImpl> impl_;
 };
-};  // namespace lox::jit
+};  // namespace lox::mlir_jit
 
 #endif  // LOX_MLIR_JIT_H

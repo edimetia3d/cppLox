@@ -9,9 +9,9 @@
 
 #include "lox/ast/ast.h"
 
-namespace lox::jit {
+namespace lox::mlir_jit {
 
 mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::Module *lox_module);
-}  // namespace lox::jit
+}  // namespace lox::mlir_jit
 
 #endif  // LOX_AST_TO_MLIR_H

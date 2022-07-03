@@ -1,5 +1,5 @@
 
-set_mlir_build_options()
+set_llvm_build_options()
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)

@@ -276,7 +276,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   /// Declare a variable in the current scope, return success if the variable
   /// wasn't declared yet.
   mlir::LogicalResult DeclareNamedValue(llvm::StringRef name, mlir::Value value) {
-    if (symbolTable.count(name)) return mlir::failure();
+    if (symbolTable.count(name)) return mlir::failure();  // name shadowing not allowed for now
     symbolTable.insert(name, value);
     return mlir::success();
   }
@@ -301,11 +301,11 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
 
 }  // namespace
 
-namespace lox::jit {
+namespace lox::mlir_jit {
 
 // The public API for codegen.
 mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::Module *lox_module) {
   return ASTToMLIR(context).Convert(lox_module->Statements());
 }
 
-}  // namespace lox::jit
+}  // namespace lox::mlir_jit

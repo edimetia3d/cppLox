@@ -1,0 +1,7 @@
+fun main() {
+    var a = 10;
+    a = a + 11;
+    a = a + 12;
+    a = a + 13;
+    return a;
+}

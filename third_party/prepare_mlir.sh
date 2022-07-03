@@ -19,7 +19,12 @@ cd $BUILD_DIR
 git checkout 75e33f71c2dae584b13a7d1186ae0a038ba98838 # LLVM 13.0.1
 
 cmake -G Ninja ../llvm \
-  -DLLVM_ENABLE_PROJECTS=mlir \
+  -DLLVM_ENABLE_PROJECTS="mlir;clang" \
+  -DLLVM_PARALLEL_LINK_JOBS=1 \
+  -DLLVM_USE_LINKER=lld \
+  -DLLVM_OPTIMIZED_TABLEGEN=ON \
+  -DLLVM_CCACHE_BUILD=ON \
+  -DLLVM_USE_SPLIT_DWARF=ON \
   -DLLVM_BUILD_EXAMPLES=ON \
   -DLLVM_TARGETS_TO_BUILD="X86" \
   -DLLVM_ENABLE_ASSERTIONS=ON \
@@ -29,4 +34,4 @@ cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_EH=ON \
   -DLLVM_ENABLE_RTTI=ON
 
-cmake --build . --target install -j2
+cmake --build . --target install

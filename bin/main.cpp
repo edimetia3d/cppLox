@@ -26,9 +26,10 @@ struct CLIArgs {
 };
 void ArgsDef(CLI::App& app, CLIArgs& args) {
   app.add_option("script_file", args.input_file, "Input file path, if not provided, interactive mode will be used.");
-  app.add_option("--backend", GlobalSetting().backend,
-                 "Specify the backend, "
-                 "could be one of{\"TreeWalker\",\"VirtualMachine\"}, default is \"VirtualMachine\"");
+  app.add_option(
+      "--backend", GlobalSetting().backend,
+      "Specify the backend, "
+      "could be one of{\"TreeWalker\",\"VirtualMachine\", \"MLIRJIT\",\"LLVMJIT\"}, default is \"VirtualMachine\"");
   app.add_option("--parser", GlobalSetting().parser,
                  "Specify the frontend parser, VirtualMachine backend will ignore this option."
                  "could be one of{\"RecursiveDescent\",\"PrattParser\"}, default is \"PrattParser\"");
