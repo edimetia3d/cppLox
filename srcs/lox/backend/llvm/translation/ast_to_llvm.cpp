@@ -200,8 +200,10 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     switch (node->attr->value->type) {
       case TokenType::NUMBER:
         VisitorReturn(llvm::ConstantFP::get(context_, llvm::APFloat(std::stod(node->attr->value->lexeme))));
-      case TokenType::STRING:
-        VisitorReturn(llvm::ConstantDataArray::getString(context_, node->attr->value->lexeme, true));
+      case TokenType::STRING: {
+        std::string str_v(node->attr->value->lexeme.begin() + 1, node->attr->value->lexeme.end() - 1);
+        VisitorReturn(builder_.CreateGlobalStringPtr(str_v, "", 0, ll_module_.get()));
+      }
       case TokenType::NIL:
         VisitorReturn(cst_->nil);
       case TokenType::TRUE_TOKEN:
