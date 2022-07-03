@@ -120,78 +120,54 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     auto v1 = ValueVisit(node->right);
     assert(v0->getType() == v1->getType());
     assert(v0->getType() == cst_->num_ty);
+    llvm::Value *ret = NumBinary(node->attr->op->type, v0, v1);
+    VisitorReturn(ret);
+  }
+
+  llvm::Value *NumBinary(TokenType op, llvm::Value *v0, llvm::Value *v1) {
     auto op_code = llvm::Instruction::FAdd;
     auto cmp_code = llvm::CmpInst::FCMP_UEQ;
     const char *code_name = "add";
     bool is_logical = false;
-    switch (node->attr->op->type) {
-      case TokenType::PLUS: {
-        op_code = llvm::Instruction::FAdd;
-        code_name = "add";
-        break;
-      }
-      case TokenType::MINUS: {
-        op_code = llvm::Instruction::FSub;
-        code_name = "sub";
-        break;
-      }
-      case TokenType::STAR: {
-        op_code = llvm::Instruction::FMul;
-        code_name = "mul";
-        break;
-      }
-      case TokenType::SLASH: {
-        op_code = llvm::Instruction::FDiv;
-        code_name = "div";
-        break;
-      }
-      case TokenType::EQUAL_EQUAL: {
-        cmp_code = llvm::CmpInst::FCMP_UEQ;
-        code_name = "eq";
-        is_logical = true;
-        break;
-      }
-      case TokenType::BANG_EQUAL: {
-        cmp_code = llvm::CmpInst::FCMP_UNE;
-        code_name = "ne";
-        is_logical = true;
-        break;
-      }
-      case TokenType::LESS: {
-        cmp_code = llvm::CmpInst::FCMP_ULT;
-        code_name = "lt";
-        is_logical = true;
-        break;
-      }
-      case TokenType::LESS_EQUAL: {
-        cmp_code = llvm::CmpInst::FCMP_ULE;
-        code_name = "le";
-        is_logical = true;
-        break;
-      }
-      case TokenType::GREATER: {
-        cmp_code = llvm::CmpInst::FCMP_UGT;
-        code_name = "gt";
-        is_logical = true;
-        break;
-      }
-      case TokenType::GREATER_EQUAL: {
-        cmp_code = llvm::CmpInst::FCMP_UGE;
-        code_name = "ge";
-        is_logical = true;
-        break;
-      }
+#define MATH_OP(token_name, llvm_op_code, code_name_str) \
+  case TokenType::token_name: {                          \
+    op_code = llvm::Instruction::llvm_op_code;           \
+    code_name = code_name_str;                           \
+    break;                                               \
+  }
+
+#define LOGICAL_OP(token_name, llvm_op_code, code_name_str) \
+  case TokenType::token_name: {                             \
+    cmp_code = llvm::CmpInst::llvm_op_code;                 \
+    code_name = code_name_str;                              \
+    is_logical = true;                                      \
+    break;                                                  \
+  }
+
+    switch (op) {
+      MATH_OP(PLUS, FAdd, "add")
+      MATH_OP(MINUS, FSub, "sub")
+      MATH_OP(STAR, FMul, "mul")
+      MATH_OP(SLASH, FDiv, "div")
+      LOGICAL_OP(EQUAL_EQUAL, FCMP_UEQ, "eq")
+      LOGICAL_OP(BANG_EQUAL, FCMP_UNE, "ne")
+      LOGICAL_OP(LESS, FCMP_ULT, "lt")
+      LOGICAL_OP(LESS_EQUAL, FCMP_ULE, "le")
+      LOGICAL_OP(GREATER, FCMP_UGT, "gt")
+      LOGICAL_OP(GREATER_EQUAL, FCMP_UGE, "ge")
 
       default:
         throw LLVMTranslationError("not supported op");
     }
+#undef MATH_OP
+#undef LOGICAL_OP
     llvm::Value *ret = nullptr;
     if (is_logical) {
       ret = builder_.CreateFCmp(cmp_code, v0, v1, code_name);  // i1
     } else {
       ret = llvm::BinaryOperator::Create(op_code, v0, v1, code_name, GetCurrentBB());  // fp
     }
-    VisitorReturn(ret);
+    return ret;
   }
 
   void Visit(GroupingExpr *node) override { VisitorReturn(ValueVisit(node->expression)); }
