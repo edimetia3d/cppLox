@@ -87,6 +87,8 @@ void LLVMJITImpl::Run(Scanner &scanner) {
     printf("===========================LLVM IR==========================\n");
     ll_module->print(llvm::outs(), nullptr);  // todo: remove debug print later
     printf("============================================================\n");
+    printf("Press Enter to start/continue execution.\n");
+    getchar();
   }
   InvokeMain(std::move(ll_module), std::move(context));
 }

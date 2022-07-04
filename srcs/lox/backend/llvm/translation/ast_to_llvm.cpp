@@ -368,6 +368,13 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       NoValueVisit(stmt);
     }
 
+    if (ret_ty != cst_->nil_ty) {
+      AddReturn(llvm::Constant::getNullValue(ret_ty));
+    } else {
+      AddReturn(nullptr);
+    }
+    CleanUpExitBlocks();
+
     llvm::verifyFunction(*fn);
   }
 
@@ -390,12 +397,11 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   }
 
   void Visit(ReturnStmt *node) override {
+    llvm::Value *value = nullptr;
     if (node->value) {
-      auto value = ValueVisit(node->value);
-      builder_.CreateRet(value);
-    } else {
-      builder_.CreateRetVoid();
+      value = ValueVisit(node->value);
     }
+    AddReturn(value);
   }
 
   void Visit(BlockStmt *node) override {
@@ -449,6 +455,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   std::unique_ptr<ConstantHelper> cst_;
   llvm::IRBuilder<> builder_;
   llvm::Function *current_function_ = nullptr;
+  std::vector<llvm::BasicBlock *> exit_blocks_;
   std::vector<llvm::BasicBlock *> break_targets_;
   std::vector<llvm::BasicBlock *> continue_targets_;
 
@@ -506,6 +513,28 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       throw LLVMTranslationError("No type hint found");
     }
     return GetType(token->lexeme);
+  }
+
+  void AddReturn(llvm::Value *value) {
+    assert(!IsAtGlobal());
+    auto exit_bb = llvm::BasicBlock::Create(context_, "exit", current_function_);
+    exit_blocks_.push_back(exit_bb);
+    builder_.CreateBr(exit_bb);
+    SwitchBB(exit_bb);
+    if (value) {
+      builder_.CreateRet(value);
+    } else {
+      builder_.CreateRetVoid();
+    }
+  }
+
+  void CleanUpExitBlocks() {
+    for (auto &bb : exit_blocks_) {
+      for (auto DI = ++bb->begin(); DI != bb->end();) {
+        DI = DI->eraseFromParent();
+      }
+    }
+    exit_blocks_.clear();
   }
 };
 
