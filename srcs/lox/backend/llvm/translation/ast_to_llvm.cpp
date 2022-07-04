@@ -26,10 +26,11 @@ struct ConstantHelper {
     str_ty = llvm::Type::getInt8PtrTy(context);
     bool_ty = llvm::Type::getInt1Ty(context);
     nil_ty = llvm::Type::getVoidTy(context);
+    i8_ty = llvm::Type::getInt8Ty(context);
 
     auto print_num_fn_ty = llvm::FunctionType::get(nil_ty, {num_ty}, false);
     auto print_str_fn_ty = llvm::FunctionType::get(nil_ty, {str_ty}, false);
-    auto print_bool_fn_ty = llvm::FunctionType::get(nil_ty, {bool_ty}, false);
+    auto print_bool_fn_ty = llvm::FunctionType::get(nil_ty, {i8_ty}, false);
     auto print_nil_fn_ty = llvm::FunctionType::get(nil_ty, {}, false);
     module->getOrInsertFunction("__lox_jit_println_num", print_num_fn_ty);
     print_num_fn = module->getFunction("__lox_jit_println_num");
@@ -54,6 +55,7 @@ struct ConstantHelper {
   llvm::Type *str_ty;
   llvm::Type *bool_ty;
   llvm::Type *nil_ty;
+  llvm::Type *i8_ty;
 
   llvm::Function *print_num_fn;
   llvm::Function *print_str_fn;
@@ -365,12 +367,6 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     for (auto &stmt : node->body) {
       NoValueVisit(stmt);
     }
-    // always inject a return
-    if (ret_ty != cst_->nil_ty) {
-      builder_.CreateRet(llvm::Constant::getNullValue(ret_ty));
-    } else {
-      builder_.CreateRetVoid();
-    }
 
     llvm::verifyFunction(*fn);
   }
@@ -384,7 +380,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     } else if (v->getType() == cst_->str_ty) {
       builder_.CreateCall(cst_->print_str_fn, v);
     } else if (v->getType() == cst_->bool_ty) {
-      builder_.CreateCall(cst_->print_bool_fn, v);
+      auto cast = builder_.CreateIntCast(v, cst_->i8_ty, false, v->getName().str() + ".cast");
+      builder_.CreateCall(cst_->print_bool_fn, cast);
     } else if (v->getType() == cst_->nil_ty) {
       builder_.CreateCall(cst_->print_nil_fn);
     } else {

@@ -3,12 +3,14 @@ set(LLVM_LINK_COMPONENTS
         Support
         nativecodegen
         OrcJIT
+        native
         )
 
 add_subdirectory(translation)
 add_subdirectory(builtins)
 
-add_library(llvm_backend llvm_jit.cpp)
+
+add_llvm_library(llvm_backend llvm_jit.cpp)
 
 target_link_libraries(llvm_backend
         PRIVATE
