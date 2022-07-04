@@ -1,0 +1,13 @@
+fun float fib(a:float){
+    if (a<2) {
+        return a;
+    }
+    return fib(a-2) + fib(a-1);
+}
+
+fun float main() {
+    for (var i:float=0; i<10; i=i+1) {
+        print fib(i);
+    }
+    return 996;
+}
