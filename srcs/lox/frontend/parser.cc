@@ -221,7 +221,7 @@ StmtPtr Parser::FunStmt(const std::string& kind) {
     body = GetBlocks();
     is_decl = false;
   } else {
-    Consume(TokenType::SEMICOLON, "Expect ';' after " + kind + " forward declaration.");
+    Consume(TokenType::SEMICOLON, "Expect ';' or '{' after parameter list");
   }
 
   return ASTNode::Make<FunctionStmt>(FunctionStmtAttr{.name = name, .ret_type_hint = ret_type_hint, .is_decl = is_decl},
