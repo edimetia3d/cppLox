@@ -21,25 +21,12 @@ namespace lox::llvm_jit {
  * Create frequently used LLVM types and values.
  */
 struct ConstantHelper {
-  ConstantHelper(llvm::LLVMContext &context, llvm::Module *module) {
+  ConstantHelper(llvm::LLVMContext &context) {
     num_ty = llvm::Type::getDoubleTy(context);
     str_ty = llvm::Type::getInt8PtrTy(context);
     bool_ty = llvm::Type::getInt1Ty(context);
     nil_ty = llvm::Type::getVoidTy(context);
     i8_ty = llvm::Type::getInt8Ty(context);
-
-    auto print_num_fn_ty = llvm::FunctionType::get(nil_ty, {num_ty}, false);
-    auto print_str_fn_ty = llvm::FunctionType::get(nil_ty, {str_ty}, false);
-    auto print_bool_fn_ty = llvm::FunctionType::get(nil_ty, {i8_ty}, false);
-    auto print_nil_fn_ty = llvm::FunctionType::get(nil_ty, {}, false);
-    module->getOrInsertFunction("__lox_jit_println_num", print_num_fn_ty);
-    print_num_fn = module->getFunction("__lox_jit_println_num");
-    module->getOrInsertFunction("__lox_jit_println_str", print_str_fn_ty);
-    print_str_fn = module->getFunction("__lox_jit_println_str");
-    module->getOrInsertFunction("__lox_jit_println_bool", print_bool_fn_ty);
-    print_bool_fn = module->getFunction("__lox_jit_println_bool");
-    module->getOrInsertFunction("__lox_jit_println_nil", print_nil_fn_ty);
-    print_nil_fn = module->getFunction("__lox_jit_println_nil");
 
     nil = llvm::UndefValue::get(nil_ty);
     nil_num = llvm::UndefValue::get(num_ty);
@@ -57,11 +44,6 @@ struct ConstantHelper {
   llvm::Type *nil_ty;
   llvm::Type *i8_ty;
 
-  llvm::Function *print_num_fn;
-  llvm::Function *print_str_fn;
-  llvm::Function *print_bool_fn;
-  llvm::Function *print_nil_fn;
-
   llvm::Value *nil;
   llvm::Value *nil_num;
   llvm::Value *nil_str;
@@ -77,13 +59,63 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
  public:
   explicit ASTToLLVM(llvm::LLVMContext &context) : context_(context), builder_(context) {}
 
-  std::unique_ptr<llvm::Module> Convert(std::vector<StmtPtr> &global_stmts, const std::string &output_module_name) {
-    ll_module_ = std::make_unique<llvm::Module>(output_module_name, context_);
-    cst_ = std::make_unique<ConstantHelper>(context_, ll_module_.get());
+  bool ShouldBeInDefModule(StmtPtr &stmt) const { return stmt->DynAs<VarDeclStmt>() || stmt->DynAs<FunctionStmt>(); }
+  std::unique_ptr<llvm::Module> MakeDefModule(std::vector<StmtPtr> &global_stmts,
+                                              const std::string &output_module_name) {
+    auto def_module = std::make_unique<llvm::Module>(output_module_name, context_);
+    active_module_ = def_module.get();
+    lox::Finally finally([this]() { active_module_ = nullptr; });
     for (auto &stmt : global_stmts) {
-      NoValueVisit(stmt);
+      if (ShouldBeInDefModule(stmt)) {
+        NoValueVisit(stmt);
+      }
     }
-    return std::move(ll_module_);
+    return def_module;
+  }
+
+  std::unique_ptr<llvm::Module> MakeInitModule(std::vector<StmtPtr> &global_stmts,
+                                               const std::string &output_module_name) {
+    auto init_module = std::make_unique<llvm::Module>(output_module_name, context_);
+    active_module_ = init_module.get();
+    lox::Finally finally([this]() { active_module_ = nullptr; });
+
+    llvm::FunctionType *fn_type = llvm::FunctionType::get(cst_->nil_ty, {}, false);
+    active_module_->getOrInsertFunction("__lox_init_module", fn_type);
+    // NOTE : DO NOT add __lox_init_module into known global , for every module will have their own __lox_init_module
+    llvm::Function *fn = active_module_->getFunction("__lox_init_module");
+    fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
+
+    // switch current_function
+    current_function_ = fn;
+    lox::Finally fn_finally([this]() { current_function_ = nullptr; });
+
+    ScopeGuard new_scope(local_sym_table_);
+    // add entry bb and switch insert point to it
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(context_, "entry", fn);
+    SwitchBB(BB);
+
+    for (auto &stmt : global_stmts) {
+      if (!ShouldBeInDefModule(stmt)) {
+        NoValueVisit(stmt);
+      }
+    }
+
+    AddReturn(nullptr);
+    CleanUpExitBlocks();
+
+    llvm::verifyFunction(*fn);
+
+    return init_module;
+  }
+
+  ConvertedModule Convert(std::vector<StmtPtr> &global_stmts, const std::string &output_module_name,
+                          KnownGlobalSymbol *known_global_symbol) {
+    known_global_symbol_ = known_global_symbol;
+    cst_ = std::make_unique<ConstantHelper>(context_);
+
+    auto def_module = MakeDefModule(global_stmts, output_module_name);
+    auto init_module = MakeInitModule(global_stmts, output_module_name + "_init");
+    return {std::move(def_module), std::move(init_module)};
   }
 
   void Visit(AssignExpr *node) override {
@@ -180,7 +212,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
         VisitorReturn(llvm::ConstantFP::get(context_, llvm::APFloat(std::stod(node->attr->value->lexeme))));
       case TokenType::STRING: {
         std::string str_v(node->attr->value->lexeme.begin() + 1, node->attr->value->lexeme.end() - 1);
-        VisitorReturn(builder_.CreateGlobalStringPtr(str_v, "", 0, ll_module_.get()));
+        VisitorReturn(builder_.CreateGlobalStringPtr(str_v, "", 0, active_module_));
       }
       case TokenType::NIL:
         VisitorReturn(cst_->nil);
@@ -211,8 +243,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(CallExpr *node) override {
     auto fn_name = node->callee->DynAs<VariableExpr>()->attr->name->lexeme;
-    auto callee_fn = ll_module_->getFunction(fn_name);
-    if (!callee_fn) throw LLVMTranslationError("Unknown function referenced");
+    llvm::Function *callee_fn = FunctionLookUp(fn_name);
 
     auto &args = node->comma_expr_args->As<CommaExpr>()->elements;
     if (callee_fn->arg_size() != args.size()) throw LLVMTranslationError(std::string("Incorrect arguments number"));
@@ -255,12 +286,13 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     }
     if (IsAtGlobal()) {
       auto *var_type = GetType(node->attr->type_hint);
-      assert(ll_module_->getGlobalVariable(node->attr->name->lexeme) == nullptr);
-      ll_module_->getOrInsertGlobal(node->attr->name->lexeme, var_type);
-      auto global_var = ll_module_->getNamedGlobal(node->attr->name->lexeme);
+      assert(active_module_->getGlobalVariable(node->attr->name->lexeme) == nullptr);
+      active_module_->getOrInsertGlobal(node->attr->name->lexeme, var_type);
+      auto global_var = active_module_->getNamedGlobal(node->attr->name->lexeme);
       if (init_v) {
         global_var->setInitializer(llvm::dyn_cast<llvm::Constant>(init_v));
       }
+      known_global_symbol_->insert({node->attr->name->lexeme, var_type});
     } else {
       NamedEntryBlockAlloca(node->attr->name->lexeme, GetType(node->attr->type_hint), init_v);
     }
@@ -342,11 +374,12 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       }
     }
     llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_ty, arg_tys, false);
-    ll_module_->getOrInsertFunction(node->attr->name->lexeme, fn_type);
+    active_module_->getOrInsertFunction(node->attr->name->lexeme, fn_type);
+    known_global_symbol_->insert({node->attr->name->lexeme, fn_type});
     if (node->attr->is_decl) {
       return;
     }
-    llvm::Function *fn = ll_module_->getFunction(node->attr->name->lexeme);
+    llvm::Function *fn = active_module_->getFunction(node->attr->name->lexeme);
     fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
 
     // switch current_function
@@ -383,14 +416,14 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   void Visit(PrintStmt *node) override {
     llvm::Value *v = ValueVisit(node->expression);
     if (v->getType() == cst_->num_ty) {
-      builder_.CreateCall(cst_->print_num_fn, v);
+      builder_.CreateCall(FunctionLookUp("__lox_jit_println_num"), v);
     } else if (v->getType() == cst_->str_ty) {
-      builder_.CreateCall(cst_->print_str_fn, v);
+      builder_.CreateCall(FunctionLookUp("__lox_jit_println_str"), v);
     } else if (v->getType() == cst_->bool_ty) {
       auto cast = builder_.CreateIntCast(v, cst_->i8_ty, false, v->getName().str() + ".cast");
-      builder_.CreateCall(cst_->print_bool_fn, cast);
+      builder_.CreateCall(FunctionLookUp("__lox_jit_println_bool"), cast);
     } else if (v->getType() == cst_->nil_ty) {
-      builder_.CreateCall(cst_->print_nil_fn);
+      builder_.CreateCall(FunctionLookUp("__lox_jit_println_nil"));
     } else {
       throw LLVMTranslationError("unsupported type for print");
     }
@@ -451,7 +484,8 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   bool IsAtGlobal() { return current_function_ == nullptr; }
 
   llvm::LLVMContext &context_;
-  std::unique_ptr<llvm::Module> ll_module_;
+  llvm::Module *active_module_;
+  KnownGlobalSymbol *known_global_symbol_;
   std::unique_ptr<ConstantHelper> cst_;
   llvm::IRBuilder<> builder_;
   llvm::Function *current_function_ = nullptr;
@@ -481,6 +515,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     local_sym_table_.insert(name, addr);
     return addr;
   }
+
   llvm::Value *SymAddrLookup(const std::string &name, llvm::Type **o_ty = nullptr) {
     if (!IsAtGlobal() && local_sym_table_.count(name)) {
       auto ret = local_sym_table_.lookup(name);
@@ -489,14 +524,35 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       }
       return ret;
     } else {
-      auto ret = ll_module_->getGlobalVariable(name);
-      assert(ret);
+      auto ret = active_module_->getGlobalVariable(name);
+      if (!ret) {
+        if (known_global_symbol_->contains(name)) {
+          active_module_->getOrInsertGlobal(name, known_global_symbol_->at(name));
+          ret = active_module_->getGlobalVariable(name);
+        } else {
+          throw LLVMTranslationError("unknown symbol: " + name);
+        }
+      }
       if (o_ty) {
         *o_ty = ret->getValueType();
       }
       return ret;
     }
   }
+
+  llvm::Function *FunctionLookUp(const std::string &fn_name) {
+    auto callee_fn = active_module_->getFunction(fn_name);
+    if (!callee_fn) {
+      if (known_global_symbol_->contains(fn_name)) {
+        active_module_->getOrInsertFunction(fn_name, llvm::cast<llvm::FunctionType>(known_global_symbol_->at(fn_name)));
+        callee_fn = active_module_->getFunction(fn_name);
+      } else {
+        throw LLVMTranslationError("Unknown function referenced");
+      }
+    }
+    return callee_fn;
+  }
+
   llvm::Type *GetType(const std::string &name) const {
     if (name == "float") {
       return cst_->num_ty;
@@ -521,7 +577,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     exit_blocks_.push_back(exit_bb);
     builder_.CreateBr(exit_bb);
     SwitchBB(exit_bb);
-    if (value) {
+    if (value && !value->getType()->isVoidTy()) {
       builder_.CreateRet(value);
     } else {
       builder_.CreateRetVoid();
@@ -538,8 +594,9 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   }
 };
 
-std::unique_ptr<llvm::Module> ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_module) {
-  return ASTToLLVM(context).Convert(lox_module->Statements(), "main_module");
+ConvertedModule ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_module,
+                                 KnownGlobalSymbol *known_global_symbol) {
+  return ASTToLLVM(context).Convert(lox_module->Statements(), "main_module", known_global_symbol);
 }
 
 }  // namespace lox::llvm_jit

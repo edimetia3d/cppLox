@@ -17,9 +17,11 @@
 #include <map>
 
 #include "lox/ast/ast_printer/ast_printer.h"
+#include "lox/backend/llvm/builtins/builtin.h"
 #include "lox/backend/llvm/translation/ast_to_llvm.h"
 #include "lox/common/global_setting.h"
 #include "lox/frontend/parser.h"
+
 namespace lox::llvm_jit {
 
 class RuntimeError : public LoxErrorWithExitCode<EX_SOFTWARE> {
@@ -32,6 +34,19 @@ class LLVMJITImpl : public BackEnd {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
+
+    auto expectJIT = llvm::orc::LLJITBuilder().create();
+    if (!expectJIT) throw RuntimeError(toString(expectJIT.takeError()));
+    JIT_ = std::move(expectJIT.get());
+    // export symbols in current process
+    auto &DL = JIT_->getDataLayout();
+    auto DLSG = llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL.getGlobalPrefix());
+    if (!DLSG) throw RuntimeError(toString(DLSG.takeError()));
+    JIT_->getMainJITDylib().addGenerator(std::move(*DLSG));
+
+    // register builtin functions
+    TSCtx_ = llvm::orc::ThreadSafeContext(std::make_unique<llvm::LLVMContext>());
+    RegBuiltin(*TSCtx_.getContext(), &known_global_symbol_);
   }
   void Run(Scanner &scanner) override;
 
@@ -60,10 +75,32 @@ class LLVMJITImpl : public BackEnd {
     FPM_[module]->run(*function);
   }
 
-  void InvokeMain(std::unique_ptr<llvm::Module> ll_module, std::unique_ptr<llvm::LLVMContext> context);
+  void InvokeInitAndDiscard(std::unique_ptr<llvm::Module> init_module);
 
  private:
   std::map<llvm::Module *, std::unique_ptr<llvm::legacy::FunctionPassManager>> FPM_;
+  std::unique_ptr<llvm::orc::LLJIT> JIT_;
+  llvm::orc::ThreadSafeContext TSCtx_;
+  KnownGlobalSymbol known_global_symbol_;
+  void AddModule(std::unique_ptr<llvm::Module> ll_module, llvm::orc::ResourceTrackerSP RT = nullptr) {
+    if (RT) {
+      if (auto Err = this->JIT_->addIRModule(RT, llvm::orc::ThreadSafeModule(std::move(ll_module), TSCtx_)))
+        throw RuntimeError(toString(std::move(Err)));
+    } else {
+      if (auto Err = this->JIT_->addIRModule(llvm::orc::ThreadSafeModule(std::move(ll_module), TSCtx_)))
+        throw RuntimeError(toString(std::move(Err)));
+    }
+  }
+
+  template <class RetT>
+  RetT Invoke(const std::string &name) {
+    // look up
+    auto EntrySym = JIT_->lookup(name);
+    if (!EntrySym) throw RuntimeError(toString(EntrySym.takeError()));
+    // call
+    auto *Entry = (RetT(*)())EntrySym->getAddress();
+    return Entry();
+  }
 };
 
 LLVMJIT::LLVMJIT() { impl_ = std::make_shared<LLVMJITImpl>(); }
@@ -72,54 +109,48 @@ void LLVMJIT::Run(Scanner &scanner) { impl_->Run(scanner); }
 void LLVMJITImpl::Run(Scanner &scanner) {
   auto lox_module = BuildASTModule(scanner);
 
-  auto context = std::make_unique<llvm::LLVMContext>();
-
-  auto ll_module = ConvertASTToLLVM(*context, lox_module.get());
-  if (!ll_module) {
+  auto converted_module = ConvertASTToLLVM(*TSCtx_.getContext(), lox_module.get(), &known_global_symbol_);
+  if (!converted_module.init_module || !converted_module.def_module) {
     throw ParserError("Translation failed");
   }
   if (lox::GlobalSetting().opt_level > 0) {
-    for (auto &fn : ll_module->functions()) {
-      OptimiazeFn(ll_module.get(), &fn);
+    for (auto &fn : converted_module.def_module->functions()) {
+      OptimiazeFn(converted_module.def_module.get(), &fn);
+    }
+    for (auto &fn : converted_module.init_module->functions()) {
+      OptimiazeFn(converted_module.init_module.get(), &fn);
     }
   }
   if (lox::GlobalSetting().debug) {
-    printf("===========================LLVM IR==========================\n");
-    ll_module->print(llvm::outs(), nullptr);  // todo: remove debug print later
+    printf("===========================DEF MODULE IR==========================\n");
+    converted_module.def_module->print(llvm::outs(), nullptr);
+    printf("===========================INIT MODULE IR==========================\n");
+    converted_module.init_module->print(llvm::outs(), nullptr);
     printf("============================================================\n");
     printf("Press Enter to start/continue execution.\n");
     getchar();
   }
-  InvokeMain(std::move(ll_module), std::move(context));
+  auto main_fn = converted_module.def_module->getFunction("main");
+  bool ret_void = true;
+  if (main_fn) {
+    ret_void = main_fn->getReturnType()->isVoidTy();
+  }
+  AddModule(std::move(converted_module.def_module));
+  InvokeInitAndDiscard(std::move(converted_module.init_module));
+  if (!GlobalSetting().interactive_mode && main_fn) {
+    if (ret_void) {
+      Invoke<void>("main");
+    } else {
+      Invoke<double>("main");
+    }
+  }
 }
-void LLVMJITImpl::InvokeMain(std::unique_ptr<llvm::Module> ll_module, std::unique_ptr<llvm::LLVMContext> context) {
-  auto ret_t = ll_module->getFunction("main")->getReturnType();
-  auto expectJIT = llvm::orc::LLJITBuilder().create();
-  if (!expectJIT) throw RuntimeError(toString(expectJIT.takeError()));
-  auto JIT = std::move(expectJIT.get());
-
-  if (auto Err = JIT->addIRModule(llvm::orc::ThreadSafeModule(std::move(ll_module), std::move(context))))
-    throw RuntimeError("Compilation failed");
-
-  // export symbols in current process
-  auto &DL = JIT->getDataLayout();
-  auto DLSG = llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL.getGlobalPrefix());
-  if (!DLSG) throw RuntimeError(toString(DLSG.takeError()));
-  JIT->getMainJITDylib().addGenerator(std::move(*DLSG));
-
-  // look up
-  auto EntrySym = JIT->lookup("main");
-  if (!EntrySym) throw RuntimeError(toString(EntrySym.takeError()));
-
-  // call
-  if (ret_t->isVoidTy()) {
-    auto *Entry = (void (*)())EntrySym->getAddress();
-    Entry();
-    printf("\nLox main exited\n");
-  } else {
-    auto *Entry = (double (*)())EntrySym->getAddress();
-    double ret = Entry();
-    printf("\nLox main exited with code %g\n", ret);
+void LLVMJITImpl::InvokeInitAndDiscard(std::unique_ptr<llvm::Module> init_module) {
+  auto RT = JIT_->getMainJITDylib().createResourceTracker();
+  AddModule(std::move(init_module), RT);
+  Invoke<void>("__lox_init_module");
+  if (auto err = RT->remove()) {
+    throw RuntimeError(toString(std::move(err)));
   }
 }
 

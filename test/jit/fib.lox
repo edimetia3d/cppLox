@@ -5,9 +5,11 @@ fun float fib(a:float){
     return fib(a-2) + fib(a-1);
 }
 
-fun float main() {
-    for (var i:float=0; i<10; i=i+1) {
-        print fib(i);
-    }
-    return 996;
+fun main(){
+    print "Main will be excuted after all global stmts";
+}
+
+print "Global stmts will be executed in order, and before main";
+for (var i:float=0; i<10; i=i+1) {
+    print fib(i);
 }
