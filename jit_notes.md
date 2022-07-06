@@ -19,7 +19,7 @@ The code following
 
 ```
 var a:float = 8;
-def float f(){
+fun float f(){
     return a*2;
 }
 a = f();
@@ -30,13 +30,15 @@ Will be transform to a code like
 
 ```
 var a:float = 8;
-def float f(){
+fun float f(){
     return a*2;
 }
-def __anonymous_0__():
+fun __anonymous_0__(){
     a = f();
-def __anonymous_1__():
+}
+fun __anonymous_1__(){
     a = a + 8;
+}
 
 ```
 
@@ -45,8 +47,10 @@ The symbol `f` and `a` will be kept, so when in REPL mode, later expression woul
 
 
 # Here is a list of features notes
-
-1. Only C style struct supported, the init() method will be used to define members, and only exprs like `self.var:int = 1;` are allowed.
+1. Native datatypes: "float", "bool", "str"
+    * "str" is C style `\0` ended constant char array.
+    * "float" is double precision float, that is, 64bit IEEE 754 floating point.
+1. Only C style struct supported, the init() method will be used to define members, and only expression like `this.var:float = 1;` are allowed.
 2. Nested function (closure) not supported.
 3. Global var must be inited with constant value, if dynamic init is required, use assignment to do it. e.g. `var a:float=0; a=foo();`
 4. When launching script
