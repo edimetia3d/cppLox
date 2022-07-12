@@ -573,21 +573,20 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void AddReturn(llvm::Value *value) {
     assert(!IsAtGlobal());
-    auto exit_bb = llvm::BasicBlock::Create(context_, "exit", current_function_);
-    exit_blocks_.push_back(exit_bb);
-    builder_.CreateBr(exit_bb);
-    SwitchBB(exit_bb);
     if (value && !value->getType()->isVoidTy()) {
       builder_.CreateRet(value);
     } else {
       builder_.CreateRetVoid();
     }
+    auto tmp_bb = llvm::BasicBlock::Create(context_, "tmp_exit", current_function_);
+    SwitchBB(tmp_bb);
+    exit_blocks_.push_back(tmp_bb);
   }
 
   void CleanUpExitBlocks() {
     for (auto &bb : exit_blocks_) {
-      for (auto DI = ++bb->begin(); DI != bb->end();) {
-        DI = DI->eraseFromParent();
+      if (bb->getTerminator() == nullptr) {
+        builder_.CreateBr(bb);
       }
     }
     exit_blocks_.clear();
