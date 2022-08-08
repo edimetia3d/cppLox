@@ -19,7 +19,7 @@ namespace lox {
 static void LoadBuiltinBackEnd(BackEndRegistry* registry) {
   registry->Register("TreeWalker", []() { return std::shared_ptr<BackEnd>(new twalker::TreeWalker()); });
   registry->Register("VirtualMachine", []() { return std::shared_ptr<BackEnd>(new vm::VirtualMachine()); });
-#ifdef ENABLE_MLIR_JIT_BACKEND
+#ifdef ENABLE_JIT_BACKEND
   registry->Register("MLIRJIT", []() { return std::shared_ptr<BackEnd>(new mlir_jit::MLIRJIT()); });
   registry->Register("LLVMJIT", []() { return std::shared_ptr<BackEnd>(new llvm_jit::LLVMJIT()); });
 #endif

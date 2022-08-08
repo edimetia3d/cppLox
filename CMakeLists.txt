@@ -10,7 +10,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSPDLOG_ACTIVE_LEVEL=1")
 
 include(cmake/build_options.cmake)
 include(cmake/win32_compat.cmake)
-if (ENABLE_MLIR_JIT_BACKEND)
+if (ENABLE_JIT_BACKEND)
     cmake_policy(SET CMP0116 OLD)
     set(MLIR_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/llvm-project/install/lib/cmake/mlir)
     find_package(MLIR REQUIRED CONFIG)

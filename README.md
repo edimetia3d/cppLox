@@ -80,7 +80,7 @@ make
 1. `-DUPSTREAM_STYLE_ERROR_MSG=ON`. This impl's parsing(compiling)/err-handling logic is a little different from
    upstream. Enable this flag will make error messages behaves like upstream. It is OFF by default, but for the unit
    tests, it is set to ON.
-2. `-DENABLE_MLIR_JIT_BACKEND=ON`. Enable the JIT backend, OFF by default. Note that you may need to prebuild LLVM
+2. `-DENABLE_JIT_BACKEND=ON`. Enable the JIT backend, OFF by default. Note that you may need to prebuild LLVM
    to use this option (See Requirements part).
 
 # Test
