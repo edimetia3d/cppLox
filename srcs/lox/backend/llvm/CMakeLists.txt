@@ -8,6 +8,7 @@ set(LLVM_LINK_COMPONENTS
 
 add_subdirectory(translation)
 add_subdirectory(builtins)
+add_subdirectory(passes)
 
 
 add_llvm_library(llvm_backend llvm_jit.cpp)
