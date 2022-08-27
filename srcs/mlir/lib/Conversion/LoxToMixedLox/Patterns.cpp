@@ -108,7 +108,11 @@ struct ConstantOpLowering : public OpRewritePattern<lox::ConstantOp> {
   using OpRewritePattern<lox::ConstantOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(lox::ConstantOp op, PatternRewriter &rewriter) const final {
-    DenseElementsAttr constantValue = op.getValue();
+    if (!op.getValue().getType().isa<TensorType>()) {
+      return rewriter.notifyMatchFailure(
+          op, [](Diagnostic &diag) { diag << "only 'lox.constant' that produce tensor could be matched"; });
+    }
+    DenseElementsAttr constantValue = op.getValue().cast<DenseElementsAttr>();
     Location loc = op.getLoc();
 
     // When lowering the constant operation, we allocate and assign the constant

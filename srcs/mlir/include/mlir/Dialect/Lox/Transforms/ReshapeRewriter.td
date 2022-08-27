@@ -29,10 +29,16 @@ def ReshapeReshapeOptPattern : Pat<(ReshapeOp(ReshapeOp $arg)),
 
 // Reshape(Constant(x)) = x'
 def ReshapeConstant :
-  NativeCodeCall<"$0.reshape(($1.getType()).cast<ShapedType>())">;
+  NativeCodeCall<"$0.cast<DenseElementsAttr>().reshape(($1.getType()).cast<ShapedType>())">;
+
+def IsConstantTensor : Constraint<
+    CPred<"$0.isa<DenseElementsAttr>()">,
+    "is a constant tensor">;
+
 def FoldConstantReshapeOptPattern : Pat<
   (ReshapeOp:$res (ConstantOp $arg)),
-  (ConstantOp (ReshapeConstant $arg, $res))>;
+  (ConstantOp (ReshapeConstant $arg, $res)),
+  [(IsConstantTensor $arg)]>;
 
 //===----------------------------------------------------------------------===//
 // Pattern-Match and Rewrite with Constraints

@@ -3,9 +3,11 @@
 
 include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+
 
 include "mlir/Dialect/Lox/IR/LoxBase.td"
 
@@ -50,17 +52,17 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
     Tensor operation turns a literal into an SSA value.The data is attached to the operation as an attribute.For
     example:
 
-        %0 = "lox.tensor"()
+        %0 = "lox.constant"()
          { value = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64> }
         : () -> tensor<2x3xf64>
   }];
 
 
-  let arguments = (ins F64ElementsAttr:$value);
+  let arguments = (ins TypedAttrInterface:$value);
 
-  let results = (outs F64Tensor);
+  let results = (outs AnyType:$result);
 
-  let hasCustomAssemblyFormat = 1;
+  let assemblyFormat = "$value attr-dict `:` type($result)";
 
   let hasVerifier = 1;
 
@@ -68,14 +70,14 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
   let hasFolder = 1;
 
   let builders = [
-    // Build a constant with a given constant tensor value.
-    OpBuilder<(ins "DenseElementsAttr"
-               : $value),
-              [{ build($_builder, $_state, value.getType(), value); }]>,
-
-    // Build a constant with a given constant floating-point value.
-    OpBuilder<(ins "double"
-               : $value)>
+    // Build a constant tensor from DenseElementsAttr, when is_plain_array is true, result type will change to memref
+    OpBuilder<(ins "DenseElementsAttr": $value)>,
+    // Build a constant string(memref) from StringRef
+    OpBuilder<(ins "llvm::StringRef": $value)>,
+    // Build a constant Float64Type from double
+    OpBuilder<(ins "double":$value)>,
+    // Build a constant IntegerType from bool
+    OpBuilder<(ins "bool":$value)>,
   ];
 }
 
@@ -309,34 +311,6 @@ def StructAccessOp : LoxOp<"struct_access", [NoSideEffect]> {
   let hasVerifier = 1;
 
   // Set the folder bit so that we can fold constant accesses.
-  let hasFolder = 1;
-}
-
-//===----------------------------------------------------------------------===//
-// StructConstantOp
-//===----------------------------------------------------------------------===//
-
-def StructConstantOp : LoxOp<"struct_constant", [ConstantLike, NoSideEffect]> {
-  let summary = "struct constant";
-  let description = [{
-    Constant operation turns a literal struct value into an SSA value. The data
-    is attached to the operation as an attribute. The struct constant is encoded
-    as an array of other constant values. For example:
-
-    ```mlir
-      %0 = toy.struct_constant [
-        dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>
-      ] : !toy.struct<tensor<*xf64>>
-    ```
-  }];
-
-  let arguments = (ins ArrayAttr:$value);
-  let results = (outs LoxStructType:$output);
-
-  let assemblyFormat = "$value attr-dict `:` type($output)";
-
-  // Indicate that additional verification for this operation is necessary.
-  let hasVerifier = 1;
   let hasFolder = 1;
 }
 

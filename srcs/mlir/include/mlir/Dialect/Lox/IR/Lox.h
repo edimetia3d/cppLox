@@ -14,10 +14,6 @@
 #include "mlir/Dialect/Lox/IR/LoxInterface.h.inc"
 #include "mlir/Dialect/Lox/IR/LoxTypes.h.inc"
 
-#define GET_OP_CLASSES
-#include "mlir/Dialect/Lox/IR/Lox.h.inc"
-#endif // LOX_SRCS_LOX_BACKEND_JIT_MLIR_INCLUDE_MLIR_DIALECT_LOX_DIALECT_H
-
 namespace mlir::lox {
 
 namespace detail {
@@ -45,3 +41,7 @@ public:
   size_t getNumElementTypes() { return getElementTypes().size(); }
 };
 } // namespace mlir::lox
+
+#define GET_OP_CLASSES
+#include "mlir/Dialect/Lox/IR/Lox.h.inc"
+#endif // LOX_SRCS_LOX_BACKEND_JIT_MLIR_INCLUDE_MLIR_DIALECT_LOX_DIALECT_H

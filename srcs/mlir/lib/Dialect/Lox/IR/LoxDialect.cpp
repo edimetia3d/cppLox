@@ -107,25 +107,23 @@ static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
   printer.printFunctionalType(op->getOperandTypes(), op->getResultTypes());
 }
 
+void ConstantOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &state, DenseElementsAttr value) {
+  ConstantOp::build(builder, state, value.getType(), value);
+}
+void ConstantOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &state, llvm::StringRef value) {
+  auto resultType = MemRefType::get({(int64_t)value.size() + 1}, builder.getI8Type());
+  auto dataAttribute = StringAttr::get(value, resultType);
+  ConstantOp::build(builder, state, resultType, dataAttribute);
+}
 void ConstantOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, double value) {
-  auto dataType = RankedTensorType::get({}, builder.getF64Type());
-  auto dataAttribute = DenseElementsAttr::get(dataType, value);
-  ConstantOp::build(builder, state, dataType, dataAttribute);
+  auto resultType = builder.getF64Type();
+  auto dataAttribute = builder.getF64FloatAttr(value);
+  ConstantOp::build(builder, state, resultType, dataAttribute);
 }
-
-mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser &parser, mlir::OperationState &result) {
-  mlir::DenseElementsAttr value;
-  if (parser.parseOptionalAttrDict(result.attributes) || parser.parseAttribute(value, "value", result.attributes))
-    return failure();
-
-  result.addTypes(value.getType());
-  return success();
-}
-
-void ConstantOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printOptionalAttrDict((*this)->getAttrs(), /*elidedAttrs=*/{"value"});
-  printer << getValue();
+void ConstantOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &state, bool value) {
+  auto resultType = builder.getI1Type();
+  auto dataAttribute = builder.getBoolAttr(value);
+  ConstantOp::build(builder, state, resultType, dataAttribute);
 }
 
 /// Verifier for the constant operation. This corresponds to the `::verify(...)`
@@ -156,10 +154,6 @@ mlir::LogicalResult StructAccessOp::verify() {
     return emitOpError() << "must have the same result type as the struct "
                             "element referred to by the index";
   return mlir::success();
-}
-
-mlir::LogicalResult StructConstantOp::verify() {
-  return verifyConstantForType(getResult().getType(), getValue(), *this);
 }
 
 void AddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value lhs, mlir::Value rhs) {
@@ -439,9 +433,6 @@ void LoxDialect::printType(mlir::Type type, mlir::DialectAsmPrinter &printer) co
 /// Fold constants.
 OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return getValue(); }
 
-/// Fold struct constants.
-OpFoldResult StructConstantOp::fold(ArrayRef<Attribute> operands) { return getValue(); }
-
 /// Fold simple struct access operations that access into a constant.
 OpFoldResult StructAccessOp::fold(ArrayRef<Attribute> operands) {
   auto structAttr = operands.front().dyn_cast_or_null<mlir::ArrayAttr>();
@@ -467,6 +458,14 @@ void LoxDialect::initialize() {
 mlir::Operation *LoxDialect::materializeConstant(mlir::OpBuilder &builder, mlir::Attribute value, mlir::Type type,
                                                  mlir::Location loc) {
   if (type.isa<StructType>())
-    return builder.create<StructConstantOp>(loc, type, value.cast<mlir::ArrayAttr>());
-  return builder.create<ConstantOp>(loc, type, value.cast<mlir::DenseElementsAttr>());
+    return builder.create<ConstantOp>(loc, type, value);
+  if (type.isa<mlir::TensorType>())
+    return builder.create<ConstantOp>(loc, value.cast<DenseElementsAttr>());
+  if (type.isa<mlir::FloatType>())
+    return builder.create<ConstantOp>(loc, value.cast<FloatAttr>().getValueAsDouble());
+  if (type.isa<mlir::MemRefType>())
+    return builder.create<ConstantOp>(loc, value.cast<StringAttr>());
+  if (type.isa<mlir::IntegerType>())
+    return builder.create<ConstantOp>(loc, (bool)value.cast<IntegerAttr>().getSInt());
+  llvm_unreachable("unexpected type");
 }
