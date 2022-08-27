@@ -98,7 +98,7 @@ class LLVMJITImpl : public BackEnd {
     auto EntrySym = JIT_->lookup(name);
     if (!EntrySym) throw RuntimeError(toString(EntrySym.takeError()));
     // call
-    auto *Entry = (RetT(*)())EntrySym->getAddress();
+    auto *Entry = EntrySym->template toPtr<RetT (*)()>();
     return Entry();
   }
 };

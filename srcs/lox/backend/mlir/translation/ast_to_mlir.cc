@@ -19,7 +19,7 @@
 #include "lox/ast/ast.h"
 #include "lox/common/finally.h"
 #include "lox/common/lox_error.h"
-#include "mlir/Dialect/lox/Dialect.h"
+#include "mlir/Dialect/Lox/IR/Lox.h"
 
 using namespace mlir::lox;
 using namespace lox;
@@ -128,7 +128,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
     // only number are supported for now
     // all number will be trated as a zero-rank tensor
     assert(node->attr->value->type == TokenType::NUMBER);
-    auto ret = builder.create<TensorOp>(Loc(node->attr->value), std::stod(node->attr->value->lexeme));
+    auto ret = builder.create<ConstantOp>(Loc(node->attr->value), std::stod(node->attr->value->lexeme));
     VisitorReturn(ret);
   }
   void Visit(UnaryExpr *node) override { VisitorReturn(nullptr); }
@@ -158,7 +158,10 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
       }
       VisitorReturn(builder.create<TransposeOp>(location, operands[0]));
     }
-    VisitorReturn(builder.create<GenericCallOp>(location, callee, operands));
+    auto calledFunc = functionMap.lookup(callee);
+    auto call_op = builder.create<GenericCallOp>(location, calledFunc.getFunctionType().getResult(0),
+                                                 mlir::SymbolRefAttr::get(builder.getContext(), callee), operands);
+    VisitorReturn(call_op);
   }
   void Visit(GetAttrExpr *node) override { VisitorReturn(nullptr); }
   void Visit(SetAttrExpr *node) override { VisitorReturn(nullptr); }
@@ -200,15 +203,23 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
     // Create a scope in the symbol table to hold variable declarations.
     ScopedHashTableScope<llvm::StringRef, mlir::Value> var_scope(symbolTable);
     FunctionInfo fn_info(node);
+
     // Create an MLIR function for the given prototype.
+    builder.setInsertionPointToEnd(theModule.getBody());
     auto fn_location = Loc(fn_info.location);
-    llvm::SmallVector<mlir::Type, 4> arg_types(fn_info.ArgNames().size(), TensorType({}));
+    llvm::SmallVector<mlir::Type, 4> arg_types;
+    for (auto arg : fn_info.ArgNames()) {
+      arg_types.push_back(TensorType({}));
+    }
+
     // return llvm::none by default , we could update it later
-    auto function = mlir::FuncOp::create(fn_location, fn_info.FnName(), builder.getFunctionType(arg_types, llvm::None));
+    auto function = builder.create<mlir::lox::FuncOp>(fn_location, fn_info.FnName(),
+                                                      builder.getFunctionType(arg_types, llvm::None));
 
     if (fn_info.FnName()[0] == '_') {
-      function.setPrivate();
+      function.setPrivate(); // Private functions could be inlined then removed by inline pass
     }
+
     bool something_wrong = true;
     Finally function_guard([&] {
       if (something_wrong) {
@@ -217,7 +228,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
     });
     if (!function) throw MLIRTranslationError("function creation error");
 
-    auto &entry_block = *function.addEntryBlock();
+    auto &entry_block = function.front();
 
     // Declare all the function arguments in the symbol table.
     // function argument will live in it's entry block
@@ -250,7 +261,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
       builder.create<ReturnOp>(fn_location);
     }
 
-    theModule.push_back(function);
+    functionMap.insert({fn_info.FnName(), function});
     something_wrong = false;
   }
   void Visit(ClassStmt *node) override {}
@@ -267,9 +278,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   void Visit(TensorExpr *node) override {
     auto tensor_literal = TensorLiteral(node);  // all tensor var will have to be constant for now
     auto type = TensorType(tensor_literal.shape);
-    auto dataAttribute =
-        mlir::DenseElementsAttr::get(type.cast<mlir::RankedTensorType>(), llvm::makeArrayRef(tensor_literal.data));
-    auto ret = builder.create<TensorOp>(Loc(node->attr->src_token), type, dataAttribute);
+    auto dataAttribute = mlir::DenseElementsAttr::get(type, llvm::makeArrayRef(tensor_literal.data));
+    auto ret = builder.create<ConstantOp>(Loc(node->attr->src_token), type, dataAttribute);
     VisitorReturn(ret);
   }
 
@@ -282,7 +292,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   }
 
   mlir::Location Loc(Token token) {
-    return mlir::FileLineColLoc::get(builder.getIdentifier(token->file_name), token->line, token->col);
+    return mlir::FileLineColLoc::get(builder.getStringAttr(token->file_name), token->line, token->col);
   }
 
   /// Build a tensor type from a list of shape dimensions.
@@ -297,6 +307,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   mlir::ModuleOp theModule;
   mlir::OpBuilder builder;
   llvm::ScopedHashTable<StringRef, mlir::Value> symbolTable;
+  llvm::StringMap<mlir::lox::FuncOp> functionMap;
 };
 
 }  // namespace
@@ -304,7 +315,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
 namespace lox::mlir_jit {
 
 // The public API for codegen.
-mlir::OwningModuleRef ConvertASTToMLIR(mlir::MLIRContext &context, lox::Module *lox_module) {
+mlir::OwningOpRef<mlir::ModuleOp> ConvertASTToMLIR(mlir::MLIRContext &context, lox::Module *lox_module) {
   return ASTToMLIR(context).Convert(lox_module->Statements());
 }
 

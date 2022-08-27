@@ -16,15 +16,15 @@ mkdir -p $BUILD_DIR
 rm -rf $INSTALL_DIR
 mkdir -p $INSTALL_DIR
 cd $BUILD_DIR
-git checkout 75e33f71c2dae584b13a7d1186ae0a038ba98838 # LLVM 13.0.1
-
+git checkout db0c7dde6b18035bd7d2022f3ea939d8323e72d5 # latest master for now
+# disable the test to avoid some build issue
+sed -i 's/add_subdirectory(ExceptionDemo)/#dd_subdirectory(ExceptionDemo)/g' $SCRIPT_DIR/llvm-project/llvm/examples/CMakeLists.txt
 cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_PROJECTS="mlir;clang" \
   -DLLVM_PARALLEL_LINK_JOBS=1 \
   -DLLVM_USE_LINKER=lld \
   -DLLVM_OPTIMIZED_TABLEGEN=ON \
   -DLLVM_CCACHE_BUILD=ON \
-  -DLLVM_USE_SPLIT_DWARF=ON \
   -DLLVM_BUILD_EXAMPLES=ON \
   -DLLVM_TARGETS_TO_BUILD="X86" \
   -DLLVM_ENABLE_ASSERTIONS=ON \
@@ -33,5 +33,6 @@ cmake -G Ninja ../llvm \
   -DBUILD_SHARED_LIBS=ON \
   -DLLVM_ENABLE_EH=ON \
   -DLLVM_ENABLE_RTTI=ON
-
 cmake --build . --target install
+# recover
+sed -i 's/#dd_subdirectory(ExceptionDemo)/add_subdirectory(ExceptionDemo)/g' $SCRIPT_DIR/llvm-project/llvm/examples/CMakeLists.txt

@@ -7,6 +7,7 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/TargetSelect.h>
 #include <mlir/Dialect/Affine/Passes.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/IR/AsmState.h>
@@ -19,15 +20,15 @@
 #include "lox/backend/mlir/translation/ast_to_mlir.h"
 #include "lox/common/global_setting.h"
 #include "lox/frontend/parser.h"
-#include "lox/passes/pass_runner.h"
-#include "lox/passes/semantic_check/semantic_check.h"
-#include "mlir/Dialect/lox/Dialect.h"
-#include "mlir/Dialect/lox/Passes.h"
+#include "mlir/Conversion/LoxToMixedLox/LoxToMixedLox.h"
+#include "mlir/Conversion/MixedLoxToLLVM/MixedLoxToLLVM.h"
+#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/Transforms/Passes.h"
 
 namespace lox::mlir_jit {
 
 class MLIRJITImpl : public BackEnd {
- public:
+public:
   MLIRJITImpl();
   void Run(Scanner &scanner) override;
   void HandleMLIROpitons();
@@ -83,7 +84,9 @@ int runJit(mlir::ModuleOp module) {
 
   // Create an MLIR execution engine. The execution engine eagerly JIT-compiles
   // the module.
-  auto maybeEngine = mlir::ExecutionEngine::create(module, /*llvmModuleBuilder=*/nullptr, optPipeline);
+  mlir::ExecutionEngineOptions engineOptions;
+  engineOptions.transformer = optPipeline;
+  auto maybeEngine = mlir::ExecutionEngine::create(module, engineOptions);
   assert(maybeEngine && "failed to construct an execution engine");
   auto &engine = maybeEngine.get();
 
@@ -104,7 +107,7 @@ void MLIRJITImpl::Run(Scanner &scanner) {
   // Load our Dialect in this MLIR Context.
   context.getOrLoadDialect<mlir::lox::LoxDialect>();
 
-  mlir::OwningModuleRef module = ConvertASTToMLIR(context, lox_module.get());
+  mlir::OwningOpRef<mlir::ModuleOp> module = ConvertASTToMLIR(context, lox_module.get());
   if (!module) {
     throw ParserError("Translation failed");
   }
@@ -112,28 +115,34 @@ void MLIRJITImpl::Run(Scanner &scanner) {
   // Apply any generic pass manager command line options and run the pipeline.
   applyPassManagerCLOptions(pm);
 
-  pm.addPass(mlir::createInlinerPass());  // always inline to support infer-shape
+  pm.addPass(mlir::createInlinerPass()); // always inline to support infer-shape
   // Now that there is only one function, we can infer the shapes of each of
   // the operations.
-  mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
-  optPM.addPass(mlir::lox::createShapeInferencePass());
-  optPM.addPass(mlir::createCanonicalizerPass());
-  optPM.addPass(mlir::createCSEPass());
+  {
+    mlir::OpPassManager &optPM = pm.nest<mlir::lox::FuncOp>();
+    optPM.addPass(mlir::createCanonicalizerPass());
+    optPM.addPass(mlir::lox::createShapeInferencePass());
+    optPM.addPass(mlir::createCanonicalizerPass());
+    optPM.addPass(mlir::createCSEPass());
 
-  // Partially lower the toy dialect with a few cleanups afterwards.
-  optPM.addPass(mlir::lox::createLowerToAffinePass());
-  optPM.addPass(mlir::createCanonicalizerPass());
-  optPM.addPass(mlir::createCSEPass());
-
-  if (GlobalSetting().opt_level) {
-    // Add optimizations if enabled.
-    optPM.addPass(mlir::createLoopFusionPass());
-    optPM.addPass(mlir::createAffineScalarReplacementPass());
+    // Partially lower the toy dialect with a few cleanups afterwards.
+    pm.addPass(mlir::lox::createLowerLoxToMixedLoxPass());
   }
+  {
+    mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
+    optPM.addPass(mlir::createCanonicalizerPass());
+    optPM.addPass(mlir::createCSEPass());
 
-  pm.addPass(mlir::lox::createLowerToLLVMPass());
+    if (GlobalSetting().opt_level) {
+      // Add optimizations if enabled.
+      optPM.addPass(mlir::createLoopFusionPass());
+      optPM.addPass(mlir::createAffineScalarReplacementPass());
+    }
+  }
+  pm.addPass(mlir::lox::createLowerMixedLoxToLLVMPass());
 
-  if (mlir::failed(pm.run(*module))) throw LoxError("Optimization failed");
+  if (mlir::failed(pm.run(*module)))
+    throw LoxError("Optimization failed");
   module->dump();
   std::cout << " ============== LLVM IR Dump =================" << std::endl;
   dumpLLVMIR(*module);

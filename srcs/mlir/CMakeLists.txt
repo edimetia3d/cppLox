@@ -5,7 +5,6 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(include)
 
 add_subdirectory(include)
-
 add_subdirectory(lib)
 
 target_include_directories(MLIRLox PUBLIC include)

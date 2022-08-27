@@ -1,5 +1,5 @@
-#ifndef SHAPE_INFERENCE_INTERFACE
-#define SHAPE_INFERENCE_INTERFACE
+#ifndef LOX_BASE_TD
+#define LOX_BASE_TD
 
 include "mlir/IR/OpBase.td"
 
@@ -15,4 +15,4 @@ def ShapeInferenceOpInterface : OpInterface<"ShapeInference"> {
   ];
 }
 
-#endif // SHAPE_INFERENCE_INTERFACE
+#endif // LOX_BASE_TD

@@ -18,13 +18,13 @@ target_link_libraries(mlir_backend
         ${dialect_libs}
         ${translation_libs}
         ${conversion_libs}
-        MLIRIR
         MLIRExecutionEngine
+        MLIRIR
         MLIRLLVMCommonConversion
-        MLIRLLVMIR
+        MLIRLLVMDialect
         MLIRLLVMToLLVMIRTranslation
         MLIRTargetLLVMIRExport
-        MLIRMemRef
+        MLIRMemRefDialect
         MLIRParser
         MLIRPass
         MLIRSupport

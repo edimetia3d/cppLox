@@ -2,22 +2,18 @@
 
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/Support/Debug.h>
-#include <llvm/Support/raw_ostream.h>
 #include <mlir/Pass/Pass.h>
 
-#include "mlir/Dialect/lox/Dialect.h"
-#include "mlir/Dialect/lox/Passes.h"
+#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/Transforms/Passes.h"
 
 #define DEBUG_TYPE "shape-inference"
 
 using namespace mlir;
 using namespace mlir::lox;
 
-/// Include the auto-generated definitions for the shape inference interfaces.
-#include "mlir/Dialect/lox/ShapeInferenceInterface.cpp.inc"
-
 namespace {
-/// The ShapeInferencePass is a FunctionPass that performs intra-procedural
+/// The ShapeInferencePass is a pass that performs intra-procedural
 /// shape inference.
 ///
 ///    Algorithm:
@@ -33,16 +29,19 @@ namespace {
 ///     d) infer the shape of its output from the argument types.
 ///   3) If the worklist is empty, the algorithm succeeded.
 ///
-class ShapeInferencePass : public mlir::PassWrapper<ShapeInferencePass, FunctionPass> {
- public:
-  void runOnFunction() override {
-    auto f = getFunction();
+class ShapeInferencePass : public mlir::PassWrapper<ShapeInferencePass, OperationPass<lox::FuncOp>> {
+public:
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ShapeInferencePass)
+
+  void runOnOperation() override {
+    auto f = getOperation();
 
     // Populate the worklist with the operations that need shape inference:
     // these are operations that return a dynamic shape.
     llvm::SmallPtrSet<mlir::Operation *, 16> opWorklist;
     f.walk([&](mlir::Operation *op) {
-      if (returnsDynamicShape(op)) opWorklist.insert(op);
+      if (returnsDynamicShape(op))
+        opWorklist.insert(op);
     });
 
     // Iterate on the operations in the worklist until all operations have been
@@ -51,7 +50,8 @@ class ShapeInferencePass : public mlir::PassWrapper<ShapeInferencePass, Function
       // Find the next operation ready for inference, that is an operation
       // with all operands already resolved (non-generic).
       auto nextop = llvm::find_if(opWorklist, allOperandsInferred);
-      if (nextop == opWorklist.end()) break;
+      if (nextop == opWorklist.end())
+        break;
 
       Operation *op = *nextop;
       opWorklist.erase(op);
@@ -61,9 +61,8 @@ class ShapeInferencePass : public mlir::PassWrapper<ShapeInferencePass, Function
       if (auto shapeOp = dyn_cast<ShapeInference>(op)) {
         shapeOp.inferShapes();
       } else {
-        op->emitError(
-            "unable to infer shape of operation without shape "
-            "inference interface");
+        op->emitError("unable to infer shape of operation without shape "
+                      "inference interface");
         return signalPassFailure();
       }
     }
@@ -87,7 +86,7 @@ class ShapeInferencePass : public mlir::PassWrapper<ShapeInferencePass, Function
     return llvm::any_of(op->getResultTypes(), [](Type resultType) { return !resultType.isa<RankedTensorType>(); });
   }
 };
-}  // end anonymous namespace
+} // end anonymous namespace
 
 /// Create a Shape Inference pass.
 std::unique_ptr<mlir::Pass> mlir::lox::createShapeInferencePass() { return std::make_unique<ShapeInferencePass>(); }

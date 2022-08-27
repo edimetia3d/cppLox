@@ -2,12 +2,10 @@
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
 add_llvm_library(lox_transforms
-        transpose_rewriter.cpp
+        TransposeRewriter.cpp
+        ReshapeReWriter.cpp
         ShapeInferencePass.cpp
-        LoxLoopsToAffine.cpp
-        LoxAffineToLLVM.cpp
         )
-
 llvm_update_compile_flags(lox_transforms)
 target_link_libraries(lox_transforms
         PUBLIC
@@ -21,3 +19,4 @@ target_link_libraries(lox_transforms
         )
 
 mlir_check_link_libraries(lox_transforms)
+

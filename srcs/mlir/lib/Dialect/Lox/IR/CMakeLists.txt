@@ -1,9 +1,10 @@
 add_mlir_dialect_library(MLIRLox
-        Dialect.cpp
+        LoxDialect.cpp
+        LoxInterface.cpp
 
         DEPENDS
-        MLIRloxIncGen
-        MLIRShapeInferenceInterfaceIncGen
+        mlir-headers
+        mlir-generic-headers
 
         LINK_LIBS PUBLIC
         MLIRIR

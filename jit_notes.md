@@ -45,15 +45,28 @@ fun __anonymous_1__(){
 The `__anonymous_0__` and `__anonymous_1__` will be called after JIT compilation, and then discarded.
 The symbol `f` and `a` will be kept, so when in REPL mode, later expression would be able to access them.
 
+# About the MLIR Backend
+
+Technically speaking, we could just convert lox AST to MLIR's bundled AST without defining a "Lox Dialect", and it
+should
+be so if we were actually creating a new language, but fortunately, we are just creating a toy, so we can do anything
+we want.
+
+We will define a "Lox Dialect", which is converted from the Lox AST, and then lower the Lox Dialect to MLIR's bundled
+dialect, such as `affine`, `std`, `llvm`, etc.
 
 # Here is a list of features notes
+
 1. Native datatypes: "float", "bool", "str"
-    * "str" is C style `\0` ended constant char array.
-    * "float" is double precision float, that is, 64bit IEEE 754 floating point.
-1. Only C style struct supported, the init() method will be used to define members, and only expression like `this.var:float = 1;` are allowed.
+   * "str" is C style `\0` ended constant char array.
+   * "float" is double precision float, that is, 64bit IEEE 754 floating point.
+1. Only C style struct supported, the init() method will be used to define members, and only expression
+   like `this.var:float = 1;` are allowed.
 2. Nested function (closure) not supported.
-3. Global var must be inited with constant value, if dynamic init is required, use assignment to do it. e.g. `var a:float=0; a=foo();`
+3. Global var must be inited with constant value, if dynamic init is required, use assignment to do it.
+   e.g. `var a:float=0; a=foo();`
 4. When launching script
-    * A function named of "main" will be treated as the entry point, it will be called **after** all other top level stmts are executed.
+   * A function named of "main" will be treated as the entry point, it will be called **after** all other top level
+     stmts are executed.
     * All global stmts that not define var or function will be guaranteed to be executed in order.
     * Entry point "main" is only allowed to return nothing or `float`
