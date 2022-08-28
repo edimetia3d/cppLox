@@ -2,11 +2,21 @@
 // License: MIT
 //
 
+/**
+ * @file LoxInterface.h
+ * @brief Contains the Lox dialect interface. Currently are:
+ *       - ShapeInferenceOpInterface: in LoxBase.td, used to support Tensor shape inference
+ *       - LoxInlinerInterface: in this file, used to support inlining of Lox ops
+ */
+
 #ifndef LOX_SRCS_MLIR_INCLUDE_MLIR_DIALECT_LOX_IR_CUOSTOMINTERFACE_H_INC
 #define LOX_SRCS_MLIR_INCLUDE_MLIR_DIALECT_LOX_IR_CUOSTOMINTERFACE_H_INC
 
 #include <mlir/Transforms/InliningUtils.h>
 
+#include "mlir/Dialect/Lox/IR/LoxInterface.h.inc"
+
+// Interfaces should generally be defined in global namespace.
 struct LoxInlinerInterface : public mlir::DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
 
@@ -32,7 +42,9 @@ struct LoxInlinerInterface : public mlir::DialectInlinerInterface {
   /// `valuesToRepl` contains the callers result values.
   void handleTerminator(mlir::Operation *op, mlir::ArrayRef<mlir::Value> valuesToRepl) const final;
 
+  /// Caller's input arguments may not match the callee's signature, thus we need to materialize a type conversion.
   mlir::Operation *materializeCallConversion(mlir::OpBuilder &builder, mlir::Value input, mlir::Type resultType,
                                              mlir::Location conversionLoc) const final;
 };
+
 #endif // LOX_SRCS_MLIR_INCLUDE_MLIR_DIALECT_LOX_IR_CUOSTOMINTERFACE_H_INC

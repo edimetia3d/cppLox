@@ -137,7 +137,7 @@ void ConstantOp::inferShapes() { getResult().setType(getValue().getType()); }
 void StructAccessOp::build(mlir::OpBuilder &b, mlir::OperationState &state, mlir::Value input, size_t index) {
   // Extract the result type from the input type.
   StructType structTy = input.getType().cast<StructType>();
-  assert(index < structTy.getNumElementTypes());
+  assert(index < structTy.getElementNum());
   mlir::Type resultType = structTy.getElementTypes()[index];
 
   // Call into the auto-generated build method.
@@ -147,7 +147,7 @@ void StructAccessOp::build(mlir::OpBuilder &b, mlir::OperationState &state, mlir
 mlir::LogicalResult StructAccessOp::verify() {
   StructType structTy = getInput().getType().cast<StructType>();
   size_t indexValue = getIndex();
-  if (indexValue >= structTy.getNumElementTypes())
+  if (indexValue >= structTy.getElementNum())
     return emitOpError() << "index should be within the range of the input struct type";
   mlir::Type resultType = getResult().getType();
   if (resultType != structTy.getElementTypes()[indexValue])
