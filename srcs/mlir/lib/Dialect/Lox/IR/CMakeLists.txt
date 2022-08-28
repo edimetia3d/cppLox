@@ -1,6 +1,7 @@
 add_mlir_dialect_library(MLIRLox
         LoxDialect.cpp
         LoxInterface.cpp
+        ConstantOpVerify.cpp
 
         DEPENDS
         mlir-headers

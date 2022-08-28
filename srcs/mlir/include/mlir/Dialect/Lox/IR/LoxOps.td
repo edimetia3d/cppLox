@@ -1,12 +1,18 @@
 #ifndef LOX_OPS_TD
 #define LOX_OPS_TD
 
+/**
+ * @brief The LoxOps ODS definitions
+ */
+
 include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
+
 
 include "mlir/Dialect/Lox/IR/LoxBase.td"
 
@@ -14,14 +20,28 @@ include "mlir/Dialect/Lox/IR/LoxBase.td"
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
+// 1. Constant tensor may infer it's shape from the attribute it contains, so it supports the ShapeInferenceOpInterface
+// 2. We need a ConstantOp mainly for two reasons:
+//   a. The MLIR does not support constant natively.
+//   b. The constant data in attribute will be stored in the final binary, but we may need some extra instruction to
+//      load them, these extra instruction could be welly handled when lowering the ConstantOp.
 def ConstantOp : LoxOp<"constant", [ConstantLike,
                                     NoSideEffect,
                                     DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "Create a constant Tensor.";
 
   let description = [{
-    Tensor operation turns a literal into an SSA value.The data is attached to the operation as an attribute.For
-    example:
+    ConstantOp convert attributes into a concrete SSA value with known Type.
+
+    | LoxType | AttrType (value)  | ResultType (result) |
+    |:--------|:------------------|:--------------------|
+    | Tensor  | DenseElementsAttr | TensorType          |
+    | str     | StringAttr        | MemRefType          |
+    | float   | FloatAttr         | FloatType           |
+    | bool    | IntAttr           | IntType             |
+    | class   | ArrayAttr         | StructType          |
+
+    For example:
 
         %0 = "lox.constant"()
          { value = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64> }
@@ -31,13 +51,17 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
 
   let arguments = (ins TypedAttrInterface:$value);
 
-  let results = (outs AnyType:$result);
+  let results = (outs AnyLoxType:$result);
 
   let assemblyFormat = "$value attr-dict `:` type($result)";
 
   let hasVerifier = 1;
 
-  // Set the folder bit so that we can implement constant folders.
+  // Sometimes when all input value of an XOp are constexpr,
+  // XOp's result may be computed at compilation time, use `hasFolder = 1` to declare this behavior.
+  // Note that, the source of constexpr values are:
+  //  1. ConstantLike Operation's result.
+  //  2. Folded result.
   let hasFolder = 1;
 
   let builders = [
@@ -52,25 +76,51 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
   ];
 }
 
-def AddOp : LoxOp<"add", [NoSideEffect, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-  let summary = "element-wise addition operation";
-  let description = [{
-    The "add" operation performs element-wise addition between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
+//===----------------------------------------------------------------------===//
+// Binary Arith Op
+//===----------------------------------------------------------------------===//
 
-  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
-  let results = (outs F64Tensor);
+def ArithLoxType : AnyTypeOf<[F64Tensor, Lox_StructType, F64, I1]>;
 
-  let hasCustomAssemblyFormat = 1;
+class LoxBinaryOp<string mnemonic, list<Trait> traits = []> : LoxOp<mnemonic,
+                          traits # [NoSideEffect,
+                          SameOperandsAndResultType,
+                          DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+  let summary = "element-wise " #mnemonic# " operation";
 
-  // Allow building an AddOp with from the two input operands.
-  let builders = [OpBuilder<(ins "Value" : $lhs, "Value" : $rhs)>];
+  let arguments = (ins ArithLoxType:$lhs, ArithLoxType:$rhs);
+  let results = (outs ArithLoxType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+
+  // todo: add canonicalization
+  // todo: add fold
 }
 
+def AddOp : LoxBinaryOp<"add">;
+def SubOp : LoxBinaryOp<"sub">;
+def MulOp : LoxBinaryOp<"mul">;
+def DivOp : LoxBinaryOp<"div">;
+def ModOp : LoxBinaryOp<"mod">;
+
+
+//===----------------------------------------------------------------------===//
+// Binary Bitwise Op
+//===----------------------------------------------------------------------===//
+
+
+//===----------------------------------------------------------------------===//
+// Binary Logical Op
+//===----------------------------------------------------------------------===//
+
+//===----------------------------------------------------------------------===//
+// CastOp
+//===----------------------------------------------------------------------===//
+
 def CastOp : LoxOp<"cast", [
-  DeclareOpInterfaceMethods<CastOpInterface>, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>, NoSideEffect,
-  SameOperandsAndResultShape
+  DeclareOpInterfaceMethods<CastOpInterface>,
+  DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
+  NoSideEffect,
 ]> {
   let summary = "shape cast operation";
   let description = [{
@@ -78,6 +128,8 @@ def CastOp : LoxOp<"cast", [
         .The source and destination types must both be tensor types with the same element type.If both are ranked,
         then shape is required to match.The operation is invalid if converting to a mismatching constant dimension.
   }];
+
+  // todo: support more type conversion
 
   let arguments = (ins F64Tensor : $input);
   let results = (outs F64Tensor : $output);
@@ -165,27 +217,7 @@ def GenericCallOp : LoxOp<"generic_call", [DeclareOpInterfaceMethods<CallOpInter
   ];
 }
 
-def MulOp : LoxOp<"mul", [
-                   NoSideEffect,
-                   DeclareOpInterfaceMethods<ShapeInferenceOpInterface>
-                   ]> {
-  let summary = "element-wise multiplication operation";
-  let description = [{
-    The "mul" operation performs element-wise multiplication between two
-    tensors. The shapes of the tensor operands are expected to match.
-  }];
 
-  let arguments = (ins F64Tensor:$lhs, F64Tensor:$rhs);
-  let results = (outs F64Tensor);
-
-  // Specify a parser and printer method.
-  let hasCustomAssemblyFormat = 1;
-
-  // Allow building a MulOp with from the two input operands.
-  let builders = [
-    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
-  ];
-}
 
 def PrintOp : LoxOp<"print"> {
   let summary = "print operation";

@@ -15,6 +15,7 @@
 #include <mlir/IR/SymbolTable.h>
 #include <mlir/Interfaces/CallInterfaces.h>
 #include <mlir/Interfaces/CastInterfaces.h>
+#include <mlir/Interfaces/InferTypeOpInterface.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
 // Ops usually will depend on types/interfaces of the dialect.
