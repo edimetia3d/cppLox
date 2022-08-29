@@ -1,5 +1,7 @@
 add_mlir_dialect_library(MLIRLox
         LoxDialect.cpp
+        LoxOps.cpp
+        LoxTypes.cpp
         LoxInterface.cpp
         ConstantOpVerify.cpp
 
