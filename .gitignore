@@ -3,3 +3,5 @@
 test/test_cache
 /third_party/llvm-project/install/
 /third_party/llvm-project/build/
+.cache
+.vscode
