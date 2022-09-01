@@ -11,7 +11,9 @@
 #ifndef LOX_SRCS_MLIR_INCLUDE_MLIR_DIALECT_LOX_IR_LOXTYPES_H
 #define LOX_SRCS_MLIR_INCLUDE_MLIR_DIALECT_LOX_IR_LOXTYPES_H
 
+#include <llvm/Support/Error.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/DialectImplementation.h>
 
 #include "mlir/Dialect/Lox/IR/LoxTypes.h.inc"
 
@@ -40,6 +42,14 @@ public:
 
   /// Returns the number of element type held by this struct.
   size_t getElementNum() { return getElementTypes().size(); }
+
+  /// A util function to parse a struct type from a string, note that this function will not be called by MLIR's parsing
+  /// framework. It is called by us in the LoxDialect::parseType manually.
+  static llvm::Expected<StructType> parse(mlir::DialectAsmParser &parser);
+
+  /// A util function to print a struct type to a string, note that this function will not be called by MLIR's printing
+  /// framework. It is called by us in the LoxDialect::printType manually.
+  static void print(StructType type, mlir::DialectAsmPrinter &printer);
 };
 } // namespace mlir::lox
 
