@@ -55,6 +55,11 @@ we want.
 We will define a "Lox Dialect", which is converted from the Lox AST, and then lower the Lox Dialect to MLIR's bundled
 dialect, such as `affine`, `std`, `llvm`, etc.
 
+Because we support `tensor`, it will be very natural to treat scalar as a 0-ranked tensor, by doing this, our type
+system will become more uniform, since everything is a tensor. However in my roadmap, the `tensor` and `class` are both
+some advanced feature that will be handled in some later phase, so I will only treat scalars as "scalars" for now, it
+feels more easy to me to implement core language features without worrying about the advanced features.
+
 # Here is a list of features notes
 
 1. Native datatypes: "float", "bool", "str"
