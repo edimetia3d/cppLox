@@ -31,8 +31,8 @@ cmake -G Ninja ../llvm \
   -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
   -DCMAKE_BUILD_TYPE=Debug \
   -DBUILD_SHARED_LIBS=ON \
-  -DLLVM_ENABLE_EH=ON \
-  -DLLVM_ENABLE_RTTI=ON
+  -DMLIR_ENABLE_BINDINGS_PYTHON=ON \
+  -DLLVM_INSTALL_UTILS=ON
 cmake --build . --target install
 # recover
 sed -i 's/#dd_subdirectory(ExceptionDemo)/add_subdirectory(ExceptionDemo)/g' $SCRIPT_DIR/llvm-project/llvm/examples/CMakeLists.txt
