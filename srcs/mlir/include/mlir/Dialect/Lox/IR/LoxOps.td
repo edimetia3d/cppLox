@@ -21,10 +21,14 @@ include "mlir/Dialect/Lox/IR/LoxBase.td"
 //===----------------------------------------------------------------------===//
 
 // 1. Constant tensor may infer it's shape from the attribute it contains, so it supports the ShapeInferenceOpInterface
-// 2. We need a ConstantOp mainly for two reasons:
+// 2. We need a ConstantOp mainly for 3 reasons:
 //   a. The MLIR does not support constant natively.
 //   b. The constant data in attribute will be stored in the final binary, but we may need some extra instruction to
 //      load them, these extra instruction could be welly handled when lowering the ConstantOp.
+//   c. ConstantOp is an import source to create values. In MLIR, values comes in only two ways, one is the arguments
+//      of BB/Region, the other is the result of operation. ConstantOp will be the main operation to create values without
+//      needs to access other operation's result. And because of this, ConstantOp is semantically the default constructor
+//      of any lox value.
 def ConstantOp : LoxOp<"constant", [ConstantLike,
                                     NoSideEffect,
                                     DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
@@ -62,6 +66,9 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
   // Note that, the source of constexpr values are:
   //  1. ConstantLike Operation's result.
   //  2. Folded result.
+  // Also note that folding will not only create new constant, we may also refine the operations from the input when
+  // constant folding can not be done, e.g. To a dynamic-shaped tensor, its value may be non-constant at compile time,
+  // but sometimes its shape could be deduced during constant folding, this will help us to generate more efficient code.
   let hasFolder = 1;
 
   let builders = [
