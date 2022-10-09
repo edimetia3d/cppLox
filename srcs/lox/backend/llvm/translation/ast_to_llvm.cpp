@@ -11,7 +11,7 @@
 #include "lox/common/finally.h"
 
 class LLVMTranslationError : public lox::LoxError {
- public:
+public:
   using LoxError::LoxError;
 };
 
@@ -56,7 +56,7 @@ struct ConstantHelper {
 };
 
 class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
- public:
+public:
   explicit ASTToLLVM(llvm::LLVMContext &context) : context_(context), builder_(context) {}
 
   bool ShouldBeInDefModule(StmtPtr &stmt) const { return stmt->DynAs<VarDeclStmt>() || stmt->DynAs<FunctionStmt>(); }
@@ -122,7 +122,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     llvm::Type *ty;
     auto addr = SymAddrLookup(node->attr->name->lexeme, &ty);
     auto new_value = ValueVisit(node->value);
-    assert(ty == new_value->getType());  // todo: add implicit type cast support
+    assert(ty == new_value->getType()); // todo: add implicit type cast support
     builder_.CreateStore(new_value, addr);
     VisitorReturn(builder_.CreateLoad(ty, addr, node->attr->name->lexeme));
   }
@@ -163,19 +163,19 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     auto cmp_code = llvm::CmpInst::FCMP_UEQ;
     const char *code_name = "add";
     bool is_logical = false;
-#define MATH_OP(token_name, llvm_op_code, code_name_str) \
-  case TokenType::token_name: {                          \
-    op_code = llvm::Instruction::llvm_op_code;           \
-    code_name = code_name_str;                           \
-    break;                                               \
+#define MATH_OP(token_name, llvm_op_code, code_name_str)                                                               \
+  case TokenType::token_name: {                                                                                        \
+    op_code = llvm::Instruction::llvm_op_code;                                                                         \
+    code_name = code_name_str;                                                                                         \
+    break;                                                                                                             \
   }
 
-#define LOGICAL_OP(token_name, llvm_op_code, code_name_str) \
-  case TokenType::token_name: {                             \
-    cmp_code = llvm::CmpInst::llvm_op_code;                 \
-    code_name = code_name_str;                              \
-    is_logical = true;                                      \
-    break;                                                  \
+#define LOGICAL_OP(token_name, llvm_op_code, code_name_str)                                                            \
+  case TokenType::token_name: {                                                                                        \
+    cmp_code = llvm::CmpInst::llvm_op_code;                                                                            \
+    code_name = code_name_str;                                                                                         \
+    is_logical = true;                                                                                                 \
+    break;                                                                                                             \
   }
 
     switch (op) {
@@ -190,16 +190,16 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
       LOGICAL_OP(GREATER, FCMP_UGT, "gt")
       LOGICAL_OP(GREATER_EQUAL, FCMP_UGE, "ge")
 
-      default:
-        throw LLVMTranslationError("not supported op");
+    default:
+      throw LLVMTranslationError("not supported op");
     }
 #undef MATH_OP
 #undef LOGICAL_OP
     llvm::Value *ret = nullptr;
     if (is_logical) {
-      ret = builder_.CreateFCmp(cmp_code, v0, v1, code_name);  // i1
+      ret = builder_.CreateFCmp(cmp_code, v0, v1, code_name); // i1
     } else {
-      ret = llvm::BinaryOperator::Create(op_code, v0, v1, code_name, GetCurrentBB());  // fp
+      ret = llvm::BinaryOperator::Create(op_code, v0, v1, code_name, GetCurrentBB()); // fp
     }
     return ret;
   }
@@ -208,36 +208,36 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
 
   void Visit(LiteralExpr *node) override {
     switch (node->attr->value->type) {
-      case TokenType::NUMBER:
-        VisitorReturn(llvm::ConstantFP::get(context_, llvm::APFloat(std::stod(node->attr->value->lexeme))));
-      case TokenType::STRING: {
-        std::string str_v(node->attr->value->lexeme.begin() + 1, node->attr->value->lexeme.end() - 1);
-        VisitorReturn(builder_.CreateGlobalStringPtr(str_v, "", 0, active_module_));
-      }
-      case TokenType::NIL:
-        VisitorReturn(cst_->nil);
-      case TokenType::TRUE_TOKEN:
-        VisitorReturn(cst_->true_v);
-      case TokenType::FALSE_TOKEN:
-        VisitorReturn(cst_->false_v);
-      default:
-        throw LLVMTranslationError("Not a valid Literal.");
+    case TokenType::NUMBER:
+      VisitorReturn(llvm::ConstantFP::get(context_, llvm::APFloat(std::stod(node->attr->value->lexeme))));
+    case TokenType::STRING: {
+      std::string str_v(node->attr->value->lexeme.begin() + 1, node->attr->value->lexeme.end() - 1);
+      VisitorReturn(builder_.CreateGlobalStringPtr(str_v, "", 0, active_module_));
+    }
+    case TokenType::NIL:
+      VisitorReturn(cst_->nil);
+    case TokenType::TRUE_TOKEN:
+      VisitorReturn(cst_->true_v);
+    case TokenType::FALSE_TOKEN:
+      VisitorReturn(cst_->false_v);
+    default:
+      throw LLVMTranslationError("Not a valid Literal.");
     }
   }
 
   void Visit(UnaryExpr *node) override {
     auto v = ValueVisit(node->right);
     switch (node->attr->op->type) {
-      case TokenType::MINUS: {
-        assert(v->getType() == cst_->num_ty);
-        VisitorReturn(builder_.CreateNeg(v, "neg"));
-      }
-      case TokenType::BANG: {
-        assert(v->getType() == cst_->bool_ty);
-        VisitorReturn(builder_.CreateNot(v, "not"));
-      }
-      default:
-        throw LLVMTranslationError("Not a valid Unary.");
+    case TokenType::MINUS: {
+      assert(v->getType() == cst_->num_ty);
+      VisitorReturn(builder_.CreateNeg(v, "neg"));
+    }
+    case TokenType::BANG: {
+      assert(v->getType() == cst_->bool_ty);
+      VisitorReturn(builder_.CreateNot(v, "not"));
+    }
+    default:
+      throw LLVMTranslationError("Not a valid Unary.");
     }
   }
 
@@ -246,12 +246,14 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     llvm::Function *callee_fn = FunctionLookUp(fn_name);
 
     auto &args = node->comma_expr_args->As<CommaExpr>()->elements;
-    if (callee_fn->arg_size() != args.size()) throw LLVMTranslationError(std::string("Incorrect arguments number"));
+    if (callee_fn->arg_size() != args.size())
+      throw LLVMTranslationError(std::string("Incorrect arguments number"));
 
     std::vector<llvm::Value *> args_value;
     for (unsigned i = 0, e = args.size(); i != e; ++i) {
       args_value.push_back(ValueVisit(args[i]));
-      if (!args_value.back()) throw LLVMTranslationError("Incorrect arguments value");
+      if (!args_value.back())
+        throw LLVMTranslationError("Incorrect arguments value");
     }
     std::string ret_name;
     if (!callee_fn->getReturnType()->isVoidTy()) {
@@ -303,7 +305,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     llvm::BasicBlock *while_body_bb = llvm::BasicBlock::Create(context_, "while.body", current_function_);
     llvm::BasicBlock *while_end_bb = llvm::BasicBlock::Create(context_, "while.end", current_function_);
     // branch to while_cond_bb
-    ScopeGuard guard(local_sym_table_);  // while in a new scope
+    ScopeGuard guard(local_sym_table_); // while in a new scope
     builder_.CreateBr(while_cond_bb);
 
     SwitchBB(while_cond_bb);
@@ -328,7 +330,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     llvm::BasicBlock *for_body_bb = llvm::BasicBlock::Create(context_, "for.body", current_function_);
     llvm::BasicBlock *for_end_bb = llvm::BasicBlock::Create(context_, "for.end", current_function_);
     // branch to for_cond_bb
-    ScopeGuard guard(local_sym_table_);  // for in a new scope
+    ScopeGuard guard(local_sym_table_); // for in a new scope
     builder_.CreateBr(for_init_bb);
 
     SwitchBB(for_init_bb);
@@ -348,18 +350,18 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     continue_targets_.pop_back();
 
     SwitchBB(for_inc_bb);
-    ValueVisit(node->increment);  // discard value
+    ValueVisit(node->increment); // discard value
     builder_.CreateBr(for_cond_bb);
 
     SwitchBB(for_end_bb);
   }
 
   void Visit(ExprStmt *node) override {
-    ValueVisit(node->expression);  // discard value
+    ValueVisit(node->expression); // discard value
   }
 
   void Visit(FunctionStmt *node) override {
-    assert(IsAtGlobal());  // only global functions are allowed.
+    assert(IsAtGlobal()); // only global functions are allowed.
 
     llvm::Type *ret_ty = cst_->nil_ty;
     if (node->attr->ret_type_hint) {
@@ -477,7 +479,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
     }
   }
 
- protected:
+protected:
   void SwitchBB(llvm::BasicBlock *bb) { builder_.SetInsertPoint(bb); }
   llvm::BasicBlock *GetCurrentBB() { return builder_.GetInsertBlock(); }
 
@@ -493,8 +495,7 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   std::vector<llvm::BasicBlock *> break_targets_;
   std::vector<llvm::BasicBlock *> continue_targets_;
 
-  llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *>
-      local_sym_table_;  // map from name to latest alloca address
+  llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *> local_sym_table_; // map from name to latest alloca address
   struct ScopeGuard {
     ScopeGuard(llvm::ScopedHashTable<llvm::StringRef, llvm::AllocaInst *> &symtable) : scope(symtable) {}
     llvm::ScopedHashTableScope<llvm::StringRef, llvm::AllocaInst *> scope;
@@ -584,12 +585,15 @@ class ASTToLLVM : public lox::ASTNodeVisitor<llvm::Value *> {
   }
 
   void CleanUpExitBlocks() {
+    auto bak = builder_.GetInsertBlock();
     for (auto &bb : exit_blocks_) {
+      SwitchBB(bb);
       if (bb->getTerminator() == nullptr) {
         builder_.CreateBr(bb);
       }
     }
     exit_blocks_.clear();
+    SwitchBB(bak);
   }
 };
 
@@ -598,4 +602,4 @@ ConvertedModule ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *lox_mo
   return ASTToLLVM(context).Convert(lox_module->Statements(), "main_module", known_global_symbol);
 }
 
-}  // namespace lox::llvm_jit
+} // namespace lox::llvm_jit
