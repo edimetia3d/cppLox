@@ -33,7 +33,6 @@ cmake -G Ninja ../llvm \
   -DBUILD_SHARED_LIBS=ON \
   -DLLVM_ENABLE_EH=ON \
   -DLLVM_ENABLE_RTTI=ON \
-  -DMLIR_ENABLE_BINDINGS_PYTHON=ON \
   -DLLVM_INSTALL_UTILS=ON
 cmake --build . --target install
 # recover
