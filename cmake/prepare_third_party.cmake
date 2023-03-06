@@ -1,0 +1,22 @@
+include(${CMAKE_CURRENT_LIST_DIR}/CPM.cmake)
+set(CPM_SOURCE_CACHE ~/.cache/CPM)
+CPMAddPackage(
+    NAME GH_CLI11
+    GITHUB_REPOSITORY "CLIUtils/CLI11"
+    GIT_TAG "8b785a6c7d5b0af5f3ba0003d7a9e43d08d6f3be"
+    EXCLUDE_FROM_ALL TRUE
+    OPTIONS -Wno-dev
+    CPM_USE_NAMED_CACHE_DIRECTORIES TRUE
+    DOWNLOAD_ONLY TRUE
+)
+include_directories(${GH_CLI11_SOURCE_DIR}/include)
+
+CPMAddPackage(
+    NAME gh_spdlog
+    GITHUB_REPOSITORY "gabime/spdlog"
+    GIT_TAG "4cfdc8c5c84f696774cb9acde2f95c9e87c11a5e"
+    EXCLUDE_FROM_ALL TRUE
+    CPM_USE_NAMED_CACHE_DIRECTORIES TRUE
+    DOWNLOAD_ONLY TRUE
+)
+include_directories(${gh_spdlog_SOURCE_DIR}/include)
