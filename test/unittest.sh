@@ -23,6 +23,14 @@ make -j4
 BINARY_PATH=$PWD/bin/lox
 popd
 
+# check if craftinginterpreters.zip exists
+if [ ! -f craftinginterpreters.zip ]; then
+  rm -rf craftinginterpreters
+  wget https://github.com/edimetia3d/craftinginterpreters/archive/refs/heads/master.zip -O craftinginterpreters.zip
+  unzip -o craftinginterpreters.zip
+  mv craftinginterpreters-master craftinginterpreters
+fi
+
 git clone https://github.com/edimetia3d/craftinginterpreters.git --depth=1
 
 mkdir -p dart_pub_cache

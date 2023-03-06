@@ -3,8 +3,6 @@
 //
 #include "ast_printer.h"
 
-#include <map>
-
 namespace lox {
 
 void AstPrinter::Visit(LogicalExpr* node) {

@@ -16,7 +16,7 @@
 
 #include <map>
 
-#include "lox/ast/ast_printer/ast_printer.h"
+#include "lox/passes/ast_printer/ast_printer.h"
 #include "lox/backend/llvm/builtins/builtin.h"
 #include "lox/backend/llvm/translation/ast_to_llvm.h"
 #include "lox/common/global_setting.h"

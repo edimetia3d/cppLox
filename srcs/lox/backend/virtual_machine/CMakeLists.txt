@@ -4,6 +4,10 @@ add_subdirectory(object)
 add_subdirectory(builtins)
 add_subdirectory(debug)
 
-add_library(virtual_machine virtual_machine.cc)
+cc_library(virtual_machine virtual_machine.cc)
 
-target_link_libraries(virtual_machine PRIVATE core vm_object vm_debug lox_common)
+target_link_libraries(lox.backend.virtual_machine PRIVATE
+    lox.backend.virtual_machine.core
+    lox.backend.virtual_machine.object
+    lox.backend.virtual_machine.debug
+    lox.common)

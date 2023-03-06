@@ -10,11 +10,11 @@ add_subdirectory(translation)
 add_subdirectory(builtins)
 
 
-add_llvm_library(llvm_backend llvm_jit.cpp)
+cc_library(llvm SHARED llvm_jit.cpp)
 
-target_link_libraries(llvm_backend
+target_link_libraries(lox.backend.llvm
         PRIVATE
-        lox_common
-        ast_to_llvm
-        lox::backend::jit::builtins
+        lox.common
+        lox.backend.llvm.translation
+        lox.backend.llvm.builtins
         )

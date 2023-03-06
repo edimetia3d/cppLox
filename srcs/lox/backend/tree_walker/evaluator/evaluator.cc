@@ -7,7 +7,7 @@
 #include <iostream>
 
 #include "lox/ast/ast.h"
-#include "lox/backend/tree_walker/bultins/builtin_fn.h"
+#include "lox/backend/tree_walker/builtins/builtin_fn.h"
 #include "lox/backend/tree_walker/evaluator/runtime_object.h"
 
 namespace lox::twalker {

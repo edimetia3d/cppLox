@@ -1,4 +1,4 @@
 
+add_subdirectory(ast_printer)
 add_subdirectory(semantic_check)
-add_library(passes pass_runner.cc)
-target_link_libraries(passes PUBLIC semantic_check)
+cc_library(pass_runner pass_runner.cc)

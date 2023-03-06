@@ -1,2 +1,2 @@
 
-add_library(token token.cc)
+cc_library(token token.cc)

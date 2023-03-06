@@ -1,16 +1,10 @@
 
-add_library(environment environment.cpp)
-target_link_libraries(environment PUBLIC runtime_object)
 
-add_library(evaluator
-        evaluator.cpp
-        )
+cc_library(evaluator
+    evaluator.cc
+    environment.cc
+    runtime_object.cc)
 
-add_library(runtime_object
-        runtime_object.cc
-        )
-target_link_libraries(evaluator PUBLIC ast)
-target_link_libraries(evaluator PUBLIC environment)
-target_link_libraries(evaluator PUBLIC lox_common)
-target_link_libraries(evaluator PUBLIC runtime_object)
-target_link_libraries(evaluator PUBLIC talker_builtins)
+target_link_libraries(lox.backend.tree_walker.evaluator PRIVATE lox.ast)
+target_link_libraries(lox.backend.tree_walker.evaluator PRIVATE lox.common)
+target_link_libraries(lox.backend.tree_walker.evaluator PRIVATE lox.backend.tree_walker.builtins)

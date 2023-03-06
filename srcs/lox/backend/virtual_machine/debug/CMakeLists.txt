@@ -1,2 +1,2 @@
-add_library(vm_debug debug.cc)
-target_link_libraries(vm_debug PUBLIC vm_object)
+cc_library(debug debug.cc)
+target_link_libraries(lox.backend.virtual_machine.debug PRIVATE lox.backend.virtual_machine.object)

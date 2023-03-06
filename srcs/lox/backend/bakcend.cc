@@ -2,7 +2,7 @@
 // LICENSE: MIT
 //
 
-#include "lox/ast/ast_printer/ast_printer.h"
+#include "lox/passes/ast_printer/ast_printer.h"
 #include "lox/backend/backend.h"
 #include "lox/backend/llvm/llvm_jit.h"
 #include "lox/backend/mlir/mlir_jit.h"

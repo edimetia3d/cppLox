@@ -1,2 +1,2 @@
-add_library(lox_object_object object.cc gc.cc)
-add_library(lox::object:object ALIAS lox_object_object)
+cc_library(object object.cc gc.cc)
+set_target_properties(lox.object PROPERTIES OUTPUT_NAME "lox_object")

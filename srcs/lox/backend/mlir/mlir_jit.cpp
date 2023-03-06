@@ -16,7 +16,7 @@
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
 
-#include "lox/ast/ast_printer/ast_printer.h"
+#include "lox/passes/ast_printer/ast_printer.h"
 #include "lox/backend/mlir/translation/ast_to_mlir.h"
 #include "lox/common/global_setting.h"
 #include "lox/frontend/parser.h"

@@ -1,7 +1,7 @@
 
-add_executable(lox-bin main.cpp)
-target_link_libraries(lox-bin lox)
-set_target_properties(lox-bin PROPERTIES OUTPUT_NAME "lox")
+cc_binary(lox-bin main.cc)
+target_link_libraries(bin.lox-bin lox)
+set_target_properties(bin.lox-bin PROPERTIES OUTPUT_NAME "lox")
 
-add_executable(lox-format lox-format.cc)
-target_link_libraries(lox-format frontend)
+cc_binary(lox-format lox-format.cc)
+target_link_libraries(bin.lox-format lox.frontend)

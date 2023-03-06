@@ -7,13 +7,13 @@ set(LLVM_LINK_COMPONENTS
 
 add_subdirectory(translation)
 
-add_library(mlir_backend mlir_jit.cpp)
+cc_library(mlir SHARED mlir_jit.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
-target_link_libraries(mlir_backend
+target_link_libraries(lox.backend.mlir
         PRIVATE
         ${dialect_libs}
         ${translation_libs}
@@ -31,6 +31,6 @@ target_link_libraries(mlir_backend
         MLIRAnalysis
         MLIRSideEffectInterfaces
         MLIRTransforms
-        lox_common
-        ast_to_mlir
+        lox.common
+        lox.backend.mlir.translation
         )

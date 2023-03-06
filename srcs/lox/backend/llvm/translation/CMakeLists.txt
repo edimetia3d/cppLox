@@ -1,19 +1,8 @@
 
 set_llvm_build_options()
 
-set(LLVM_LINK_COMPONENTS
-        Support
-        Core
-        )
-
-add_llvm_library(ast_to_llvm SHARED
-        ast_to_llvm.cpp
-        ast_to_llvm.h
-        )
-
-target_link_libraries(ast_to_llvm
-        PUBLIC
-        lox_common
-        )
-
-llvm_update_compile_flags(ast_to_llvm)
+llvm_map_components_to_libnames(llvm_libs support core)
+add_llvm_library(lox.backend.llvm.translation ast_to_llvm.cpp)
+target_link_libraries(lox.backend.llvm.translation PRIVATE ${llvm_libs})
+target_link_libraries(lox.backend.llvm.translation PRIVATE lox.common)
+set_target_properties(lox.backend.llvm.translation PROPERTIES OUTPUT_NAME "llvm_translation")

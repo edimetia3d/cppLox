@@ -1,2 +1,2 @@
-add_library(builtins builtin_fn.cc)
-add_library(lox::backend::virtual_machine::builtins ALIAS builtins)
+cc_library(builtins builtin_fn.cc)
+set_target_properties(lox.backend.virtual_machine.builtins PROPERTIES OUTPUT_NAME "vm_builtins")
