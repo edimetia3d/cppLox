@@ -1,5 +1,6 @@
 
-set_llvm_build_options()
+include(HandleLLVMOptions)
+add_definitions(${LLVM_DEFINITIONS})
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
@@ -17,6 +18,7 @@ target_link_libraries(lox.backend.mlir.translation
     ${dialect_libs}
     ${translation_libs}
     MLIRIR
+    MLIRLox
     lox.common
     )
 

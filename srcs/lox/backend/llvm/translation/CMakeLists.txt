@@ -1,5 +1,5 @@
-
-set_llvm_build_options()
+include(HandleLLVMOptions)
+add_definitions(${LLVM_DEFINITIONS})
 
 llvm_map_components_to_libnames(llvm_libs support core)
 add_llvm_library(lox.backend.llvm.translation ast_to_llvm.cpp)

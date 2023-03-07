@@ -1,5 +1,7 @@
-
+include(mlir_build_options)
 set_llvm_build_options()
+include(HandleLLVMOptions)
+add_definitions(${LLVM_DEFINITIONS})
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(include)
