@@ -60,6 +60,7 @@ public:
   explicit ASTToLLVM(llvm::LLVMContext &context) : context_(context), builder_(context) {}
 
   bool ShouldBeInDefModule(StmtPtr &stmt) const { return stmt->DynAs<VarDeclStmt>() || stmt->DynAs<FunctionStmt>(); }
+
   std::unique_ptr<llvm::Module> MakeDefModule(std::vector<StmtPtr> &global_stmts,
                                               const std::string &output_module_name) {
     auto def_module = std::make_unique<llvm::Module>(output_module_name, context_);
@@ -101,9 +102,7 @@ public:
     }
 
     AddReturn(nullptr);
-    CleanUpExitBlocks();
-
-    llvm::verifyFunction(*fn);
+    FunctionBodyDone(*fn);
 
     return init_module;
   }
@@ -408,9 +407,7 @@ public:
     } else {
       AddReturn(nullptr);
     }
-    CleanUpExitBlocks();
-
-    llvm::verifyFunction(*fn);
+    FunctionBodyDone(*fn);
   }
 
   void Visit(ClassStmt *node) override { throw LLVMTranslationError("class is not supported"); }
@@ -491,7 +488,7 @@ protected:
   std::unique_ptr<ConstantHelper> cst_;
   llvm::IRBuilder<> builder_;
   llvm::Function *current_function_ = nullptr;
-  std::vector<llvm::BasicBlock *> exit_blocks_;
+  std::vector<llvm::BasicBlock *> possible_exit_bb_; // BBs that we are not sure if they will terminate
   std::vector<llvm::BasicBlock *> break_targets_;
   std::vector<llvm::BasicBlock *> continue_targets_;
 
@@ -580,20 +577,29 @@ protected:
       builder_.CreateRetVoid();
     }
     auto tmp_bb = llvm::BasicBlock::Create(context_, "tmp_exit", current_function_);
+    // There might still be stmt after return expression, however, the bb that `return` belongs to is already terminated
+    // so we need to switch to a new bb. However, we don't know whether this new bb will be terminated or not
+    // so we need to keep track of it by adding it to possible_exit_bb_
     SwitchBB(tmp_bb);
-    exit_blocks_.push_back(tmp_bb);
+    possible_exit_bb_.push_back(tmp_bb);
   }
 
-  void CleanUpExitBlocks() {
+  void TerminateAllExitBlocks() {
     auto bak = builder_.GetInsertBlock();
-    for (auto &bb : exit_blocks_) {
+    for (auto &bb : possible_exit_bb_) {
       SwitchBB(bb);
       if (bb->getTerminator() == nullptr) {
         builder_.CreateBr(bb);
       }
     }
-    exit_blocks_.clear();
+    possible_exit_bb_.clear();
     SwitchBB(bak);
+  }
+
+  void FunctionBodyDone(const llvm::Function &F) {
+    // When a function is done, we should make sure that all exit blocks are terminated
+    TerminateAllExitBlocks();
+    llvm::verifyFunction(F);
   }
 };
 
