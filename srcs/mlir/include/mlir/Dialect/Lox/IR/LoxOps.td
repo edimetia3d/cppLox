@@ -15,6 +15,8 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 
 
 include "mlir/Dialect/Lox/IR/LoxBase.td"
+include "mlir/Dialect/Lox/IR/LoxInterface.td"
+
 
 //===----------------------------------------------------------------------===//
 // ConstantOp

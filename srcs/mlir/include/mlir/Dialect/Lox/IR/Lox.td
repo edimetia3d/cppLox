@@ -10,6 +10,7 @@
 #define LOX_TD
 
 include "mlir/Dialect/Lox/IR/LoxBase.td"
+include "mlir/Dialect/Lox/IR/LoxInterface.td"
 include "mlir/Dialect/Lox/IR/LoxOps.td"
 
 #endif  // LOX_TD
