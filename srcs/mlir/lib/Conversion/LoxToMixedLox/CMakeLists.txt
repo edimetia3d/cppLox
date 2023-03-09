@@ -1,4 +1,4 @@
-add_mlir_conversion_library(lox_to_mixedlox
-        LoxToMixedLox.cpp
-        Patterns.cpp
-        )
+add_mlir_conversion_library(LoxToMixedLox
+    LoxToMixedLox.cpp
+    Patterns.cpp
+    )

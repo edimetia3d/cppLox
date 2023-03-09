@@ -1,4 +1,4 @@
-add_mlir_conversion_library(mixedlox_to_llvm
-        MixedLoxToLLVM.cpp
-        Patterns.cpp
-        )
+add_mlir_conversion_library(MixedLoxToLLVM
+    MixedLoxToLLVM.cpp
+    Patterns.cpp
+    )

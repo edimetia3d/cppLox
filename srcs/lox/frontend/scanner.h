@@ -5,6 +5,7 @@
 #ifndef CPPLOX_SRCS_LOX_SCANNER_H_
 #define CPPLOX_SRCS_LOX_SCANNER_H_
 
+#include <cassert>
 #include <string>
 #include <vector>
 
@@ -50,9 +51,12 @@ class Scanner {
 
   Token AddToken(TokenType type);
 
-  void Error(const std::string& msg);
+  void Error(const std::string &msg);
 
-  bool IsAtEnd() { return current_lex_pos_ >= srcs_->size(); }
+  bool IsAtEnd() {
+    assert(current_lex_pos_ >= 0);
+    return (size_t)current_lex_pos_ >= srcs_->size();
+  }
   char LastChar();
 
   char Advance();
