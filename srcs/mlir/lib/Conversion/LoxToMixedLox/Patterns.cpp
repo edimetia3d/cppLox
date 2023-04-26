@@ -8,7 +8,7 @@
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 
 #include "mlir/Conversion/LoxToMixedLox/LoxToMixedLox.h"
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 using namespace mlir;
 

@@ -4,8 +4,8 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 #include "mlir/Dialect/Lox/IR/LoxTypes.cpp.inc"
-#include "mlir/Dialect/Lox/IR/LoxTypes.h"
 
 #include "StructTypeStorage.h"
 

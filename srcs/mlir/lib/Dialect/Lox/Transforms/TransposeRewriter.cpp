@@ -1,7 +1,7 @@
 
 #include "mlir/Dialect/Lox/Transforms/TransposeRewriter.h"
 
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 using namespace mlir;
 using namespace mlir::lox;

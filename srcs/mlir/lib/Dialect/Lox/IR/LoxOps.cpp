@@ -4,7 +4,7 @@
 #include <mlir/IR/FunctionImplementation.h>
 #include <mlir/IR/OpImplementation.h>
 
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 #include "mlir/Dialect/Lox/Transforms/ReshapeReWriter.h"
 #include "mlir/Dialect/Lox/Transforms/TransposeRewriter.h"
 

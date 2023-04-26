@@ -19,7 +19,7 @@
 #include "lox/ast/ast.h"
 #include "lox/common/finally.h"
 #include "lox/common/lox_error.h"
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 using namespace mlir::lox;
 using namespace lox;

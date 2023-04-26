@@ -1,7 +1,7 @@
 //
 // License: MIT
 //
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 namespace mlir::lox {
 mlir::LogicalResult verifyConstantForType(mlir::Type type, mlir::Attribute opaqueValue, mlir::Operation *op);

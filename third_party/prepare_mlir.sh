@@ -34,6 +34,8 @@ cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_EH=ON \
   -DLLVM_ENABLE_RTTI=ON \
   -DLLVM_INSTALL_UTILS=ON
+  #-DMLIR_ENABLE_CUDA_RUNNER=ON \
+  #-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc
 cmake --build . --target install
 # recover
 sed -i 's/#dd_subdirectory(ExceptionDemo)/add_subdirectory(ExceptionDemo)/g' $SCRIPT_DIR/llvm-project/llvm/examples/CMakeLists.txt

@@ -2,7 +2,7 @@
 // License: MIT
 //
 #include "mlir/Dialect/Lox/Transforms/ReshapeReWriter.h"
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 using namespace mlir;
 namespace {
 #include "mlir/Dialect/Lox/Transforms/ReshapeRewriter.cpp.inc"

@@ -8,7 +8,7 @@
 #include <mlir/Dialect/SCF/IR/SCF.h>
 
 #include "mlir/Conversion/MixedLoxToLLVM/MixedLoxToLLVM.h"
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 using namespace mlir;
 namespace {

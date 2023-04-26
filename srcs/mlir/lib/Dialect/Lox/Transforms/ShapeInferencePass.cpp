@@ -4,7 +4,7 @@
 #include <llvm/Support/Debug.h>
 #include <mlir/Pass/Pass.h>
 
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 #include "mlir/Dialect/Lox/Transforms/Passes.h"
 
 #define DEBUG_TYPE "shape-inference"

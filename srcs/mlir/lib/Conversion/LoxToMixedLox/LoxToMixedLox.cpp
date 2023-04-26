@@ -7,7 +7,7 @@
 
 #include <llvm/ADT/Sequence.h>
 
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 using namespace mlir;
 

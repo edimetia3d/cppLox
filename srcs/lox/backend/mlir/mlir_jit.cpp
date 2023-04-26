@@ -16,13 +16,13 @@
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
 
-#include "lox/passes/ast_printer/ast_printer.h"
 #include "lox/backend/mlir/translation/ast_to_mlir.h"
 #include "lox/common/global_setting.h"
 #include "lox/frontend/parser.h"
+#include "lox/passes/ast_printer/ast_printer.h"
 #include "mlir/Conversion/LoxToMixedLox/LoxToMixedLox.h"
 #include "mlir/Conversion/MixedLoxToLLVM/MixedLoxToLLVM.h"
-#include "mlir/Dialect/Lox/IR/Lox.h"
+#include "mlir/Dialect/Lox/IR/LoxDialect.h"
 #include "mlir/Dialect/Lox/Transforms/Passes.h"
 
 namespace lox::mlir_jit {
