@@ -26,7 +26,8 @@
 #include "mlir/Dialect/Lox/IR/LoxInterface.h.inc"
 #include "mlir/Dialect/Lox/IR/LoxTypes.h.inc"
 
-// Interfaces should generally be defined in global namespace.
+namespace mlir::lox {
+
 struct LoxInlinerInterface : public mlir::DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
 
@@ -57,23 +58,26 @@ struct LoxInlinerInterface : public mlir::DialectInlinerInterface {
                                              mlir::Location conversionLoc) const final;
 };
 
-namespace mlir::lox {
-
 namespace detail {
-// A totally opaque struct type. that should not be accessed by users.
+// A totally opaque struct type that hold all data of a type.
+// The TypeStorage is actually a implementation of some type.
 struct StructTypeStorage;
 } // namespace detail
 
 /**
- * StructType is actually some kind of meta type. We use the `StructType::get()` to get a "concrete" struct type.
- * and all these "concrete" types will be treated as StructType.
- * eg. `!lox.struct<int>` `!lox.struct<int,tensor>` are both `StructType`
+ * Types are implemented with some kind of pimpl idiom.
+ * All type instances act as a shared pointer that proxy to its TypeStorage object, and the TypeStorage is always
+ * interned. This make type instance copyable, which is an idiom in MLIR. Here We use the `StructType::get()` to get a
+ * "proxy" to access the interned storage object. Note that same element types will be treated as same type, i.e., use
+ * same storage object.
  */
 class StructType : public mlir::Type::TypeBase<StructType, mlir::Type, detail::StructTypeStorage> {
 public:
+  /// Inherit some constructors from `TypeBase`, it's just a syntax sugar to avoid writing some boilerplate code like
+  /// `mlir::Type::TypeBase<StructType, mlir::Type, detail::StructTypeStorage> `
   using Base::Base;
 
-  /// Create an instance of a `StructType` with the given element types. There
+  /// Get an instance of a `StructType` with the given element types. Lox requires that there
   /// *must* be at least one element type.
   static StructType get(llvm::ArrayRef<mlir::Type> elementTypes);
 

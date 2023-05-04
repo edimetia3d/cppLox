@@ -4,8 +4,9 @@
 
 #include <mlir/IR/DialectImplementation.h>
 
-#include "mlir/Dialect/Lox/IR/LoxDialect.cpp.inc"
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
+
+#include "mlir/Dialect/Lox/IR/LoxDialect.cpp.inc"
 
 #include "PrintDialectType.h"
 #include "StructTypeStorage.h" // contains detail

@@ -5,7 +5,7 @@
 
 #include "mlir/Dialect/Lox/IR/LoxInterface.cpp.inc"
 
-using namespace mlir;
+namespace mlir::lox {
 void LoxInlinerInterface::handleTerminator(Operation *op, ArrayRef<Value> valuesToRepl) const {
   // Only "return" needs to be handled here.
   auto returnOp = cast<mlir::lox::ReturnOp>(op);
@@ -19,3 +19,4 @@ Operation *LoxInlinerInterface::materializeCallConversion(OpBuilder &builder, Va
                                                           Location conversionLoc) const {
   return builder.create<mlir::lox::CastOp>(conversionLoc, resultType, input);
 }
+} // namespace mlir::lox

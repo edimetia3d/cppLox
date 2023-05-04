@@ -74,7 +74,7 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
   let hasFolder = 1;
 
   let builders = [
-    // Build a constant tensor from DenseElementsAttr, when is_plain_array is true, result type will change to memref
+    // Build a constant tensor from DenseElementsAttr
     OpBuilder<(ins "DenseElementsAttr": $value)>,
     // Build a constant string(memref) from StringRef
     OpBuilder<(ins "llvm::StringRef": $value)>,
@@ -89,7 +89,7 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
 // Binary Arith Op
 //===----------------------------------------------------------------------===//
 
-def ArithLoxType : AnyTypeOf<[F64Tensor, Lox_StructType, F64, I1]>;
+def ArithLoxType : AnyTypeOf<[F64Tensor, F64, I1]>;
 
 class LoxBinaryOp<string mnemonic, list<Trait> traits = []> : LoxOp<mnemonic,
                           traits # [NoSideEffect,
@@ -117,44 +117,53 @@ def ModOp : LoxBinaryOp<"mod">;
 // Binary Bitwise Op
 //===----------------------------------------------------------------------===//
 
+// todo: add code
 
 //===----------------------------------------------------------------------===//
 // Binary Logical Op
 //===----------------------------------------------------------------------===//
 
+// todo: add code
+
 //===----------------------------------------------------------------------===//
 // CastOp
 //===----------------------------------------------------------------------===//
-
 def CastOp : LoxOp<"cast", [
   DeclareOpInterfaceMethods<CastOpInterface>,
   DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
   NoSideEffect,
 ]> {
-  let summary = "shape cast operation";
+  let summary = "Type cast operation";
   let description = [{
-    The "cast" operation converts a tensor from one type to an equivalent type without changing any data elements
-        .The source and destination types must both be tensor types with the same element type.If both are ranked,
-        then shape is required to match.The operation is invalid if converting to a mismatching constant dimension.
+    Cast one type to another type, currently only support following type conversion:
+    tensor <-> tensor : Since we only have float tensor, so tensor cast are mainly used to do shape casting, e.g.
+                         tensor<2x3xf64> -> tensor<6xf64>
+    tensor <-> bool : only support tensor with shape [1]
+    tensor <-> float : only support tensor with shape [1]
+    float <-> bool : 0.0 -> false, 1.0 -> true
   }];
 
-  // todo: support more type conversion
-
-  let arguments = (ins F64Tensor : $input);
-  let results = (outs F64Tensor : $output);
+  let arguments = (ins ArithLoxType : $input);
+  let results = (outs ArithLoxType : $output);
 
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 }
 
+//===----------------------------------------------------------------------===//
+// FuncOp
+//===----------------------------------------------------------------------===//
+
 def FuncOp
-    : LoxOp<"func", [DeclareOpInterfaceMethods<CallableOpInterface>, FunctionOpInterface, IsolatedFromAbove, Symbol]> {
+    : LoxOp<"func", [DeclareOpInterfaceMethods<CallableOpInterface>,
+                     FunctionOpInterface,
+                     IsolatedFromAbove,
+                     Symbol]> {
   let summary = "user defined function operation";
   let description = [{
     The "lox.func" operation represents a user defined function.These are callable SSA -
-        region operations that contain computations
-            .
+    region operations that contain computations.
 
-        Example :
+    Example :
 
     ```mlir lox.func @main() {
       %0 = lox.tensor dense<5.500000e+00> : tensor<f64>
@@ -172,8 +181,7 @@ def FuncOp
   let builders = [OpBuilder<(ins
     "StringRef":$name,
     "FunctionType":$type,
-    CArg<"ArrayRef<NamedAttribute>",
-    "{}">:$attrs)
+    CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs)
   >];
   let extraClassDeclaration = [{
     //===------------------------------------------------------------------===//
@@ -182,14 +190,20 @@ def FuncOp
 
     /// Returns the argument types of this function.
     ArrayRef<Type> getArgumentTypes() { return getFunctionType().getInputs();
+    }
+
+    /// Returns the result types of this function.
+    ArrayRef<Type> getResultTypes() { return getFunctionType().getResults(); }
+    }];
+
+    let hasCustomAssemblyFormat = 1;
+
+    let skipDefaultBuilders = 1;
 }
 
-/// Returns the result types of this function.
-ArrayRef<Type> getResultTypes() { return getFunctionType().getResults(); }
-}];
-let hasCustomAssemblyFormat = 1;
-let skipDefaultBuilders = 1;
-}
+//===----------------------------------------------------------------------===//
+// GenericCallOp
+//===----------------------------------------------------------------------===//
 
 def GenericCallOp : LoxOp<"generic_call", [DeclareOpInterfaceMethods<CallOpInterface>]> {
   let summary = "generic call operation";
@@ -212,7 +226,7 @@ def GenericCallOp : LoxOp<"generic_call", [DeclareOpInterfaceMethods<CallOpInter
   // callee, and inputs for the call.
   let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyLoxType>:$inputs);
 
-  // The generic call operation returns a single value of TensorType.
+  // The generic call of lox returns a single value
   let results = (outs AnyLoxType);
 
   // Specialize assembly printing and parsing using a declarative format.
@@ -226,26 +240,33 @@ def GenericCallOp : LoxOp<"generic_call", [DeclareOpInterfaceMethods<CallOpInter
   ];
 }
 
-
+//===----------------------------------------------------------------------===//
+// PrintOp
+//===----------------------------------------------------------------------===//
 
 def PrintOp : LoxOp<"print"> {
   let summary = "print operation";
-  let description = [{The "print" builtin operation prints a given input tensor, and produces no results.}];
 
-  // The print operation takes an input tensor to print.
-  let arguments = (ins AnyTypeOf<[F64Tensor, F64MemRef]> : $input);
+  let arguments = (ins AnyTypeOf<[F64Tensor, F64MemRef, F64, I1, I8MemRef]> : $input);
+  // fixme: only tensor lowering supported, add more lowering support.
 
   let assemblyFormat = "$input attr-dict `:` type($input)";
 }
+
+//===----------------------------------------------------------------------===//
+// ReshapeOp
+//===----------------------------------------------------------------------===//
 
 def ReshapeOp : LoxOp<"reshape", [NoSideEffect]> {
   let summary = "tensor reshape operation";
   let description = [{
     Reshape operation is transforming its input tensor into a new tensor with the same number of elements but different
-        shapes.For example:
+        shapes.
 
-    ```mlir % 0 = lox.reshape(% arg1
-                               : tensor<10xf64>) to tensor<5x2xf64>
+    For example:
+
+    ```
+    mlir % 0 = lox.reshape(% arg1 : tensor<10xf64>) to tensor<5x2xf64>
     ```
   }];
 
@@ -261,13 +282,18 @@ def ReshapeOp : LoxOp<"reshape", [NoSideEffect]> {
   let results = (outs StaticShapeTensorOf<[F64]>);
 }
 
+//===----------------------------------------------------------------------===//
+// ReturnOp
+//===----------------------------------------------------------------------===//
+
 def ReturnOp : LoxOp<"return", [NoSideEffect, HasParent<"FuncOp">, Terminator]> {
   let summary = "return operation";
   let description = [{
     The "return" operation represents a return operation within a
-        function.The operation takes an optional tensor operand and produces no
-            results.The operand type must match the signature of the function that contains the operation
-                .For example :
+    function.The operation takes an optional tensor operand and produces no
+    results.The operand type must match the signature of the function that contains the operation.
+
+    For example :
 
     ```mlir
       func @foo() -> tensor<2xf64> {
@@ -290,11 +316,11 @@ def ReturnOp : LoxOp<"return", [NoSideEffect, HasParent<"FuncOp">, Terminator]> 
   // Provide extra utility definitions on the c++ operation class definition.
   let extraClassDeclaration = [{
     bool hasOperand() { return getNumOperands() != 0;
-}
-}];
+    }
+    }];
 
-// Indicate that additional verification for this operation is necessary.
-let hasVerifier = 1;
+    // Indicate that additional verification for this operation is necessary.
+    let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -326,6 +352,9 @@ def StructAccessOp : LoxOp<"struct_access", [NoSideEffect]> {
   let hasFolder = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// TransposeOp
+//===----------------------------------------------------------------------===//
 
 def TransposeOp : LoxOp<"transpose", [NoSideEffect, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "transpose operation";
