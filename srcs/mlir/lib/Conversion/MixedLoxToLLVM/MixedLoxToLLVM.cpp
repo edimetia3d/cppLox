@@ -38,16 +38,13 @@
 
 #include "mlir/Conversion/MixedLoxToLLVM/MixedLoxToLLVM.h"
 
-using namespace mlir;
+namespace mlir::lox {
 
-//===----------------------------------------------------------------------===//
-// ToyToLLVMLoweringPass
-//===----------------------------------------------------------------------===//
+#define GEN_PASS_CLASSES
+#include "mlir/Conversion/MixedLoxToLLVM/MixedLoxToLLVMBase.h.inc"
 
 namespace {
-struct ToyToLLVMLoweringPass : public PassWrapper<ToyToLLVMLoweringPass, OperationPass<ModuleOp>> {
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ToyToLLVMLoweringPass)
-
+struct MixedLoxToLLVMPass : public MixedLoxToLLVMBase<MixedLoxToLLVMPass> {
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<LLVM::LLVMDialect, scf::SCFDialect>();
   }
@@ -55,7 +52,7 @@ struct ToyToLLVMLoweringPass : public PassWrapper<ToyToLLVMLoweringPass, Operati
 };
 } // namespace
 
-void ToyToLLVMLoweringPass::runOnOperation() {
+void MixedLoxToLLVMPass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering. For this lowering, we are only targeting
   // the LLVM dialect.
@@ -98,6 +95,5 @@ void ToyToLLVMLoweringPass::runOnOperation() {
 
 /// Create a pass for lowering operations the remaining `Toy` operations, as
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
-std::unique_ptr<mlir::Pass> mlir::lox::createLowerMixedLoxToLLVMPass() {
-  return std::make_unique<ToyToLLVMLoweringPass>();
-}
+std::unique_ptr<mlir::Pass> createLowerMixedLoxToLLVMPass() { return std::make_unique<MixedLoxToLLVMPass>(); }
+} // namespace mlir::lox

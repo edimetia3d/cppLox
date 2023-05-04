@@ -9,7 +9,7 @@
 #include "mlir/Dialect/Lox/IR/LoxDialect.cpp.inc"
 
 #include "PrintDialectType.h"
-#include "StructTypeStorage.h" // contains detail
+#include "StructTypeStorage.h"
 
 namespace mlir::lox {
 
