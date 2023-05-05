@@ -82,6 +82,7 @@ make
    tests, it is set to ON.
 2. `-DENABLE_JIT_BACKEND=ON`. Enable the JIT backend, OFF by default. Note that you may need to prebuild LLVM
    to use this option (See Requirements part).
+3. `-DLLVM_EXTERNAL_LIT=/path/to/lit`. Only used when ENABLE_JIT_BACKEND is ON. When set, lit tests will be enabled.
 
 # Test
 

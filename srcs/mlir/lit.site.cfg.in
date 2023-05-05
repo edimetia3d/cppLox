@@ -1,0 +1,11 @@
+import lit.llvm
+
+config.llvm_lib_dir = lit_config.substitute("@MLIR_DIR@/../../../lib")
+config.llvm_tools_dir = lit_config.substitute("@MLIR_DIR@/../../../bin")
+lit.llvm.initialize(lit_config, config)
+
+config.lox_src_root = r"@PROJECT_SOURCE_DIR@"
+config.lox_build_root = r"@PROJECT_BINARY_DIR@"
+config.cmake_path = r"@CMAKE_COMMAND@"
+
+lit_config.load_config(config, "@CMAKE_CURRENT_LIST_DIR@/lit.cfg")
