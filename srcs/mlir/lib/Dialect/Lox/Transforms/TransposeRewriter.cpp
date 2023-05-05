@@ -6,9 +6,16 @@
 using namespace mlir;
 using namespace mlir::lox;
 namespace {
+/// This is an example of a c++ rewrite pattern for the TransposeOp. It
+/// optimizes the following scenario: transpose(transpose(x)) -> x
 struct SimplifyRedundantTranspose : public OpRewritePattern<TransposeOp> {
+  /// We register this pattern to match every toy.transpose in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
   SimplifyRedundantTranspose(MLIRContext *context) : OpRewritePattern<TransposeOp>(context, /*benefit=*/1) {}
-
+  /// This method attempts to match a pattern and rewrite it. The rewriter
+  /// argument is the orchestrator of the sequence of rewrites. The pattern is
+  /// expected to interact with it to perform any changes to the IR from here.
   LogicalResult matchAndRewrite(TransposeOp op, PatternRewriter &rewriter) const override;
 };
 LogicalResult SimplifyRedundantTranspose::matchAndRewrite(TransposeOp op, PatternRewriter &rewriter) const {

@@ -1,17 +1,17 @@
-add_mlir_dialect_library(MLIRLox
-        LoxDialect.cpp
-        LoxOps.cpp
-        LoxTypes.cpp
-        LoxInterface.cpp
-        ConstantOpVerify.cpp
+add_mlir_dialect_library(MLIRLoxDialect
+    LoxDialect.cpp
+    LoxOps.cpp
+    LoxTypes.cpp
+    InlinerInterface.cpp
+    ConstantOpVerify.cpp
 
     DEPENDS
-    mlir-headers
-    mlir-generic-headers
+    MLIRLoxIncGen
+    MLIRLoxShapeInferInterfaceIncGen
 
     LINK_LIBS PUBLIC
     MLIRIR
     MLIRCastInterfaces
     MLIRCallInterfaces
+    MLIRLoxTransforms
     )
-target_link_libraries(MLIRLox PUBLIC MLIRLoxTransforms)

@@ -23,7 +23,7 @@
 
 // Usually many generated file should be included before the dialect ops at top level
 #include "mlir/Dialect/Lox/IR/LoxDialect.h.inc"
-#include "mlir/Dialect/Lox/IR/LoxInterface.h.inc"
+#include "mlir/Dialect/Lox/IR/LoxShapeInferInterface.h.inc"
 #include "mlir/Dialect/Lox/IR/LoxTypes.h.inc"
 
 namespace mlir::lox {

@@ -1,11 +1,11 @@
 //
 // License: MIT
 //
+#include "ConstantOpVerify.h"
+
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 namespace mlir::lox {
-mlir::LogicalResult verifyConstantForType(mlir::Type type, mlir::Attribute opaqueValue, mlir::Operation *op);
-
 static LogicalResult verifyConstantTensor(Type type, Attribute opaqueValue, Operation *op) {
   auto attrValue = opaqueValue.dyn_cast<DenseFPElementsAttr>();
   if (!attrValue)
@@ -17,6 +17,7 @@ static LogicalResult verifyConstantTensor(Type type, Attribute opaqueValue, Oper
   // must match the shape of the attribute holding the data.
   auto resultType = type.dyn_cast<RankedTensorType>();
   if (!resultType)
+    // unranked tensor just pass
     return success();
 
   // Check that the rank of the attribute type matches the rank of the
@@ -102,6 +103,7 @@ static LogicalResult verifyConstantNumber(Type type, Attribute opaqueValue, Oper
            << opaqueValue;
   return success();
 }
+
 /// Verify that the given attribute value is valid for the given type.
 mlir::LogicalResult verifyConstantForType(mlir::Type type, mlir::Attribute opaqueValue, mlir::Operation *op) {
   if (type.isa<mlir::TensorType>()) {

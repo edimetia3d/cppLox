@@ -4,4 +4,8 @@ add_mlir_conversion_library(MixedLoxToLLVM
 
     DEPENDS
     MLIRMixedLoxToLLVMIncGen
+
+    LINK_LIBS PUBLIC
+    MLIRLoxDialect
+
     )

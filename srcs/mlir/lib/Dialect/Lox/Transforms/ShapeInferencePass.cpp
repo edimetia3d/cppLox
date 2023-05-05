@@ -7,6 +7,8 @@
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
 #include "mlir/Dialect/Lox/Transforms/Passes.h"
 
+#include "mlir/Dialect/Lox/IR/LoxShapeInferInterface.cpp.inc"
+
 #define DEBUG_TYPE "shape-inference"
 
 using namespace mlir;

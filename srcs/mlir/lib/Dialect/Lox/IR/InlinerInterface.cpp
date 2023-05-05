@@ -3,7 +3,6 @@
 //
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
-#include "mlir/Dialect/Lox/IR/LoxInterface.cpp.inc"
 
 namespace mlir::lox {
 void LoxInlinerInterface::handleTerminator(Operation *op, ArrayRef<Value> valuesToRepl) const {

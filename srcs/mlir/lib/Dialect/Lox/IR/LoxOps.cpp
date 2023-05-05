@@ -8,15 +8,14 @@
 #include "mlir/Dialect/Lox/Transforms/ReshapeReWriter.h"
 #include "mlir/Dialect/Lox/Transforms/TransposeRewriter.h"
 
+#include "ConstantOpVerify.h"
+
 using namespace mlir;
 using namespace mlir::lox;
 
 //===----------------------------------------------------------------------===//
 // ConstantOp
 //===----------------------------------------------------------------------===//
-namespace mlir::lox {
-mlir::LogicalResult verifyConstantForType(mlir::Type type, mlir::Attribute opaqueValue, mlir::Operation *op);
-}
 
 void ConstantOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &state, DenseElementsAttr value) {
   ConstantOp::build(builder, state, value.getType(), value);
@@ -37,20 +36,17 @@ void ConstantOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &state
   ConstantOp::build(builder, state, resultType, dataAttribute);
 }
 
-/// Verifier for the constant operation. This corresponds to the `::verify(...)`
-/// in the op definition.
-mlir::LogicalResult ConstantOp::verify() { return verifyConstantForType(getResult().getType(), getValue(), *this); }
+mlir::LogicalResult ConstantOp::verify() {
+  // Mainly used to make sure that result type and value type are matched
+  return verifyConstantForType(getResult().getType(), getValue(), *this);
+}
 
 /// Infer the output shape of the ConstantOp, this is required by the shape
 /// inference interface.
-void ConstantOp::inferShapes() {
-  if (getResult().getType().isa<mlir::TensorType>() and getValue().isa<DenseElementsAttr>()) {
-    return getResult().setType(getValue().getType());
-  }
-  // todo: support other types
-  getOperation()->emitError("unable to infer shape of operation without shape "
-                            "inference interface");
-}
+void ConstantOp::inferShapes() { return getResult().setType(getValue().getType()); }
+
+/// Fold constants.
+OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return getValue(); }
 
 //===----------------------------------------------------------------------===//
 // Binary Arith Op
@@ -73,9 +69,13 @@ void ModOp::inferShapes() { BINARY_SHAPE_INFER(); }
 
 void CastOp::inferShapes() { getResult().setType(getOperand().getType()); }
 
+/// Returns true if the given set of input and result types are compatible with
+/// this cast operation. This is required by the `CastOpInterface` to verify
+/// this operation and provide other additional utilities.
 bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
   if (inputs.size() != 1 || outputs.size() != 1)
     return false;
+  // fixme: support more types
   // The inputs must be Tensors with the same element type.
   TensorType input = inputs.front().dyn_cast<TensorType>();
   TensorType output = outputs.front().dyn_cast<TensorType>();
@@ -85,27 +85,9 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
   return !input.hasRank() || !output.hasRank() || input == output;
 }
 
-void StructAccessOp::build(mlir::OpBuilder &b, mlir::OperationState &state, mlir::Value input, size_t index) {
-  // Extract the result type from the input type.
-  StructType structTy = input.getType().cast<StructType>();
-  assert(index < structTy.getElementNum());
-  mlir::Type resultType = structTy.getElementTypes()[index];
-
-  // Call into the auto-generated build method.
-  build(b, state, resultType, input, b.getI64IntegerAttr(index));
-}
-
-mlir::LogicalResult StructAccessOp::verify() {
-  StructType structTy = getInput().getType().cast<StructType>();
-  size_t indexValue = getIndex();
-  if (indexValue >= structTy.getElementNum())
-    return emitOpError() << "index should be within the range of the input struct type";
-  mlir::Type resultType = getResult().getType();
-  if (resultType != structTy.getElementTypes()[indexValue])
-    return emitOpError() << "must have the same result type as the struct "
-                            "element referred to by the index";
-  return mlir::success();
-}
+//===----------------------------------------------------------------------===//
+// FuncOp
+//===----------------------------------------------------------------------===//
 
 void FuncOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, llvm::StringRef name, mlir::FunctionType type,
                    llvm::ArrayRef<mlir::NamedAttribute> attrs) {
@@ -138,6 +120,10 @@ mlir::Region *FuncOp::getCallableRegion() { return &getBody(); }
 /// executed.
 llvm::ArrayRef<mlir::Type> FuncOp::getCallableResults() { return getFunctionType().getResults(); }
 
+//===----------------------------------------------------------------------===//
+// GenericCallOp
+//===----------------------------------------------------------------------===//
+
 void GenericCallOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, StringRef callee,
                           ArrayRef<mlir::Value> arguments) {
   // Generic call always returns an unranked Tensor initially.
@@ -153,6 +139,10 @@ CallInterfaceCallable GenericCallOp::getCallableForCallee() { return (*this)->ge
 /// Get the argument operands to the called function, this is required by the
 /// call interface.
 Operation::operand_range GenericCallOp::getArgOperands() { return getInputs(); }
+
+//===----------------------------------------------------------------------===//
+// ReturnOp
+//===----------------------------------------------------------------------===//
 
 mlir::LogicalResult ReturnOp::verify() {
   // We know that the parent operation is a function, because of the 'HasParent'
@@ -185,6 +175,46 @@ mlir::LogicalResult ReturnOp::verify() {
                      << resultType << ")";
 }
 
+//===----------------------------------------------------------------------===//
+// StructAccessOp
+//===----------------------------------------------------------------------===//
+
+void StructAccessOp::build(mlir::OpBuilder &b, mlir::OperationState &state, mlir::Value input, size_t index) {
+  // Extract the result type from the input type.
+  StructType structTy = input.getType().cast<StructType>();
+  assert(index < structTy.getElementNum());
+  mlir::Type resultType = structTy.getElementTypes()[index];
+
+  // Call into the auto-generated build method.
+  build(b, state, resultType, input, b.getI64IntegerAttr(index));
+}
+
+mlir::LogicalResult StructAccessOp::verify() {
+  StructType structTy = getInput().getType().cast<StructType>();
+  size_t indexValue = getIndex();
+  if (indexValue >= structTy.getElementNum())
+    return emitOpError() << "index should be within the range of the input struct type";
+  mlir::Type resultType = getResult().getType();
+  if (resultType != structTy.getElementTypes()[indexValue])
+    return emitOpError() << "must have the same result type as the struct "
+                            "element referred to by the index";
+  return mlir::success();
+}
+
+/// Fold simple struct access operations that access into a constant.
+OpFoldResult StructAccessOp::fold(ArrayRef<Attribute> operands) {
+  auto structAttr = operands.front().dyn_cast_or_null<mlir::ArrayAttr>();
+  if (!structAttr)
+    return nullptr;
+
+  size_t elementIndex = getIndex();
+  return structAttr[elementIndex];
+}
+
+//===----------------------------------------------------------------------===//
+// TransposeOp
+//===----------------------------------------------------------------------===//
+
 void TransposeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value value) {
   state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
   state.addOperands(value);
@@ -208,27 +238,21 @@ mlir::LogicalResult TransposeOp::verify() {
   }
   return mlir::success();
 }
+
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
 void TransposeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *context) {
   populateTransposeCanonicalRewriter(results);
 }
 
+//===----------------------------------------------------------------------===//
+// ReshapeOp
+//===----------------------------------------------------------------------===//
+
+/// Register our patterns as "canonicalization" patterns on the ReshapeOp so
+/// that they can be picked up by the Canonicalization framework.
 void ReshapeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *context) {
   populateReshapeCanonicalRewriter(results);
-}
-
-/// Fold constants.
-OpFoldResult ConstantOp::fold(ArrayRef<Attribute> operands) { return getValue(); }
-
-/// Fold simple struct access operations that access into a constant.
-OpFoldResult StructAccessOp::fold(ArrayRef<Attribute> operands) {
-  auto structAttr = operands.front().dyn_cast_or_null<mlir::ArrayAttr>();
-  if (!structAttr)
-    return nullptr;
-
-  size_t elementIndex = getIndex();
-  return structAttr[elementIndex];
 }
 
 #define GET_OP_CLASSES
