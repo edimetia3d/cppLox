@@ -44,7 +44,7 @@ There are (will be) four versions of Lox interpreter, they all share a same fron
 # More about JIT
 
 * The MLIR backends is intended to be a tutorial too, the initial implementation is basically a copy
-  of [MLIR Toy Tutorial](https://mlir.llvm.org/docs/Tutorials/Toy), check the commit `79e477` to see a how the Toy6 is
+  of [MLIR Toy Tutorial](https://mlir.llvm.org/docs/Tutorials/Toy), check the commit `4b2f652b` to see a how the Toy is
   implemented in Lox
 
 * [jit_notes.md](jit_notes.md) may give you more info.

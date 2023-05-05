@@ -17,6 +17,7 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Dialect/Lox/IR/LoxBase.td"
 include "mlir/Dialect/Lox/IR/LoxShapeInferInterface.td"
 
+// todo: add folder to all ops
 
 //===----------------------------------------------------------------------===//
 // ConstantOp

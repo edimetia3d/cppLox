@@ -23,6 +23,7 @@ def LoxDialect : Dialect {
 
   let cppNamespace = "::mlir::lox";
 
+  // generate getter with prefix to keep compatibility with old code.
   let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 
   // Canonicalization may fold some value into attribute
