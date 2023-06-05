@@ -15,7 +15,7 @@ include(build_fn)
 include(prepare_third_party)
 
 if (ENABLE_JIT_BACKEND)
-    set(MLIR_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/llvm-project/install/lib/cmake/mlir)
+    set(MLIR_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/llvm-project/install/lib/cmake/mlir CACHE PATH "MLIR install prefix")
 endif ()
 
 
