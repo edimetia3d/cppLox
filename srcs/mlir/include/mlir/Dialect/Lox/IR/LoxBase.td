@@ -23,9 +23,6 @@ def LoxDialect : Dialect {
 
   let cppNamespace = "::mlir::lox";
 
-  // generate getter with prefix to keep compatibility with old code.
-  let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
-
   // Canonicalization may fold some value into attribute
   // use ConstantMaterializer to convert these attribute to a constant result.
   let hasConstantMaterializer = 1;
@@ -42,7 +39,7 @@ class LoxOp<string mnemonic, list<Trait> traits = []> : Op<LoxDialect, mnemonic,
 
 // `StructType` is defined in c++, we provide a ODS declaration to enable it in ods.
 def Lox_StructType :
-    DialectType<LoxDialect, CPred<"$_self.isa<StructType>()">,
+    DialectType<LoxDialect, CPred<"::llvm::isa<StructType>($_self)">,
                 "Lox struct type">;
 
 // Some operation may support any kind of type used in lox.

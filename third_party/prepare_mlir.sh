@@ -16,7 +16,7 @@ mkdir -p $BUILD_DIR
 rm -rf $INSTALL_DIR
 mkdir -p $INSTALL_DIR
 cd $BUILD_DIR
-git checkout db0c7dde6b18035bd7d2022f3ea939d8323e72d5 # latest master for now
+git checkout 993bdb047c90e9b85fb91578349a9faf4f6a853d # latest master for now
 
 cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_PROJECTS="mlir" \

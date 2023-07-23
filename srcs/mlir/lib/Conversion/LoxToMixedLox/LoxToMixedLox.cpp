@@ -23,7 +23,7 @@ struct ToyToAffineLoweringPass : public PassWrapper<ToyToAffineLoweringPass, Ope
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ToyToAffineLoweringPass)
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<AffineDialect, func::FuncDialect, memref::MemRefDialect>();
+    registry.insert<affine::AffineDialect, func::FuncDialect, memref::MemRefDialect>();
   }
   void runOnOperation() final;
 };
@@ -36,8 +36,8 @@ void ToyToAffineLoweringPass::runOnOperation() {
 
   // We define the specific operations, or dialects, that are legal targets for
   // this lowering. In our case, we are lowering to a combination of the
-  // `Affine`, `Arithmetic`, `Func`, and `MemRef` dialects.
-  target.addLegalDialect<AffineDialect, BuiltinDialect, arith::ArithmeticDialect, func::FuncDialect,
+  // `Affine`, `Arith`, `Func`, and `MemRef` dialects.
+  target.addLegalDialect<affine::AffineDialect, BuiltinDialect, arith::ArithDialect, func::FuncDialect,
                          memref::MemRefDialect>();
 
   // We also define the Toy dialect as Illegal so that the conversion will fail

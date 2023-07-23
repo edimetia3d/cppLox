@@ -38,13 +38,13 @@ struct LoxInlinerInterface : public mlir::DialectInlinerInterface {
   }
 
   /// Check If the src op is legal to inline into region
-  bool isLegalToInline(mlir::Operation *src, mlir::Region *dest, bool, mlir::BlockAndValueMapping &) const final {
+  bool isLegalToInline(mlir::Operation *src, mlir::Region *dest, bool, mlir::IRMapping &) const final {
     // src must be a callable, and src's region type must be same as dest's.
     return true;
   }
 
   /// Checks If the src region is legal to inline into the dest regin
-  bool isLegalToInline(mlir::Region *dest, mlir::Region *src, bool, mlir::BlockAndValueMapping &) const final {
+  bool isLegalToInline(mlir::Region *dest, mlir::Region *src, bool, mlir::IRMapping &) const final {
     // usually, region type just need to be same. In lox , we only have SSACFG region, so this should always be true.
     return true;
   }

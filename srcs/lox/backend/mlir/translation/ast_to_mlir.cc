@@ -214,7 +214,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
 
     // return llvm::none by default , we could update it later
     auto function = builder.create<mlir::lox::FuncOp>(fn_location, fn_info.FnName(),
-                                                      builder.getFunctionType(arg_types, llvm::None));
+                                                      builder.getFunctionType(arg_types, builder.getNoneType()));
 
     if (fn_info.FnName()[0] == '_') {
       function.setPrivate(); // Private functions could be inlined then removed by inline pass
@@ -278,7 +278,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   void Visit(TensorExpr *node) override {
     auto tensor_literal = TensorLiteral(node);  // all tensor var will have to be constant for now
     auto type = TensorType(tensor_literal.shape);
-    auto dataAttribute = mlir::DenseElementsAttr::get(type, llvm::makeArrayRef(tensor_literal.data));
+    auto dataAttribute = mlir::DenseElementsAttr::get(type, llvm::ArrayRef(tensor_literal.data));
     auto ret = builder.create<ConstantOp>(Loc(node->attr->src_token), type, dataAttribute);
     VisitorReturn(ret);
   }
@@ -296,9 +296,10 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   }
 
   /// Build a tensor type from a list of shape dimensions.
-  mlir::Type TensorType(ArrayRef<int64_t> shape) {
+  mlir::ShapedType TensorType(ArrayRef<int64_t> shape) {
     // If the shape is empty, then this type is unranked.
-    if (shape.empty()) return mlir::UnrankedTensorType::get(builder.getF64Type());
+    if (shape.empty())
+      return mlir::UnrankedTensorType::get(builder.getF64Type());
 
     // Otherwise, we use the given shape.
     return mlir::RankedTensorType::get(shape, builder.getF64Type());

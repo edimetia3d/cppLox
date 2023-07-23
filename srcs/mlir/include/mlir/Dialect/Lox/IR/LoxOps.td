@@ -33,7 +33,7 @@ include "mlir/Dialect/Lox/IR/LoxShapeInferInterface.td"
 //      needs to access other operation's result. And because of this, ConstantOp is semantically the default constructor
 //      of any lox value.
 def ConstantOp : LoxOp<"constant", [ConstantLike,
-                                    NoSideEffect,
+                                    Pure,
                                     DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "Create a constant Tensor.";
 
@@ -56,11 +56,11 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
   }];
 
 
-  let arguments = (ins TypedAttrInterface:$value);
+  let arguments = (ins AnyAttr:$value);
 
   let results = (outs AnyLoxType:$result);
 
-  let assemblyFormat = "$value attr-dict `:` type($result)";
+  let assemblyFormat = "attr-dict `:` type($result)";
 
   let hasVerifier = 1;
 
@@ -93,7 +93,7 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
 def ArithLoxType : AnyTypeOf<[F64Tensor, F64, I1]>;
 
 class LoxBinaryOp<string mnemonic, list<Trait> traits = []> : LoxOp<mnemonic,
-                          traits # [NoSideEffect,
+                          traits # [Pure,
                           SameOperandsAndResultType,
                           DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "element-wise " #mnemonic# " operation";
@@ -132,7 +132,7 @@ def ModOp : LoxBinaryOp<"mod">;
 def CastOp : LoxOp<"cast", [
   DeclareOpInterfaceMethods<CastOpInterface>,
   DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
-  NoSideEffect,
+  Pure,
 ]> {
   let summary = "Type cast operation";
   let description = [{
@@ -175,7 +175,11 @@ def FuncOp
     ```
   }];
 
-  let arguments = (ins SymbolNameAttr : $sym_name, TypeAttrOf<FunctionType> : $function_type);
+  let arguments = (ins SymbolNameAttr : $sym_name,
+                   TypeAttrOf<FunctionType> : $function_type,
+                   OptionalAttr<DictArrayAttr> : $arg_attrs,
+                   OptionalAttr<DictArrayAttr> : $res_attrs
+                   );
 
   let regions = (region AnyRegion : $body);
 
@@ -258,7 +262,7 @@ def PrintOp : LoxOp<"print"> {
 // ReshapeOp
 //===----------------------------------------------------------------------===//
 
-def ReshapeOp : LoxOp<"reshape", [NoSideEffect]> {
+def ReshapeOp : LoxOp<"reshape", [Pure]> {
   let summary = "tensor reshape operation";
   let description = [{
     Reshape operation is transforming its input tensor into a new tensor with the same number of elements but different
@@ -287,7 +291,7 @@ def ReshapeOp : LoxOp<"reshape", [NoSideEffect]> {
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : LoxOp<"return", [NoSideEffect, HasParent<"FuncOp">, Terminator]> {
+def ReturnOp : LoxOp<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
   let summary = "return operation";
   let description = [{
     The "return" operation represents a return operation within a
@@ -312,7 +316,7 @@ def ReturnOp : LoxOp<"return", [NoSideEffect, HasParent<"FuncOp">, Terminator]> 
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
 
   // Allow building a ReturnOp with no return operand.
-  let builders = [OpBuilder<(ins), [{ build($_builder, $_state, llvm::None); }]>];
+  let builders = [OpBuilder<(ins), [{ build($_builder, $_state, $_builder.getNoneType(),{},{}); }]>];
 
   // Provide extra utility definitions on the c++ operation class definition.
   let extraClassDeclaration = [{
@@ -328,7 +332,7 @@ def ReturnOp : LoxOp<"return", [NoSideEffect, HasParent<"FuncOp">, Terminator]> 
 // StructAccessOp
 //===----------------------------------------------------------------------===//
 
-def StructAccessOp : LoxOp<"struct_access", [NoSideEffect]> {
+def StructAccessOp : LoxOp<"struct_access", [Pure]> {
   let summary = "struct access";
   let description = [{
     Access the Nth element of a value returning a struct type.
@@ -357,7 +361,7 @@ def StructAccessOp : LoxOp<"struct_access", [NoSideEffect]> {
 // TransposeOp
 //===----------------------------------------------------------------------===//
 
-def TransposeOp : LoxOp<"transpose", [NoSideEffect, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
+def TransposeOp : LoxOp<"transpose", [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "transpose operation";
 
   let arguments = (ins F64Tensor : $input);

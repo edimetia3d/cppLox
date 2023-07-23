@@ -3,7 +3,7 @@
 //
 
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 
@@ -56,14 +56,14 @@ static void lowerOpToLoops(Operation *op, ValueRange operands, PatternRewriter &
   // loop induction variables.
   SmallVector<int64_t, 4> lowerBounds(tensorType.getRank(), /*Value=*/0);
   SmallVector<int64_t, 4> steps(tensorType.getRank(), /*Value=*/1);
-  buildAffineLoopNest(rewriter, loc, lowerBounds, tensorType.getShape(), steps,
-                      [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
-                        // Call the processing function with the rewriter, the memref operands,
-                        // and the loop induction variables. This function will return the value
-                        // to store at the current index.
-                        Value valueToStore = processIteration(nestedBuilder, operands, ivs);
-                        nestedBuilder.create<AffineStoreOp>(loc, valueToStore, alloc, ivs);
-                      });
+  affine::buildAffineLoopNest(rewriter, loc, lowerBounds, tensorType.getShape(), steps,
+                              [&](OpBuilder &nestedBuilder, Location loc, ValueRange ivs) {
+                                // Call the processing function with the rewriter, the memref operands,
+                                // and the loop induction variables. This function will return the value
+                                // to store at the current index.
+                                Value valueToStore = processIteration(nestedBuilder, operands, ivs);
+                                nestedBuilder.create<affine::AffineStoreOp>(loc, valueToStore, alloc, ivs);
+                              });
 
   // Replace this operation with the generated alloc.
   rewriter.replaceOp(op, alloc);
@@ -87,8 +87,8 @@ template <typename BinaryOp, typename LoweredBinaryOp> struct BinaryOpLowering :
 
       // Generate loads for the element of 'lhs' and 'rhs' at the
       // inner loop.
-      auto loadedLhs = builder.create<AffineLoadOp>(loc, binaryAdaptor.getLhs(), loopIvs);
-      auto loadedRhs = builder.create<AffineLoadOp>(loc, binaryAdaptor.getRhs(), loopIvs);
+      auto loadedLhs = builder.create<affine::AffineLoadOp>(loc, binaryAdaptor.getLhs(), loopIvs);
+      auto loadedRhs = builder.create<affine::AffineLoadOp>(loc, binaryAdaptor.getRhs(), loopIvs);
 
       // Create the binary operation performed on the loaded
       // values.
@@ -108,7 +108,7 @@ struct ConstantOpLowering : public OpRewritePattern<lox::ConstantOp> {
   using OpRewritePattern<lox::ConstantOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(lox::ConstantOp op, PatternRewriter &rewriter) const final {
-    if (!op.getValue().getType().isa<TensorType>()) {
+    if (!op.getValue().isa<DenseElementsAttr>()) {
       return rewriter.notifyMatchFailure(
           op, [](Diagnostic &diag) { diag << "only 'lox.constant' that produce tensor could be matched"; });
     }
@@ -145,8 +145,8 @@ struct ConstantOpLowering : public OpRewritePattern<lox::ConstantOp> {
       // The last dimension is the base case of the recursion, at this point
       // we store the element at the given index.
       if (dimension == valueShape.size()) {
-        rewriter.create<AffineStoreOp>(loc, rewriter.create<arith::ConstantOp>(loc, *valueIt++), alloc,
-                                       llvm::makeArrayRef(indices));
+        rewriter.create<affine::AffineStoreOp>(loc, rewriter.create<arith::ConstantOp>(loc, *valueIt++), alloc,
+                                               llvm::makeArrayRef(indices));
         return;
       }
 
@@ -249,7 +249,7 @@ struct TransposeOpLowering : public ConversionPattern {
       // Transpose the elements by generating a load from the
       // reverse indices.
       SmallVector<Value, 2> reverseIvs(llvm::reverse(loopIvs));
-      return builder.create<AffineLoadOp>(loc, input, reverseIvs);
+      return builder.create<affine::AffineLoadOp>(loc, input, reverseIvs);
     });
     return success();
   }

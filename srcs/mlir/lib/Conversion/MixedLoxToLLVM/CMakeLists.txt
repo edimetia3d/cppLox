@@ -7,5 +7,7 @@ add_mlir_conversion_library(MixedLoxToLLVM
 
     LINK_LIBS PUBLIC
     MLIRLoxDialect
+    MLIRAffineToStandard
+    MLIRSCFToControlFlow
 
     )

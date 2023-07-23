@@ -8,10 +8,14 @@
 #include <llvm/Support/TargetSelect.h>
 #include <mlir/Dialect/Affine/Passes.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
+#include <mlir/Dialect/LLVMIR/Transforms/Passes.h>
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/IR/AsmState.h>
+#include <mlir/InitAllDialects.h>
+#include <mlir/InitAllExtensions.h>
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
@@ -25,6 +29,8 @@
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
 #include "mlir/Dialect/Lox/Transforms/Passes.h"
 
+#include "mlir/InitAllLoxDialects.h"
+
 namespace lox::mlir_jit {
 
 class MLIRJITImpl : public BackEnd {
@@ -32,15 +38,27 @@ public:
   MLIRJITImpl();
   void Run(Scanner &scanner) override;
   void HandleMLIROpitons();
+  mlir::MLIRContext context_;
 };
 
 MLIRJIT::MLIRJIT() { impl_ = std::make_shared<MLIRJITImpl>(); }
 void MLIRJIT::Run(Scanner &scanner) { impl_->Run(scanner); }
 
-MLIRJITImpl::MLIRJITImpl() { HandleMLIROpitons(); }
+MLIRJITImpl::MLIRJITImpl() {
+  HandleMLIROpitons();
+  // If we aren't dumping the AST, then we are compiling with/to MLIR.
+  mlir::DialectRegistry registry;
+  mlir::lox::registerAllDialects(registry);
+  mlir::registerAllDialects(registry);
+  mlir::registerAllExtensions(registry);
+
+  context_.appendDialectRegistry(registry);
+  context_.loadAllAvailableDialects();
+}
 
 int dumpLLVMIR(mlir::ModuleOp module) {
   // Register the translation to LLVM IR with the MLIR context.
+  mlir::registerBuiltinDialectTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
 
   // Convert the module to LLVM IR in a new LLVM IR context.
@@ -54,7 +72,20 @@ int dumpLLVMIR(mlir::ModuleOp module) {
   // Initialize LLVM targets.
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
-  mlir::ExecutionEngine::setupTargetTriple(llvmModule.get());
+
+  // Create target machine and configure the LLVM Module
+  auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
+  if (!tmBuilderOrError) {
+    llvm::errs() << "Could not create JITTargetMachineBuilder\n";
+    return -1;
+  }
+
+  auto tmOrError = tmBuilderOrError->createTargetMachine();
+  if (!tmOrError) {
+    llvm::errs() << "Could not create TargetMachine\n";
+    return -1;
+  }
+  mlir::ExecutionEngine::setupTargetTripleAndDataLayout(llvmModule.get(), tmOrError.get().get());
 
   /// Optionally run an optimization pipeline over the llvm module.
   auto optPipeline = mlir::makeOptimizingTransformer(
@@ -75,6 +106,7 @@ int runJit(mlir::ModuleOp module) {
 
   // Register the translation from MLIR to LLVM IR, which must happen before we
   // can JIT-compile.
+  mlir::registerBuiltinDialectTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
 
   // An optimization pipeline to use within the execution engine.
@@ -103,15 +135,11 @@ int runJit(mlir::ModuleOp module) {
 void MLIRJITImpl::Run(Scanner &scanner) {
   auto lox_module = BuildASTModule(scanner);
 
-  mlir::MLIRContext context;
-  // Load our Dialect in this MLIR Context.
-  context.getOrLoadDialect<mlir::lox::LoxDialect>();
-
-  mlir::OwningOpRef<mlir::ModuleOp> module = ConvertASTToMLIR(context, lox_module.get());
+  mlir::OwningOpRef<mlir::ModuleOp> module = ConvertASTToMLIR(context_, lox_module.get());
   if (!module) {
     throw ParserError("Translation failed");
   }
-  mlir::PassManager pm(&context);
+  mlir::PassManager pm(&context_);
   // Apply any generic pass manager command line options and run the pipeline.
   applyPassManagerCLOptions(pm);
 
@@ -124,10 +152,10 @@ void MLIRJITImpl::Run(Scanner &scanner) {
     optPM.addPass(mlir::lox::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
-
-    // Partially lower the toy dialect with a few cleanups afterwards.
-    pm.addPass(mlir::lox::createLowerLoxToMixedLoxPass());
   }
+  // Partially lower the toy dialect with a few cleanups afterwards.
+  pm.addPass(mlir::lox::createLowerLoxToMixedLoxPass());
+
   {
     mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
     optPM.addPass(mlir::createCanonicalizerPass());
@@ -135,11 +163,14 @@ void MLIRJITImpl::Run(Scanner &scanner) {
 
     if (GlobalSetting().opt_level) {
       // Add optimizations if enabled.
-      optPM.addPass(mlir::createLoopFusionPass());
-      optPM.addPass(mlir::createAffineScalarReplacementPass());
+      optPM.addPass(mlir::affine::createLoopFusionPass());
+      optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
     }
   }
   pm.addPass(mlir::lox::createLowerMixedLoxToLLVMPass());
+
+  // todo: Upstream added some debug info? check it later
+  pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 
   if (mlir::failed(pm.run(*module)))
     throw LoxError("Optimization failed");
@@ -185,4 +216,4 @@ void MLIRJITImpl::HandleMLIROpitons() {
   llvm::cl::ParseCommandLineOptions(args.size(), args.data(), "Lox MLIR JIT");
 }
 
-}  // namespace lox::mlir_jit
+} // namespace lox::mlir_jit
