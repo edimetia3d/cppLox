@@ -16,6 +16,11 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 
 include "mlir/Dialect/Lox/IR/LoxBase.td"
 include "mlir/Dialect/Lox/IR/LoxShapeInferInterface.td"
+include "mlir/Dialect/Lox/IR/LoxTypes.td"
+
+// Some operation may support any kind of type used in lox.
+// The corresponding lox types are [Tensor,class,float,bool,str]
+def AnyLoxType : AnyTypeOf<[F64Tensor, Lox_StructType, F64, I1, I8MemRef]>;
 
 // todo: add folder to all ops
 
@@ -31,22 +36,22 @@ include "mlir/Dialect/Lox/IR/LoxShapeInferInterface.td"
 //   c. ConstantOp is an import source to create values. In MLIR, values comes in only two ways, one is the arguments
 //      of BB/Region, the other is the result of operation. ConstantOp will be the main operation to create values without
 //      needs to access other operation's result. And because of this, ConstantOp is semantically the default constructor
-//      of any lox value.
+//      of any lox literal.
 def ConstantOp : LoxOp<"constant", [ConstantLike,
                                     Pure,
                                     DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "Create a constant Tensor.";
 
   let description = [{
-    ConstantOp convert attributes into a concrete SSA value with known Type.
+    ConstantOp convert literal/attributes into a concrete SSA value with known Type.
 
     | LoxType | AttrType (value)  | ResultType (result) |
-    |:--------|:------------------|:--------------------|
-    | Tensor  | DenseElementsAttr | TensorType          |
-    | str     | StringAttr        | MemRefType          |
-    | float   | FloatAttr         | FloatType           |
-    | bool    | IntAttr           | IntType             |
-    | class   | ArrayAttr         | StructType          |
+    | :------ | :---------------- | :------------------ |
+    | Tensor  | DenseElementsAttr | F64Tensor           |
+    | str     | StringAttr        | I8MemRef            |
+    | float   | FloatAttr         | F64                 |
+    | bool    | IntAttr           | I1                  |
+    | class   | ArrayAttr         | Lox_StructType      |
 
     For example:
 
@@ -68,21 +73,20 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
   // XOp's result may be computed at compilation time, use `hasFolder = 1` to declare this behavior.
   // Note that, the source of constexpr values are:
   //  1. ConstantLike Operation's result.
-  //  2. Folded result.
-  // Also note that folding will not only create new constant, we may also refine the operations from the input when
-  // constant folding can not be done, e.g. To a dynamic-shaped tensor, its value may be non-constant at compile time,
-  // but sometimes its shape could be deduced during constant folding, this will help us to generate more efficient code.
+  //  2. Folded result. (i.e. Constant propagation)
   let hasFolder = 1;
 
   let builders = [
-    // Build a constant tensor from DenseElementsAttr
+    // Build a constant tensor
     OpBuilder<(ins "DenseElementsAttr": $value)>,
-    // Build a constant string(memref) from StringRef
+    // Build a constant string(memref)
     OpBuilder<(ins "llvm::StringRef": $value)>,
-    // Build a constant Float64Type from double
+    // Build a constant Float64Type
     OpBuilder<(ins "double":$value)>,
-    // Build a constant IntegerType from bool
+    // Build a constant IntegerType
     OpBuilder<(ins "bool":$value)>,
+    // Build a constant struct
+    OpBuilder<(ins "ArrayAttr":$value)>,
   ];
 }
 
@@ -137,8 +141,7 @@ def CastOp : LoxOp<"cast", [
   let summary = "Type cast operation";
   let description = [{
     Cast one type to another type, currently only support following type conversion:
-    tensor <-> tensor : Since we only have float tensor, so tensor cast are mainly used to do shape casting, e.g.
-                         tensor<2x3xf64> -> tensor<6xf64>
+    tensor <-> tensor : Since we only have reshape, so cast on tensor is mainly used to convert element type.
     tensor <-> bool : only support tensor with shape [1]
     tensor <-> float : only support tensor with shape [1]
     float <-> bool : 0.0 -> false, 1.0 -> true
@@ -167,7 +170,7 @@ def FuncOp
     Example :
 
     ```mlir lox.func @main() {
-      %0 = lox.tensor dense<5.500000e+00> : tensor<f64>
+      %0 = lox.constant dense<5.500000e+00> : tensor<f64>
       %1 = lox.reshape(%0: tensor<f64>) to tensor<2x2xf64>
       lox.print %1 : tensor<2x2xf64>
       lox.return
@@ -252,7 +255,7 @@ def GenericCallOp : LoxOp<"generic_call", [DeclareOpInterfaceMethods<CallOpInter
 def PrintOp : LoxOp<"print"> {
   let summary = "print operation";
 
-  let arguments = (ins AnyTypeOf<[F64Tensor, F64MemRef, F64, I1, I8MemRef]> : $input);
+  let arguments = (ins AnyLoxType : $input);
   // fixme: only tensor lowering supported, add more lowering support.
 
   let assemblyFormat = "$input attr-dict `:` type($input)";
@@ -270,12 +273,15 @@ def ReshapeOp : LoxOp<"reshape", [Pure]> {
 
     For example:
 
-    ```
-    mlir % 0 = lox.reshape(% arg1 : tensor<10xf64>) to tensor<5x2xf64>
+    ```mlir
+     %0 = lox.reshape(% arg1 : tensor<10xf64>) to tensor<5x2xf64>
     ```
   }];
 
   let arguments = (ins F64Tensor : $input);
+
+  // We expect that the reshape operation returns a statically shaped tensor.
+  let results = (outs StaticShapeTensorOf<[F64]>);
 
   let assemblyFormat = [{
     `(` $input `:` type($input) `)` attr-dict `to` type(results)}];
@@ -283,15 +289,13 @@ def ReshapeOp : LoxOp<"reshape", [Pure]> {
   // Enable registering canonicalization patterns with this operation.
   let hasCanonicalizer = 1;
 
-  // We expect that the reshape operation returns a statically shaped tensor.
-  let results = (outs StaticShapeTensorOf<[F64]>);
 }
 
 //===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : LoxOp<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
+def ReturnOp : LoxOp<"return", [Pure, HasParent<"::mlir::lox::FuncOp">, Terminator]> {
   let summary = "return operation";
   let description = [{
     The "return" operation represents a return operation within a
@@ -310,22 +314,25 @@ def ReturnOp : LoxOp<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
 
   // The return operation takes an optional input operand to return. This
   // value must match the return type of the enclosing function.
-  let arguments = (ins Variadic<AnyLoxType>:$input);
+  let arguments = (ins Optional<AnyLoxType>:$input);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
 
   // Allow building a ReturnOp with no return operand.
-  let builders = [OpBuilder<(ins), [{ build($_builder, $_state, $_builder.getNoneType(),{},{}); }]>];
+  let builders = [
+    OpBuilder<(ins), [{ build($_builder, $_state, std::nullopt); }]>
+  ];
 
   // Provide extra utility definitions on the c++ operation class definition.
   let extraClassDeclaration = [{
-    bool hasOperand() { return getNumOperands() != 0;
+    bool hasOperand() {
+      return getNumOperands() != 0;
     }
-    }];
+  }];
 
-    // Indicate that additional verification for this operation is necessary.
-    let hasVerifier = 1;
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//

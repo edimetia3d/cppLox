@@ -58,44 +58,10 @@ struct LoxInlinerInterface : public mlir::DialectInlinerInterface {
                                              mlir::Location conversionLoc) const final;
 };
 
-namespace detail {
-// A totally opaque struct type that hold all data of a type.
-// The TypeStorage is actually a implementation of some type.
-struct StructTypeStorage;
-} // namespace detail
-
-/**
- * Types are implemented with some kind of pimpl idiom.
- * All type instances act as a shared pointer that proxy to its TypeStorage object, and the TypeStorage is always
- * interned. This make type instance copyable, which is an idiom in MLIR. Here We use the `StructType::get()` to get a
- * "proxy" to access the interned storage object. Note that same element types will be treated as same type, i.e., use
- * same storage object.
- */
-class StructType : public mlir::Type::TypeBase<StructType, mlir::Type, detail::StructTypeStorage> {
-public:
-  /// Inherit some constructors from `TypeBase`, it's just a syntax sugar to avoid writing some boilerplate code like
-  /// `mlir::Type::TypeBase<StructType, mlir::Type, detail::StructTypeStorage> `
-  using Base::Base;
-
-  /// Get an instance of a `StructType` with the given element types. Lox requires that there
-  /// *must* be at least one element type.
-  static StructType get(llvm::ArrayRef<mlir::Type> elementTypes);
-
-  /// Returns the element types of this struct type.
-  llvm::ArrayRef<mlir::Type> getElementTypes();
-
-  /// Returns the number of element type held by this struct.
-  size_t getElementNum() { return getElementTypes().size(); }
-
-  /// A util function to parse a struct type from a string, note that this function will not be called by MLIR's parsing
-  /// framework. It is called by us in the LoxDialect::parseType manually.
-  static llvm::Expected<StructType> parse(mlir::DialectAsmParser &parser);
-
-  /// A util function to print a struct type to a string, note that this function will not be called by MLIR's printing
-  /// framework. It is called by us in the LoxDialect::printType manually.
-  static void print(StructType type, mlir::DialectAsmPrinter &printer);
-};
 } // namespace mlir::lox
+
+#define GET_TYPEDEF_CLASSES
+#include "mlir/Dialect/Lox/IR/LoxTypes.h.inc"
 
 // usually ops should be included at last, for it may relay on the types and interfaces defined above.
 #define GET_OP_CLASSES

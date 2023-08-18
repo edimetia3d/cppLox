@@ -8,9 +8,6 @@
 
 #include "mlir/Dialect/Lox/IR/LoxDialect.cpp.inc"
 
-#include "PrintDialectType.h"
-#include "StructTypeStorage.h"
-
 namespace mlir::lox {
 
 void LoxDialect::initialize() {
@@ -19,7 +16,7 @@ void LoxDialect::initialize() {
 #include "mlir/Dialect/Lox/IR/Lox.cpp.inc"
       >();
   addInterfaces<LoxInlinerInterface>();
-  addTypes<StructType>();
+  InitTypes();
 }
 
 mlir::Operation *LoxDialect::materializeConstant(mlir::OpBuilder &builder, mlir::Attribute value, mlir::Type type,
@@ -35,19 +32,6 @@ mlir::Operation *LoxDialect::materializeConstant(mlir::OpBuilder &builder, mlir:
   if (type.isa<mlir::IntegerType>())
     return builder.create<ConstantOp>(loc, (bool)value.cast<IntegerAttr>().getSInt());
   llvm_unreachable("unexpected type");
-}
-
-/**
- * Types defined in dialect WILL be parsed/printed by **Dialect**, not **Types** themself, and MLIR is designed to do
- * so.
- */
-
-/// Parse an instance of a type registered to the toy dialect.
-mlir::Type LoxDialect::parseType(mlir::DialectAsmParser &parser) const { return TypedParse<StructType>(parser); }
-
-/// Print an instance of a type registered to the toy dialect.
-void LoxDialect::printType(mlir::Type type, mlir::DialectAsmPrinter &printer) const {
-  return TypedPrint<StructType>(type, printer);
 }
 
 } // namespace mlir::lox

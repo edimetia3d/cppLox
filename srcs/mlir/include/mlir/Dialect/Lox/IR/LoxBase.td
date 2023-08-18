@@ -11,6 +11,7 @@
 #define LOX_BASE_TD
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/AttrTypeBase.td"
 
 def LoxDialect : Dialect {
   let name = "lox";
@@ -27,9 +28,14 @@ def LoxDialect : Dialect {
   // use ConstantMaterializer to convert these attribute to a constant result.
   let hasConstantMaterializer = 1;
 
-  // We set this bit to generate the declarations for the dialect's type parsing
-  // and printing hooks.
+  // When all types are defined in tblgen, we can use ods generated type printer / parser.
+  // If not, two methods must be defined
+  // mlir::Type LoxDialect::parseType(mlir::DialectAsmParser &parser);
+  // void LoxDialect::printType(mlir::Type type, mlir::DialectAsmPrinter &printer);
   let useDefaultTypePrinterParser = 1;
+  let extraClassDeclaration = [{
+     void InitTypes();
+  }];
 }
 
 /**
@@ -37,14 +43,15 @@ def LoxDialect : Dialect {
  */
 class LoxOp<string mnemonic, list<Trait> traits = []> : Op<LoxDialect, mnemonic, traits>;
 
-// `StructType` is defined in c++, we provide a ODS declaration to enable it in ods.
-def Lox_StructType :
-    DialectType<LoxDialect, CPred<"::llvm::isa<StructType>($_self)">,
-                "Lox struct type">;
+class LoxType<string typeName, string typeMnemonic, list<Trait> traits = []>
+    : TypeDef<LoxDialect, typeName, traits> {
+  let mnemonic = typeMnemonic;
+}
 
-// Some operation may support any kind of type used in lox.
-// The corresponding lox types are [Tensor,class,float,bool,str]
-def AnyLoxType : AnyTypeOf<[F64Tensor, Lox_StructType, F64, I1, I8MemRef]>;
+// A common base to forward types defined in cpp
+class LoxCppType<string cppTypeName, string description> :
+    DialectType<LoxDialect, CPred<"::llvm::isa<"#cppTypeName#">($_self)">, description>{
+}
 
 
 #endif // LOX_BASE_TD

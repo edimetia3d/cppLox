@@ -7,28 +7,37 @@
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
 #include "mlir/Dialect/Lox/IR/LoxTypes.cpp.inc"
 
-#include "StructTypeStorage.h"
+#define GET_TYPEDEF_CLASSES
+#include "mlir/Dialect/Lox/IR/LoxTypes.cpp.inc"
+
+/**
+ * Follow MLIR's convention, all Type instances are proxy to some interned TypeStorage object:
+ * 1. Type object are copiable
+ * 2. Type object act as a proxy class that provide utility functions, while TypeStorage only stores data.
+ *
+ * Most types could be defined in tablegen, and use the generated TypeStorage, but when the generated TypeStorage
+ * does not fit your need, you may use `let storageClass = "MyStorageType"` to change it.
+ *
+ * e.g. A "mutable" type is one that its Storage stores some data that are not used when interning, these kind of
+ * TypeStorage could only be implemented in C++ for now.
+ *
+ * There are two core point when implementing a custom StorageType
+ * 1. Define "KeyType" and related hooks to help MLIR to intern instance of StorageType.
+ * 2. Hold datas used in "KeyType", and any other useful information
+ *
+ * A StorageType must provide these hooks:
+ * 1. `using KeyType = ....`
+ * 2. `operator==(const KeyTy &key)`
+ * 3. `llvm::hash_code hashKey(const KeyTy & key)`, only provide when MLIR cannot generate hash function for `keyTy`
+ * 4. `static TypeStorage *construct(mlir::TypeStorageAllocator &allocator, const KeyTy &key)`.
+ *
+ * Also, you may treat MLIR Attribute as a special Type whose `KeyTy` contains datas, it may help you understand how to
+ * implement your custom attribute.
+ */
 
 namespace mlir::lox {
 
-/// Create an instance of a `StructType` with the given element types. There
-/// *must* be at least one element type.
-StructType StructType::get(llvm::ArrayRef<mlir::Type> elementTypes) {
-  assert(!elementTypes.empty() && "expected at least 1 element type");
-
-  // Call into a helper 'get' method in 'TypeBase' to get a uniqued instance
-  // of this type. The first parameter is the context to unique in. The
-  // parameters after the context are forwarded to the storage instance.
-  mlir::MLIRContext *ctx = elementTypes.front().getContext();
-  return Base::get(ctx, elementTypes);
-}
-
-/// Returns the element types of this struct type.
-llvm::ArrayRef<mlir::Type> StructType::getElementTypes() {
-  // 'getImpl' returns a pointer to the internal storage instance.
-  return getImpl()->elementTypes;
-}
-llvm::Expected<StructType> StructType::parse(DialectAsmParser &parser) {
+::mlir::Type StructType::parse(AsmParser &parser) {
   // Parse a struct type in the following form:
   //   struct-type ::= `struct` `<` type (`,` type)* `>`
 
@@ -38,24 +47,29 @@ llvm::Expected<StructType> StructType::parse(DialectAsmParser &parser) {
   // `mlir::failed/mlir::succeeded` as desired.
 
   // Parse: `struct` `<`
-  if (parser.parseKeyword("struct") || parser.parseLess())
-    return llvm::make_error<llvm::StringError>(std::make_error_code(std::errc::wrong_protocol_type));
-
+  auto typeLoc = parser.getCurrentLocation();
   // Parse the element types of the struct.
   SmallVector<mlir::Type, 1> elementTypes;
+  if (parser.parseKeyword(StructType::getMnemonic()) || parser.parseLess()) {
+    parser.emitError(typeLoc, "Wrong struct syntax");
+    goto FAIL_EXIT;
+  }
+
   do {
     // Parse the current element type.
     SMLoc typeLoc = parser.getCurrentLocation();
     mlir::Type elementType;
-    if (parser.parseType(elementType))
-      return llvm::make_error<llvm::StringError>(std::make_error_code(std::errc::protocol_error));
+    if (parser.parseType(elementType)) {
+      parser.emitError(typeLoc, "Wrong struct syntax");
+      goto FAIL_EXIT;
+    }
 
     // Check that the type is either a TensorType or another StructType.
     if (!elementType.isa<mlir::TensorType, StructType>()) {
       parser.emitError(typeLoc, "element type for a struct must either "
                                 "be a TensorType or a StructType, got: ")
           << elementType;
-      return llvm::make_error<llvm::StringError>(std::make_error_code(std::errc::protocol_error));
+      goto FAIL_EXIT;
     }
     elementTypes.push_back(elementType);
 
@@ -63,16 +77,28 @@ llvm::Expected<StructType> StructType::parse(DialectAsmParser &parser) {
   } while (succeeded(parser.parseOptionalComma()));
 
   // Parse: `>`
-  if (parser.parseGreater())
-    return llvm::make_error<llvm::StringError>(std::make_error_code(std::errc::protocol_error));
-  return StructType::get(elementTypes);
+  if (parser.parseGreater()) {
+    parser.emitError(typeLoc, "Wrong struct syntax");
+    goto FAIL_EXIT;
+  }
+  return StructType::get(parser.getContext(), elementTypes);
+FAIL_EXIT:
+  return Type();
 }
 
-void StructType::print(StructType structType, DialectAsmPrinter &printer) {
+void StructType::print(::mlir::AsmPrinter &odsPrinter) const {
 
   // Print the struct type according to the parser format.
-  printer << "struct<";
-  llvm::interleaveComma(structType.getElementTypes(), printer);
-  printer << '>';
+  odsPrinter << "struct<";
+  llvm::interleaveComma(getElementTypes(), odsPrinter);
+  odsPrinter << '>';
 }
+
+void LoxDialect::InitTypes() {
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "mlir/Dialect/Lox/IR/LoxTypes.cpp.inc"
+      >();
+}
+
 } // namespace mlir::lox
