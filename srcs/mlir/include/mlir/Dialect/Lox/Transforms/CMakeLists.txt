@@ -1,3 +1,0 @@
-set(LLVM_TARGET_DEFINITIONS ReshapeRewriter.td)
-mlir_tablegen(ReshapeRewriter.cpp.inc -gen-rewriters)
-add_public_tablegen_target(MLIRLoxReshapeRewriterIncGen)

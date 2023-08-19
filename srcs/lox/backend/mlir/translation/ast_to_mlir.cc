@@ -33,7 +33,7 @@ using llvm::StringRef;
 using llvm::Twine;
 
 class MLIRTranslationError : public LoxError {
- public:
+public:
   using LoxError::LoxError;
 };
 
@@ -65,15 +65,15 @@ struct TensorLiteral {
   ArrayRef<int64_t> shape;
   std::vector<double> data;
 
- private:
+private:
   std::vector<int64_t> shape_;
 };
 
 class FunctionInfo {
   std::string name;
-  std::vector<std::string> params;  // variable nodes
+  std::vector<std::string> params; // variable nodes
 
- public:
+public:
   Token location;
   FunctionInfo(FunctionStmt *fn) {
     name = fn->attr->name->lexeme;
@@ -90,7 +90,7 @@ class FunctionInfo {
 };
 
 class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
- public:
+public:
   ASTToMLIR(mlir::MLIRContext &context) : builder(&context) {}
 
   mlir::ModuleOp Convert(std::vector<StmtPtr> &global_stmts) {
@@ -105,21 +105,23 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
     return theModule;
   }
 
- protected:
+protected:
   void Visit(LogicalExpr *node) override { VisitorReturn(nullptr); }
   void Visit(BinaryExpr *node) override {
     mlir::Value lhs = ValueVisit(node->left);
-    if (!lhs) throw MLIRTranslationError("error in left side of binary expr");
+    if (!lhs)
+      throw MLIRTranslationError("error in left side of binary expr");
     mlir::Value rhs = ValueVisit(node->right);
-    if (!rhs) throw MLIRTranslationError("error in right side of binary expr");
+    if (!rhs)
+      throw MLIRTranslationError("error in right side of binary expr");
     auto location = Loc(node->attr->op);
 
     // Derive the operation name from the binary operator.
     switch (node->attr->op->lexeme[0]) {
-      case '+':
-        VisitorReturn(builder.create<AddOp>(location, lhs, rhs));
-      case '*':
-        VisitorReturn(builder.create<MulOp>(location, lhs, rhs));
+    case '+':
+      VisitorReturn(builder.create<AddOp>(location, lhs, rhs));
+    case '*':
+      VisitorReturn(builder.create<MulOp>(location, lhs, rhs));
     }
     throw MLIRTranslationError("invalid binary operator '");
   }
@@ -133,7 +135,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   }
   void Visit(UnaryExpr *node) override { VisitorReturn(nullptr); }
   void Visit(VariableExpr *node) override {
-    if (auto variable = symbolTable.lookup(node->attr->name->lexeme)) VisitorReturn(variable);
+    if (auto variable = symbolTable.lookup(node->attr->name->lexeme))
+      VisitorReturn(variable);
 
     throw MLIRTranslationError("error: unknown variable '");
   }
@@ -147,7 +150,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
     if (node->comma_expr_args) {
       for (auto &expr : node->comma_expr_args->As<CommaExpr>()->elements) {
         auto arg = ValueVisit(expr);
-        if (!arg) throw MLIRTranslationError("error in argument of call expr");
+        if (!arg)
+          throw MLIRTranslationError("error in argument of call expr");
         operands.push_back(arg);
       }
     }
@@ -167,7 +171,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   void Visit(SetAttrExpr *node) override { VisitorReturn(nullptr); }
   void Visit(PrintStmt *node) override {
     auto arg = ValueVisit(node->expression);
-    if (!arg) throw MLIRTranslationError("error in print expr");
+    if (!arg)
+      throw MLIRTranslationError("error in print expr");
 
     builder.create<PrintOp>(Loc(node->attr->src_token), arg);
   }
@@ -180,8 +185,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
       ret_v = ValueVisit(node->value);
       if (!(ret_v)) throw MLIRTranslationError("error in return expression");
     }
-
-    builder.create<ReturnOp>(location, ret_v ? llvm::makeArrayRef(ret_v) : ArrayRef<mlir::Value>());
+    builder.create<ReturnOp>(location, ret_v);
   }
   void Visit(WhileStmt *node) override {}
   void Visit(ForStmt *node) override {}
@@ -192,7 +196,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
       throw MLIRTranslationError("error: variable declaration must have initializer");
     }
     mlir::Value value = ValueVisit(node->initializer);
-    if (!value) throw MLIRTranslationError("error in initializer of variable");
+    if (!value)
+      throw MLIRTranslationError("error in initializer of variable");
 
     // Register the value in the symbol table.
     if (failed(DeclareNamedValue(node->attr->name->lexeme, value)))
@@ -226,7 +231,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
         function.erase();
       }
     });
-    if (!function) throw MLIRTranslationError("function creation error");
+    if (!function)
+      throw MLIRTranslationError("function creation error");
 
     auto &entry_block = function.front();
 
@@ -235,7 +241,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
     for (const auto pair : llvm::zip(fn_info.ArgNames(), entry_block.getArguments())) {
       auto name = llvm::StringRef(std::get<0>(pair));
       auto value = std::get<1>(pair);
-      if (failed(DeclareNamedValue(name, value))) throw MLIRTranslationError("variable declaration error");
+      if (failed(DeclareNamedValue(name, value)))
+        throw MLIRTranslationError("variable declaration error");
     }
 
     // Set the insertion point in the builder to the beginning of the function
@@ -276,7 +283,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   void Visit(ListExpr *node) override {}
   void Visit(GetItemExpr *node) override {}
   void Visit(TensorExpr *node) override {
-    auto tensor_literal = TensorLiteral(node);  // all tensor var will have to be constant for now
+    auto tensor_literal = TensorLiteral(node); // all tensor var will have to be constant for now
     auto type = TensorType(tensor_literal.shape);
     auto dataAttribute = mlir::DenseElementsAttr::get(type, llvm::ArrayRef(tensor_literal.data));
     auto ret = builder.create<ConstantOp>(Loc(node->attr->src_token), type, dataAttribute);
@@ -286,7 +293,8 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   /// Declare a variable in the current scope, return success if the variable
   /// wasn't declared yet.
   mlir::LogicalResult DeclareNamedValue(llvm::StringRef name, mlir::Value value) {
-    if (symbolTable.count(name)) return mlir::failure();  // name shadowing not allowed for now
+    if (symbolTable.count(name))
+      return mlir::failure(); // name shadowing not allowed for now
     symbolTable.insert(name, value);
     return mlir::success();
   }
@@ -311,7 +319,7 @@ class ASTToMLIR : public lox::ASTNodeVisitor<mlir::Value> {
   llvm::StringMap<mlir::lox::FuncOp> functionMap;
 };
 
-}  // namespace
+} // namespace
 
 namespace lox::mlir_jit {
 
@@ -320,4 +328,4 @@ mlir::OwningOpRef<mlir::ModuleOp> ConvertASTToMLIR(mlir::MLIRContext &context, l
   return ASTToMLIR(context).Convert(lox_module->Statements());
 }
 
-}  // namespace lox::mlir_jit
+} // namespace lox::mlir_jit

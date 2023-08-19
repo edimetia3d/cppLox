@@ -14,14 +14,9 @@ def Lox_StructType : LoxType<"Struct", "struct"> {
 
 
   let extraClassDeclaration = [{
-    mlir::Type TypeAt(int index){
-      return getImpl()->elementTypes[index];
-    }
+    mlir::Type TypeAt(int index);
 
-    llvm::ArrayRef<mlir::Type> StructType::getElementTypes() {
-      // 'getImpl' returns a pointer to the internal storage instance.
-      return getImpl()->elementTypes;
-    }
+    llvm::ArrayRef<mlir::Type> getElementTypes();
 
   }];
 }

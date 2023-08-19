@@ -85,8 +85,6 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
     OpBuilder<(ins "double":$value)>,
     // Build a constant IntegerType
     OpBuilder<(ins "bool":$value)>,
-    // Build a constant struct
-    OpBuilder<(ins "ArrayAttr":$value)>,
   ];
 }
 
@@ -321,7 +319,7 @@ def ReturnOp : LoxOp<"return", [Pure, HasParent<"::mlir::lox::FuncOp">, Terminat
 
   // Allow building a ReturnOp with no return operand.
   let builders = [
-    OpBuilder<(ins), [{ build($_builder, $_state, std::nullopt); }]>
+    OpBuilder<(ins), [{ build($_builder, $_state, Value()); }]>
   ];
 
   // Provide extra utility definitions on the c++ operation class definition.

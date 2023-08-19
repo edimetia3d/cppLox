@@ -2,6 +2,7 @@
 // License: MIT
 //
 
+#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/IR/BuiltinTypes.h>
 
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
@@ -28,8 +29,10 @@
  * A StorageType must provide these hooks:
  * 1. `using KeyType = ....`
  * 2. `operator==(const KeyTy &key)`
- * 3. `llvm::hash_code hashKey(const KeyTy & key)`, only provide when MLIR cannot generate hash function for `keyTy`
+ * 3. `static llvm::hash_code hashKey(const KeyTy & key)`, only provide when MLIR cannot generate hash function for
+ * `keyTy`
  * 4. `static TypeStorage *construct(mlir::TypeStorageAllocator &allocator, const KeyTy &key)`.
+ * 5. `static KeyTy getKey(...)`, only provide when MLIR cannot create `keyTy` instance from Ctor arguments.
  *
  * Also, you may treat MLIR Attribute as a special Type whose `KeyTy` contains datas, it may help you understand how to
  * implement your custom attribute.
@@ -92,6 +95,16 @@ void StructType::print(::mlir::AsmPrinter &odsPrinter) const {
   odsPrinter << "struct<";
   llvm::interleaveComma(getElementTypes(), odsPrinter);
   odsPrinter << '>';
+}
+
+mlir::Type StructType::TypeAt(int index) { return getElementTypes()[index]; }
+
+llvm::ArrayRef<mlir::Type> StructType::getElementTypes() { return getImpl()->elementTypes; }
+
+::mlir::LogicalResult StructType::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+                                         ArrayRef<Type> elementTypes) {
+  // todo: add type verification
+  return success();
 }
 
 void LoxDialect::InitTypes() {

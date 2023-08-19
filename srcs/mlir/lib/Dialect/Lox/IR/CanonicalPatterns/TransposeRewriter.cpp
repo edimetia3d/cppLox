@@ -1,10 +1,9 @@
 
-#include "mlir/Dialect/Lox/Transforms/TransposeRewriter.h"
+#include "CanonicalPatterns.h"
 
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
-using namespace mlir;
-using namespace mlir::lox;
+namespace mlir::lox {
 namespace {
 /// This is an example of a c++ rewrite pattern for the TransposeOp. It
 /// optimizes the following scenario: transpose(transpose(x)) -> x
@@ -33,8 +32,7 @@ LogicalResult SimplifyRedundantTranspose::matchAndRewrite(TransposeOp op, Patter
 }
 } // namespace
 
-namespace mlir::lox {
-void LLVM_ATTRIBUTE_UNUSED populateTransposeCanonicalRewriter(::RewritePatternSet &patterns) {
+void populateTransposeCanonicalPatterns(RewritePatternSet &patterns) {
   patterns.add<SimplifyRedundantTranspose>(patterns.getContext());
 }
-} // namespace lox
+} // namespace mlir::lox

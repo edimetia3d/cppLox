@@ -5,9 +5,8 @@
 #include <mlir/IR/OpImplementation.h>
 
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
-#include "mlir/Dialect/Lox/Transforms/ReshapeReWriter.h"
-#include "mlir/Dialect/Lox/Transforms/TransposeRewriter.h"
 
+#include "CanonicalPatterns/CanonicalPatterns.h"
 #include "ConstantOpVerify.h"
 
 using namespace mlir;
@@ -38,18 +37,18 @@ void ConstantOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &state
 
 mlir::LogicalResult ConstantOp::verify() {
   // Mainly used to make sure that result type and value type are matched
-  return verifyConstantForType(getResult().getType(), getValue(), *this);
+  return verifyConstantForType(getResult().getType(), getValue(), getOperation());
 }
 
 /// Infer the output shape of the ConstantOp, this is required by the shape
 /// inference interface.
 void ConstantOp::inferShapes() {
-  assert(getValue().isa<DenseElementsAttr>());
+  assert(getResult().getType().dyn_cast<mlir::TensorType>() && "Only Tensor support infershape for now");
   return getResult().setType(getValue().cast<DenseElementsAttr>().getType());
 }
 
 /// Fold constants.
-OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return adaptor.getValue(); }
+OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
 
 //===----------------------------------------------------------------------===//
 // Binary Arith Op
@@ -103,8 +102,10 @@ mlir::ParseResult FuncOp::parse(mlir::OpAsmParser &parser, mlir::OperationState 
   // Dispatch to the FunctionOpInterface provided utility method that parses the
   // function operation.
   auto buildFuncType = [](mlir::Builder &builder, llvm::ArrayRef<mlir::Type> argTypes,
-                          llvm::ArrayRef<mlir::Type> results, mlir::function_interface_impl::VariadicFlag,
-                          std::string &) { return builder.getFunctionType(argTypes, results); };
+                          llvm::ArrayRef<mlir::Type> resTypes, mlir::function_interface_impl::VariadicFlag,
+                          std::string &err_msg /*optional output*/) {
+    return builder.getFunctionType(argTypes, resTypes);
+  };
 
   return mlir::function_interface_impl::parseFunctionOp(
       parser, result, /*allowVariadic=*/false, getFunctionTypeAttrName(result.name), buildFuncType,
@@ -205,7 +206,7 @@ mlir::LogicalResult ReturnOp::verify() {
 void StructAccessOp::build(mlir::OpBuilder &b, mlir::OperationState &state, mlir::Value input, size_t index) {
   // Extract the result type from the input type.
   StructType structTy = input.getType().cast<StructType>();
-  assert(index < structTy.getElementNum());
+  assert(index < structTy.getElementTypes().size());
   mlir::Type resultType = structTy.getElementTypes()[index];
 
   // Call into the auto-generated build method.
@@ -215,7 +216,7 @@ void StructAccessOp::build(mlir::OpBuilder &b, mlir::OperationState &state, mlir
 mlir::LogicalResult StructAccessOp::verify() {
   StructType structTy = getInput().getType().cast<StructType>();
   size_t indexValue = getIndex();
-  if (indexValue >= structTy.getElementNum())
+  if (indexValue >= structTy.getElementTypes().size())
     return emitOpError() << "index should be within the range of the input struct type";
   mlir::Type resultType = getResult().getType();
   if (resultType != structTy.getElementTypes()[indexValue])
@@ -265,7 +266,7 @@ mlir::LogicalResult TransposeOp::verify() {
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
 void TransposeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *context) {
-  populateTransposeCanonicalRewriter(results);
+  populateTransposeCanonicalPatterns(results);
 }
 
 //===----------------------------------------------------------------------===//
@@ -275,7 +276,7 @@ void TransposeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRCo
 /// Register our patterns as "canonicalization" patterns on the ReshapeOp so
 /// that they can be picked up by the Canonicalization framework.
 void ReshapeOp::getCanonicalizationPatterns(RewritePatternSet &results, MLIRContext *context) {
-  populateReshapeCanonicalRewriter(results);
+  populateReshapeCanonicalPatterns(results);
 }
 
 #define GET_OP_CLASSES

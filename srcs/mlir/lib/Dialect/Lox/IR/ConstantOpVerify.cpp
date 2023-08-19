@@ -3,10 +3,12 @@
 //
 #include "ConstantOpVerify.h"
 
+#include <llvm/ADT/TypeSwitch.h>
+
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
 
 namespace mlir::lox {
-static LogicalResult verifyConstantTensor(Type type, Attribute opaqueValue, Operation *op) {
+static LogicalResult verifyConstant(mlir::TensorType type, Attribute opaqueValue, Operation *op) {
   auto attrValue = opaqueValue.dyn_cast<DenseFPElementsAttr>();
   if (!attrValue)
     return op->emitError("constant of TensorType must be initialized by "
@@ -38,7 +40,8 @@ static LogicalResult verifyConstantTensor(Type type, Attribute opaqueValue, Oper
   }
   return success();
 }
-static LogicalResult verifyConstantStruct(Type type, Attribute opaqueValue, Operation *op) {
+
+static LogicalResult verifyConstant(StructType type, Attribute opaqueValue, Operation *op) {
   auto resultType = type.cast<StructType>();
   llvm::ArrayRef<Type> resultElementTypes = resultType.getElementTypes();
 
@@ -57,27 +60,25 @@ static LogicalResult verifyConstantStruct(Type type, Attribute opaqueValue, Oper
   return success();
 }
 
-static LogicalResult verifyConstantString(Type type, Attribute opaqueValue, Operation *op) {
+// String
+static LogicalResult verifyConstant(MemRefType type, Attribute opaqueValue, Operation *op) {
   auto attrValue = opaqueValue.dyn_cast<StringAttr>();
   if (!attrValue)
     return op->emitError("constant of string must be initialized by "
                          "a StringAttr, got ")
            << opaqueValue;
 
-  if (type.dyn_cast<UnrankedTensorType>()) {
-    return success();
-  }
-
   // The ranked memref must be a 1-D memref of i8;
   auto resultType = type.dyn_cast<MemRefType>();
-  bool check_fail = !resultType || (resultType.getRank() != 1) ||
+  bool check_fail = !resultType || (resultType.getRank() != 1) || (!resultType.hasStaticShape()) ||
                     (resultType.getElementType() != IntegerType::get(op->getContext(), 8));
   if (check_fail)
     return op->emitError("constant of string must be 1-D memref of i8, got ") << resultType;
   return success();
 }
 
-static LogicalResult verifyConstantBool(Type type, Attribute opaqueValue, Operation *op) {
+// Bool
+static LogicalResult verifyConstant(IntegerType type, Attribute opaqueValue, Operation *op) {
   // attr type must be BoolAttr
   auto attrValue = opaqueValue.dyn_cast<BoolAttr>();
   if (!attrValue)
@@ -88,40 +89,29 @@ static LogicalResult verifyConstantBool(Type type, Attribute opaqueValue, Operat
   // result type must be i1
   auto resultType = type.dyn_cast<IntegerType>();
   if (!resultType || resultType.getWidth() != 1)
-    return op->emitError("constant of bool must be initialized by "
-                         "a BoolAttr, got ")
-           << opaqueValue;
+    return op->emitError("constant of bool must be type of i1, got ") << resultType;
   return success();
 }
 
-static LogicalResult verifyConstantNumber(Type type, Attribute opaqueValue, Operation *op) {
+// Number
+static LogicalResult verifyConstant(Float64Type type, Attribute opaqueValue, Operation *op) {
   // attr type must be Float64Attr
   auto attrValue = opaqueValue.dyn_cast<FloatAttr>();
   if (!attrValue)
     return op->emitError("constant of number must be initialized by "
                          "a FloatAttr, got ")
            << opaqueValue;
+  auto resultType = type.dyn_cast<Float64Type>();
+  if (!resultType)
+    return op->emitError("constant of number must be type of float64, got ") << resultType;
   return success();
 }
 
 /// Verify that the given attribute value is valid for the given type.
 mlir::LogicalResult verifyConstantForType(mlir::Type type, mlir::Attribute opaqueValue, mlir::Operation *op) {
-  if (type.isa<mlir::TensorType>()) {
-    return verifyConstantTensor(type, opaqueValue, op);
-  }
-  if (type.isa<StructType>()) {
-    return verifyConstantStruct(type, opaqueValue, op);
-  }
-  if (type.isa<MemRefType>()) {
-    return verifyConstantString(type, opaqueValue, op);
-  }
-  if (type.isa<Float64Type>()) {
-    return verifyConstantNumber(type, opaqueValue, op);
-  }
-  if (type.isa<IntegerType>()) {
-    return verifyConstantBool(type, opaqueValue, op);
-  }
-  llvm_unreachable("Unknown type");
-  return op->emitError("constant of type ") << type << " is not supported";
+  return TypeSwitch<mlir::Type, mlir::LogicalResult>(type)
+      .Case<mlir::TensorType, StructType, MemRefType, Float64Type, IntegerType>(
+          [&](auto type) { return verifyConstant(type, opaqueValue, op); })
+      .Default([&](auto type) { return op->emitError("constant of type ") << type << " is not supported"; });
 }
 } // namespace mlir::lox
