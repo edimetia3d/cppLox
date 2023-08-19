@@ -3,9 +3,9 @@
 #include <fstream>
 #include <string>
 
-#include "lox/ast/ast_printer/ast_printer.h"
 #include "lox/frontend/parser.h"
 #include "lox/frontend/scanner.h"
+#include "lox/passes/ast_printer/ast_printer.h"
 
 using namespace lox;
 
