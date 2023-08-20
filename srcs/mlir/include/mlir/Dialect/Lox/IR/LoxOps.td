@@ -2,7 +2,8 @@
 #define LOX_OPS_TD
 
 /**
- * @brief The LoxOps ODS definitions
+ * @brief The LoxOps ODS definitions, LoxOps will be a AST level IR for Lox, i.e., it will
+ * contain all AST elements
  */
 
 include "mlir/IR/FunctionInterfaces.td"
@@ -19,9 +20,9 @@ include "mlir/Dialect/Lox/IR/LoxShapeInferInterface.td"
 include "mlir/Dialect/Lox/IR/LoxTypes.td"
 
 // Some operation may support any kind of type used in lox.
-// The corresponding lox types are [Tensor,class,float,bool,str]
-def AnyLoxType : AnyTypeOf<[F64Tensor, Lox_StructType, F64, I1, I8MemRef]>;
-
+def AnyLoxType : AnyTypeOf<[Lox_TensorType, Lox_StructType, Lox_NumberType, Lox_BoolType, Lox_StringType]>;
+// Only some type can be used in arithmetic operation, and we disabled string concatenation explicitly.
+def ArithLoxType : AnyTypeOf<[Lox_TensorType, Lox_NumberType, Lox_BoolType]>;
 // todo: add folder to all ops
 
 //===----------------------------------------------------------------------===//
@@ -92,7 +93,7 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
 // Binary Arith Op
 //===----------------------------------------------------------------------===//
 
-def ArithLoxType : AnyTypeOf<[F64Tensor, F64, I1]>;
+
 
 class LoxBinaryOp<string mnemonic, list<Trait> traits = []> : LoxOp<mnemonic,
                           traits # [Pure,

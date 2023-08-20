@@ -21,3 +21,11 @@ def Lox_StructType : LoxType<"Struct", "struct"> {
   }];
 }
 
+// We can technically define our own types, as this is a toy language, but we will really gone too far doing so.
+def Lox_NumberType : F64;
+
+def Lox_StringType : MemRefOf<[I8]>;
+
+def Lox_BoolType :  I1;
+
+def Lox_TensorType : TensorOf<[F64]>;
