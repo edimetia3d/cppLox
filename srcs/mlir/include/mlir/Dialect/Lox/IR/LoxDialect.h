@@ -33,4 +33,7 @@
 #define GET_OP_CLASSES
 #include "mlir/Dialect/Lox/IR/Lox.h.inc"
 
+namespace mlir::lox {
+bool isValidLoxType(Type type);
+}
 #endif // LOX_SRCS_MLIR_INCLUDE_MLIR_DIALECT_LOX_IR_LOXDIALECT_H

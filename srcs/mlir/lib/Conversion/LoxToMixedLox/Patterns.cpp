@@ -146,7 +146,7 @@ struct ConstantOpLowering : public OpRewritePattern<lox::ConstantOp> {
       // we store the element at the given index.
       if (dimension == valueShape.size()) {
         rewriter.create<affine::AffineStoreOp>(loc, rewriter.create<arith::ConstantOp>(loc, *valueIt++), alloc,
-                                               llvm::makeArrayRef(indices));
+                                               llvm::ArrayRef(indices));
         return;
       }
 

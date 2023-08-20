@@ -17,6 +17,5 @@ int main(int argc, char **argv) {
   DialectRegistry registry;
   registerAllDialects(registry);
   lox::registerAllDialects(registry);
-  return mlir::asMainReturnCode(mlir::MlirOptMain(argc, argv, "MLIR modular optimizer driver\n", registry,
-                                                  /*preloadDialectsInContext=*/false));
+  return mlir::asMainReturnCode(mlir::MlirOptMain(argc, argv, "MLIR modular optimizer driver\n", registry));
 }

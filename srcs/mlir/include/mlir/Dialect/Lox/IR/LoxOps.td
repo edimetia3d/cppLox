@@ -3,7 +3,7 @@
 
 /**
  * @brief The LoxOps ODS definitions, LoxOps will be a AST level IR for Lox, i.e., it will
- * contain all AST elements
+ * contain all AST elements that defined in the "srcs/lox/ast/ast_node_def.yaml"
  */
 
 include "mlir/IR/FunctionInterfaces.td"
@@ -26,7 +26,7 @@ def ArithLoxType : AnyTypeOf<[Lox_TensorType, Lox_NumberType, Lox_BoolType]>;
 // todo: add folder to all ops
 
 //===----------------------------------------------------------------------===//
-// ConstantOp
+// Literal/ConstantOp
 //===----------------------------------------------------------------------===//
 
 // 1. Constant tensor may infer it's shape from the attribute it contains, so it supports the ShapeInferenceOpInterface
@@ -90,10 +90,54 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
 }
 
 //===----------------------------------------------------------------------===//
-// Binary Arith Op
+// AssignOp/AssignExpr
 //===----------------------------------------------------------------------===//
 
+def AssignOp : LoxOp<"assign", [Pure, SameOperandsAndResultType]> {
+  let summary = "Give value a internal name, and return the value itself.";
 
+  let arguments = (ins AnyLoxType:$value, StrAttr:$name);
+
+  let results = (outs AnyLoxType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+
+  // todo: verify/folder/canonicalizer may needed
+  // let hasVerifier = 1;
+  // let hasFolder = 1;
+  // let hasCanonicalizer = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// LogicalOp/LogicalExpr
+//===----------------------------------------------------------------------===//
+
+class LoxLogicalOp<string mnemonic, list<Trait> traits = []> : LoxOp<mnemonic,
+                          traits # [Pure]> {
+  let summary = "logical " #mnemonic# " operation";
+
+  let arguments = (ins ArithLoxType:$lhs, ArithLoxType:$rhs);
+  let results = (outs Lox_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` functional-type(operands, results)";
+
+  // todo: verify/folder/canonicalizer may needed
+  // let hasVerifier = 1;
+  // let hasFolder = 1;
+  // let hasCanonicalizer = 1;
+}
+
+def EqOp : LoxLogicalOp<"eq">;
+def NEOp : LoxLogicalOp<"ne">;
+def GEOp : LoxLogicalOp<"ge">;
+def GTOp : LoxLogicalOp<"gt">;
+def LEOp : LoxLogicalOp<"le">;
+def LTOp : LoxLogicalOp<"lt">;
+
+
+//===----------------------------------------------------------------------===//
+// Binary Arith Op
+//===----------------------------------------------------------------------===//
 
 class LoxBinaryOp<string mnemonic, list<Trait> traits = []> : LoxOp<mnemonic,
                           traits # [Pure,
@@ -118,16 +162,25 @@ def ModOp : LoxBinaryOp<"mod">;
 
 
 //===----------------------------------------------------------------------===//
-// Binary Bitwise Op
+// GroupingOp/GroupingExpr
 //===----------------------------------------------------------------------===//
 
-// todo: add code
+def GroupingOp : LoxOp<"grouping", [Pure, SameOperandsAndResultType]> {
+  let summary = "Grouping an op, and return its value";
 
-//===----------------------------------------------------------------------===//
-// Binary Logical Op
-//===----------------------------------------------------------------------===//
+  let arguments = (ins AnyLoxType:$value);
 
-// todo: add code
+  let results = (outs AnyLoxType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+
+  // todo: verify/folder/canonicalizer may needed
+  // let hasVerifier = 1;
+  // let hasFolder = 1;
+  // let hasCanonicalizer = 1;
+}
+
+
 
 //===----------------------------------------------------------------------===//
 // CastOp

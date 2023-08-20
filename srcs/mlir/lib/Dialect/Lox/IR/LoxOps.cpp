@@ -37,7 +37,7 @@ void ConstantOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &state
 
 mlir::LogicalResult ConstantOp::verify() {
   // Mainly used to make sure that result type and value type are matched
-  return verifyConstantForType(getResult().getType(), getValue(), getOperation());
+  return verifyConstantOp(getValue(), getOperation());
 }
 
 /// Infer the output shape of the ConstantOp, this is required by the shape

@@ -1,9 +1,9 @@
 Expr:
+  Literal: { attr: "Token value" }
   Assign: { attr: "Token name",child: "ExprPtr value" }
   Logical: { attr: "Token op", child: [ "ExprPtr left","ExprPtr right" ] }
   Binary: { attr: "Token op",child: [ "ExprPtr left","ExprPtr right" ] }
   Grouping: { child: "ExprPtr expression" }
-  Literal: { attr: "Token value" }
   Unary: { attr: "Token op",child: "ExprPtr right" }
   Call: { attr: "Token src_token",child: [ "ExprPtr callee", "ExprPtr comma_expr_args" ] }
   GetAttr: { attr: "Token attr_name",child: "ExprPtr src_object" }

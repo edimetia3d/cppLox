@@ -8,7 +8,7 @@ def Lox_StructType : LoxType<"Struct", "struct"> {
   }];
 
   // parameters will be the "KeyTy" when interning this type
-  let parameters = (ins "ArrayRef<Type>":$elementTypes);
+  let parameters = (ins "SmallVector<Type>":$elementTypes);
   let hasCustomAssemblyFormat = 1;
   let genVerifyDecl = 1;
 
@@ -22,10 +22,10 @@ def Lox_StructType : LoxType<"Struct", "struct"> {
 }
 
 // We can technically define our own types, as this is a toy language, but we will really gone too far doing so.
-def Lox_NumberType : F64;
+def Lox_NumberType : F<64>;
 
-def Lox_StringType : MemRefOf<[I8]>;
+def Lox_StringType : UnrankedMemRefOf<[I8]>;
 
-def Lox_BoolType :  I1;
+def Lox_BoolType :  I<1>;
 
-def Lox_TensorType : TensorOf<[F64]>;
+def Lox_TensorType : UnrankedTensorOf<[F64]>;

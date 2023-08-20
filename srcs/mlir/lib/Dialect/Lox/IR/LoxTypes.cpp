@@ -6,7 +6,6 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 #include "mlir/Dialect/Lox/IR/LoxDialect.h"
-#include "mlir/Dialect/Lox/IR/LoxTypes.cpp.inc"
 
 #define GET_TYPEDEF_CLASSES
 #include "mlir/Dialect/Lox/IR/LoxTypes.cpp.inc"
@@ -40,6 +39,16 @@
 
 namespace mlir::lox {
 
+bool isValidLoxType(Type type) {
+  // clang-format off
+  return type.isF64() ||
+         type.isInteger(1) ||
+         isa<UnrankedMemRefType>(type) ||
+         isa<UnrankedTensorType>(type) ||
+         isa<StructType>(type);
+  // clang-format on
+}
+
 ::mlir::Type StructType::parse(AsmParser &parser) {
   // Parse a struct type in the following form:
   //   struct-type ::= `struct` `<` type (`,` type)* `>`
@@ -52,26 +61,21 @@ namespace mlir::lox {
   // Parse: `struct` `<`
   auto typeLoc = parser.getCurrentLocation();
   // Parse the element types of the struct.
-  SmallVector<mlir::Type, 1> elementTypes;
-  if (parser.parseKeyword(StructType::getMnemonic()) || parser.parseLess()) {
-    parser.emitError(typeLoc, "Wrong struct syntax");
+  auto elementTypes = SmallVector<mlir::Type>();
+  if (parser.parseLess()) {
     goto FAIL_EXIT;
   }
 
   do {
     // Parse the current element type.
-    SMLoc typeLoc = parser.getCurrentLocation();
+    typeLoc = parser.getCurrentLocation();
     mlir::Type elementType;
     if (parser.parseType(elementType)) {
-      parser.emitError(typeLoc, "Wrong struct syntax");
       goto FAIL_EXIT;
     }
 
-    // Check that the type is either a TensorType or another StructType.
-    if (!elementType.isa<mlir::TensorType, StructType>()) {
-      parser.emitError(typeLoc, "element type for a struct must either "
-                                "be a TensorType or a StructType, got: ")
-          << elementType;
+    if (!isValidLoxType(elementType)) {
+      parser.emitError(typeLoc, "element type invalid") << elementType;
       goto FAIL_EXIT;
     }
     elementTypes.push_back(elementType);
@@ -81,7 +85,6 @@ namespace mlir::lox {
 
   // Parse: `>`
   if (parser.parseGreater()) {
-    parser.emitError(typeLoc, "Wrong struct syntax");
     goto FAIL_EXIT;
   }
   return StructType::get(parser.getContext(), elementTypes);
@@ -92,7 +95,7 @@ FAIL_EXIT:
 void StructType::print(::mlir::AsmPrinter &odsPrinter) const {
 
   // Print the struct type according to the parser format.
-  odsPrinter << "struct<";
+  odsPrinter << "<";
   llvm::interleaveComma(getElementTypes(), odsPrinter);
   odsPrinter << '>';
 }
@@ -102,7 +105,7 @@ mlir::Type StructType::TypeAt(int index) { return getElementTypes()[index]; }
 llvm::ArrayRef<mlir::Type> StructType::getElementTypes() { return getImpl()->elementTypes; }
 
 ::mlir::LogicalResult StructType::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
-                                         ArrayRef<Type> elementTypes) {
+                                         SmallVector<Type> elementTypes) {
   // todo: add type verification
   return success();
 }
