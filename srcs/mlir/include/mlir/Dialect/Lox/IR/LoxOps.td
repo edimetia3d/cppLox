@@ -96,7 +96,7 @@ def ConstantOp : LoxOp<"constant", [ConstantLike,
 def AssignOp : LoxOp<"assign", [Pure, SameOperandsAndResultType]> {
   let summary = "Give value a internal name, and return the value itself.";
 
-  let arguments = (ins AnyLoxType:$value, StrAttr:$name);
+  let arguments = (ins AnyLoxType:$value, StrAttr:$var_name);
 
   let results = (outs AnyLoxType:$result);
 
@@ -179,6 +179,42 @@ def GroupingOp : LoxOp<"grouping", [Pure, SameOperandsAndResultType]> {
   // let hasFolder = 1;
   // let hasCanonicalizer = 1;
 }
+
+
+//===----------------------------------------------------------------------===//
+// UnaryOp/UnaryExpr
+//===----------------------------------------------------------------------===//
+
+def NegOp : LoxOp<"neg", [Pure, SameOperandsAndResultType]> {
+  let summary = "Unary neg operation";
+
+  let arguments = (ins Lox_NumberType:$value);
+
+  let results = (outs Lox_NumberType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+
+  // todo: verify/folder/canonicalizer may needed
+  // let hasVerifier = 1;
+  // let hasFolder = 1;
+  // let hasCanonicalizer = 1;
+}
+
+def NotOp : LoxOp<"not", [Pure, SameOperandsAndResultType]> {
+  let summary = "Unary not operation";
+
+  let arguments = (ins Lox_BoolType:$value);
+
+  let results = (outs Lox_BoolType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
+
+  // todo: verify/folder/canonicalizer may needed
+  // let hasVerifier = 1;
+  // let hasFolder = 1;
+  // let hasCanonicalizer = 1;
+}
+
 
 
 

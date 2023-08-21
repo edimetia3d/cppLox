@@ -13,7 +13,7 @@ func.func @constant_op() {
 func.func @assign_op() {
   %c0_f64 = lox.constant {value = 0.0 : f64} : f64
   // CHECK: lox.assign
-  %named = lox.assign %c0_f64 {name = "foo"} : f64
+  %named = lox.assign %c0_f64 {var_name = "foo"} : f64
   return
 }
 
@@ -58,5 +58,13 @@ func.func @grouping_op() {
   %0 = lox.add %c0_f64 , %c1_f64 : f64
   // CHECK: lox.grouping
   %1 = lox.grouping %0 : f64
+  return
+}
+
+func.func @unary_op() {
+  %c0_f64 = lox.constant {value = 0.0 : f64} : f64
+  %c1_bool = lox.constant {value = 1 : i1} : i1
+  %0 = lox.neg %c0_f64 : f64
+  %1 = lox.not %c1_bool : i1
   return
 }
