@@ -215,8 +215,37 @@ def NotOp : LoxOp<"not", [Pure, SameOperandsAndResultType]> {
   // let hasCanonicalizer = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// GetAttrOp/GetAttrExpr
+//===----------------------------------------------------------------------===//
 
+def GetAttrOp : LoxOp<"get_attr", [Pure]> {
+  let summary = "Unary not operation";
 
+  let arguments = (ins Lox_StructType:$object, StrAttr:$attr_name);
+
+  let results = (outs AnyLoxType:$result);
+
+  let assemblyFormat = "$object `:` type($object) attr-dict `>``>`  type($result)";
+
+  // todo: verify/folder/canonicalizer may needed
+  // let hasVerifier = 1;
+  // let hasFolder = 1;
+  // let hasCanonicalizer = 1;
+}
+
+def SetAttrOp : LoxOp<"set_attr", [Pure]> {
+  let summary = "Unary not operation";
+
+  let arguments = (ins Lox_StructType:$object, StrAttr:$attr_name, AnyLoxType:$value);
+
+  let assemblyFormat = " $value `:` type($value)  attr-dict `>``>` $object `:` type($object)";
+
+  // todo: verify/folder/canonicalizer may needed
+  // let hasVerifier = 1;
+  // let hasFolder = 1;
+  // let hasCanonicalizer = 1;
+}
 
 //===----------------------------------------------------------------------===//
 // CastOp

@@ -64,7 +64,19 @@ func.func @grouping_op() {
 func.func @unary_op() {
   %c0_f64 = lox.constant {value = 0.0 : f64} : f64
   %c1_bool = lox.constant {value = 1 : i1} : i1
+  // CHECK: lox.neg
   %0 = lox.neg %c0_f64 : f64
+  // CHECK: lox.not
   %1 = lox.not %c1_bool : i1
+  return
+}
+
+func.func @attr_set_get_op() {
+  %c_struct = lox.constant {value = [0.0 : f64, 0 : i1, "other string", dense<2.0> : tensor<6xf64>]} : !lox.struct<f64, i1, memref<*xi8>, tensor<*xf64>>
+  %c0_f64 = lox.constant {value = 0.0 : f64} : f64
+  // CHECK: lox.set_attr
+  lox.set_attr  %c0_f64 : f64  {attr_name = "foo"} >> %c_struct : !lox.struct<f64, i1, memref<*xi8>, tensor<*xf64>>
+  // CHECK: lox.get_attr
+  %attr_v = lox.get_attr %c_struct : !lox.struct<f64, i1, memref<*xi8>, tensor<*xf64>> {attr_name = "foo"} >> f64
   return
 }
