@@ -7,38 +7,45 @@ Hope this will be a useful one I would use in future.
 There are (will be) four versions of Lox interpreter, they all share a same frontend, and has their own backend.
 
 1. Frontend contains:
-   - [x] A scanner to build tokens from raw code.
-   - [x] A RD Parser.
-   - [x] A Pratt Parser.
-   - [x] An AST definition with a simple AST generation tool.
+    - [x] A scanner to build tokens from raw code.
+    - [x] A RD Parser.
+    - [x] A Pratt Parser.
+    - [x] An AST definition with a simple AST generation tool.
 
 2. Backend contains:
-   - [x] A naive tree-walker interpreter, like the jlox, it runs directly on the AST from frontend.
-   - [x] A virtual machine interpreter, like the clox, this one uses only scanner from frontend, and do a
-     "Pratt Parsing" style one pass compilation, which convert tokens to bytecode directly.
-   - [ ] WIP: A LLVM based JIT interpreter, Lox will be a static language with this backend.
-     The LLVM backend will translate lox AST to LLVM IR , and then leverage the LLVM Optimization/JIT utilities
-     to do a JIT run.
-   - [ ] WIP: A MLIR based JIT interpreter, like the LLVM one, but this backend will first translate lox AST to lox
-     dialect, then lowering to LLVM dialect using MLIR's multi-level lowering strategy.
+    - [x] A naive tree-walker interpreter, like the jlox, it runs directly on the AST from frontend.
+    - [x] A virtual machine interpreter, like the clox, this one uses only scanner from frontend, and do a
+      "Pratt Parsing" style one pass compilation, which convert tokens to bytecode directly.
+    - [ ] WIP: A LLVM based JIT interpreter, Lox will be a static language with this backend.
+      The LLVM backend will translate lox AST to LLVM IR , and then leverage the LLVM Optimization/JIT utilities
+      to do a JIT run.
+    - [ ] WIP: A MLIR based JIT interpreter, like the LLVM one, but this backend will first translate lox AST to lox
+      dialect, then lowering to LLVM dialect using MLIR's multi-level lowering strategy.
+
+3. An illustration of the project's architecture:
+
+   ![architecture](./docs/arch.png)
 
 # What's the difference ?
 
 1. Pure C++ implementation.
-   * No need to learn java things.
-   * Because the jlox and clox are both wrote in same language, their implementation shares a lot of code,like GC system,
-     lexer, parser, and so on ,which make transition from jlox to clox much easier.
+    * No need to learn java things.
+    * Because the jlox and clox are both wrote in same language, their implementation shares a lot of code,like GC
+      system,
+      lexer, parser, and so on ,which make transition from jlox to clox much easier.
 2. A more clear implementation, code is (hopefully) more readable.
-   * Especially true when comparing with original clox's c style code.
-   * To write some clean code, it is intended to write some code in a not so efficient/well-designed way. e.g. The original
-     clox uses a function map to dispatch the codegen-call, which make the implementation more structure, but at here,
-     the dispatch is done by a plain switch-case, which is more easy to understand.
+    * Especially true when comparing with original clox's c style code.
+    * To write some clean code, it is intended to write some code in a not so efficient/well-designed way. e.g. The
+      original
+      clox uses a function map to dispatch the codegen-call, which make the implementation more structure, but at here,
+      the dispatch is done by a plain switch-case, which is more easy to understand.
 3. Files/Modules are well organized, which may help you understand the relationship between each module easier.
 4. More language features (Virtual-Machine backend only support `break/continue`):
-   * `break/continue` in loops.
-   * Comma expression`a,b,c,d`, `[a,b,c,d]` style list expression and `a[i]` style element indexing.
-   * Builtin `Tensor`(n-dimension dense matrix) support.
-   * Optional python style type hint (used by the jit backend), e.g., `var a:float = 3;`, `fun bool add(x:float , y:float)`
+    * `break/continue` in loops.
+    * Comma expression`a,b,c,d`, `[a,b,c,d]` style list expression and `a[i]` style element indexing.
+    * Builtin `Tensor`(n-dimension dense matrix) support.
+    * Optional python style type hint (used by the jit backend),
+      e.g., `var a:float = 3;`, `fun bool add(x:float , y:float)`
 5. Help you to learn LLVM/MLIR in a better toy.
 
 # More about JIT
