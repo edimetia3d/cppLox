@@ -1,3 +1,17 @@
+# About the HardStone
+
+The hardstone branch is a more engineering-oriented branch, which is intended to be a more practical one, and is
+designed
+to provide more component that could be copy-paste to your project.
+
+And, the JIT backend will only be developed in this branch.
+
+Roadmap:
+[ ] Add `SourceManager` and `StringRef`, to manage source code strings in a more efficient way.
+[ ] Create a simple VM ByteCode IR, add things like Module/Function/BB/Inst, to make the VM bytecode generation process
+more
+clear.
+
 # cppLox
 
 This repo is a cpp Lox interpreter of Lox Language from [Crafting Interpreters](https://craftinginterpreters.com/)
