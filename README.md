@@ -9,8 +9,12 @@ And, the JIT backend will only be developed in this branch.
 Roadmap:
 [ ] Add `SourceManager` and `StringRef`, to manage source code strings in a more efficient way.
 [ ] Create a simple VM ByteCode IR, add things like Module/Function/BB/Inst, to make the VM bytecode generation process
-more
-clear.
+more clear.
+[ ] Add more infra to make analysis/rewrite easier to implement.
+[ ] Add runtime sym-table, so we have stack, static-data and dynamic-data, which give us a more flexible way to manage
+values at runtime
+[ ] Dynamic memory (Heap) support, so we can manage some dense data in a more efficient way.
+[ ] ref-count / tracing mixed GC, to reduce the tracing GC's pause time.
 
 # cppLox
 
