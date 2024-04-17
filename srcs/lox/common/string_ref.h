@@ -17,6 +17,9 @@ public:
   RefString(const char *c_str) : data_(c_str), length_(strlen(c_str)) {}
   RefString(const std::string &str) : data_(str.data()), length_(str.size()) {}
 
+  operator std::string() const { return std::string(data_, length_); }
+  std::string Str() const { return std::string(data_, length_); }
+
   const char *Data() const { return data_; }
   const char *End() const { return data_ + length_; }
   size_t Length() const { return length_; }
@@ -39,8 +42,6 @@ public:
   bool operator<(const RefString &rhs) const {
     return std::lexicographical_compare(data_, data_ + length_, rhs.data_, rhs.data_ + rhs.length_);
   }
-
-  std::string Str() const { return std::string(data_, length_); }
 
 private:
   const char *data_ = nullptr;

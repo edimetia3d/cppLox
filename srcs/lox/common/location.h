@@ -18,15 +18,16 @@ public:
   int64_t Line() const { return line_; }
   int64_t Column() const;
   int64_t PosInFile() const { return pos_in_file_; }
-  std::string FileName() const { return file_->Name(); }
+  std::string FileName() const {
+    if (!file_) {
+      return "Unknown";
+    }
+    return file_->Name();
+  }
 
   std::string OneLineStr() const {
     // format "file:line:column"
-    std::string file_name = "Unknown";
-    if (file_) {
-      file_name = file_->Name();
-    }
-    return file_name + ":" + std::to_string(line_) + ":" + std::to_string(Column());
+    return FileName() + ":" + std::to_string(line_) + ":" + std::to_string(Column());
   }
 
 private:

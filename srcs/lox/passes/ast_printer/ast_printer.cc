@@ -22,9 +22,11 @@ void AstPrinter::Visit(LiteralExpr* node) { VisitorReturn(node->attr->value->lex
 void lox::AstPrinter::Visit(GroupingExpr* node) {
   VisitorReturn(std::string("(") + Print(node->expression.get()) + ")");
 }
-void AstPrinter::Visit(UnaryExpr* node) { VisitorReturn(node->attr->op->lexeme + Print(node->right.get())); }
+void AstPrinter::Visit(UnaryExpr *node) { VisitorReturn(node->attr->op->lexeme.Str() + Print(node->right.get())); }
 void AstPrinter::Visit(VariableExpr* node) { VisitorReturn(node->attr->name->lexeme); }
-void AstPrinter::Visit(AssignExpr* node) { VisitorReturn(node->attr->name->lexeme + " = " + Print(node->value.get())); }
+void AstPrinter::Visit(AssignExpr *node) {
+  VisitorReturn(node->attr->name->lexeme.Str() + " = " + Print(node->value.get()));
+}
 void AstPrinter::Visit(CallExpr* node) {
   std::string ret = "";
   ret = ret + Print(node->callee.get()) + "(";
@@ -41,7 +43,7 @@ void AstPrinter::Visit(VarDeclStmt* node) {
   if (node->initializer) {
     init = " = " + Print(node->initializer.get());
   }
-  VisitorReturn(Indentation() + std::string("var ") + node->attr->name->lexeme + init + ";\n");
+  VisitorReturn(Indentation() + std::string("var ") + node->attr->name->lexeme.Str() + init + ";\n");
 }
 void AstPrinter::Visit(BlockStmt* node) {
   auto indentation = Indentation();
@@ -77,7 +79,7 @@ void AstPrinter::Visit(ForStmt* node) {
       if (var_decl->initializer) {
         init = std::string(" = ") + Print(var_decl->initializer.get());
       }
-      ret += "var " + var_decl->attr->name->lexeme + init + "; ";
+      ret += "var " + var_decl->attr->name->lexeme.Str() + init + "; ";
     } else {
       ret += Print(node->initializer.get()) + "; ";
     }
@@ -105,7 +107,7 @@ std::string& AstPrinter::PossibleBlockPrint(ASTNode* node, std::string& ret) {
 void AstPrinter::Visit(BreakStmt* node) { VisitorReturn(node->attr->src_token->lexeme); }
 void AstPrinter::Visit(FunctionStmt* node) {
   auto indentation = Indentation();
-  std::string ret = indentation + "fun " + node->attr->name->lexeme + "(";
+  std::string ret = indentation + "fun " + node->attr->name->lexeme.Str() + "(";
   if (node->comma_expr_params) {
     ret += Print(node->comma_expr_params.get());
   }
@@ -126,7 +128,7 @@ void AstPrinter::Visit(ReturnStmt* node) {
 }
 void AstPrinter::Visit(ClassStmt* node) {
   auto indentation = Indentation();
-  std::string ret = indentation + "class " + node->attr->name->lexeme;
+  std::string ret = indentation + "class " + node->attr->name->lexeme.Str();
   if (node->superclass.get()) {
     ret += " < ";
     ret += Print(node->superclass.get());
@@ -140,11 +142,11 @@ void AstPrinter::Visit(ClassStmt* node) {
   VisitorReturn(ret);
 }
 void AstPrinter::Visit(GetAttrExpr* node) {
-  std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme;
+  std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme.Str();
   VisitorReturn(ret);
 }
 void AstPrinter::Visit(SetAttrExpr* node) {
-  std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme;
+  std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme.Str();
   ret += " = ";
   ret += Print(node->value.get());
   VisitorReturn(ret);

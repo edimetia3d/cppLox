@@ -17,7 +17,7 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
   locals.reserve(STACK_COUNT_LIMIT);
   upvalues.reserve(UPVALUE_COUNT_LIMIT);
   globals.reserve(CONSTANT_COUNT_LIMIT);
-  func = Object::Make<ObjFunction>(name);  // object function will get gc cleaned, so we only new , not delete
+  func = Object::Make<ObjFunction>(name); // object function will get gc cleaned, so we only new , not delete
   if (enclosing) {
     current_semantic_scope_level = enclosing->current_semantic_scope_level;
   } else {
@@ -33,7 +33,7 @@ FunctionUnit::FunctionUnit(FunctionUnit *enclosing, FunctionType type, const std
   } else {
     function_self.name = name;
   }
-  function_self.is_inited = true;  // a hack that treat `this` as always inited, so we can reference self recursively.
+  function_self.is_inited = true; // a hack that treat `this` as always inited, so we can reference self recursively.
   function_self.position = locals.size() - 1;
   function_self.semantic_scope_depth = current_semantic_scope_level;
 }
@@ -54,7 +54,7 @@ FunctionUnit::UpValue *FunctionUnit::DoAddUpValue(NamedValue *some_value, UpValu
   upvalues.back().src_at_begin = beg_src;
   upvalues.back().position = upvalues.size() - 1;
   upvalues.back().position_at_begin = some_value->position;
-  upvalues.back().is_inited = true;  // all upvalues are already inited
+  upvalues.back().is_inited = true; // all upvalues are already inited
   return &upvalues.back();
 }
 FunctionUnit::UpValue *FunctionUnit::AddUpValueFromEnclosingStack(Local *some_value) {
@@ -69,13 +69,14 @@ FunctionUnit::UpValue *FunctionUnit::TryResolveUpValue(Token varaible_name) {
   /**
    * In enclosing, only direct enclosing is surely alive, other indirect enclosing maybe out of stack
    */
-  if (enclosing == nullptr) return nullptr;
+  if (enclosing == nullptr)
+    return nullptr;
 
   if (Local *enclosing_local = enclosing->TryResolveLocal(varaible_name)) {
     // the value is still on stack when creating closure at runtime
 
-    enclosing_local->is_captured = true;  // mark enclosing_local as captured to emit CLOSE_UPVALUE instead of POP, when
-                                          // the enclosing_local go out of scope.
+    enclosing_local->is_captured = true; // mark enclosing_local as captured to emit CLOSE_UPVALUE instead of POP, when
+                                         // the enclosing_local go out of scope.
     return AddUpValueFromEnclosingStack(enclosing_local);
   } else {
     // the value is not on stack, make the enclosing_ to capture it, and we use the one captured by enclosing_.
@@ -108,11 +109,11 @@ void FunctionUnit::EmitBytes(OpCode opcode0, OpCode opcode1) { EmitBytes(opcode0
 
 void FunctionUnit::EmitJumpBack(int start) {
   int ip_target = start;
-  int ip_from = FuncChunk()->ChunkSize() + 3;  // after OP_JUMP_BACK is consumed by VM, ip will pointer to this pos
+  int ip_from = FuncChunk()->ChunkSize() + 3; // after OP_JUMP_BACK is consumed by VM, ip will pointer to this pos
 
   EmitByte(OpCode::OP_JUMP_BACK);
-  int offset = -1 * (ip_target - ip_from);  // always use a positive number to get longer jump range, that's why we
-                                            // create a new OP_JUMP_BACK instruction
+  int offset = -1 * (ip_target - ip_from); // always use a positive number to get longer jump range, that's why we
+                                           // create a new OP_JUMP_BACK instruction
   if (offset > UINT16_MAX) {
     Error("Loop body too large.");
   }
@@ -169,7 +170,7 @@ uint8_t FunctionUnit::AddValueConstant(Value value) {
 
 void FunctionUnit::EmitDefaultReturn() {
   if (type == FunctionType::INITIALIZER) {
-    EmitBytes(OpCode::OP_GET_LOCAL, 0);  // instance `this` will be at this slot
+    EmitBytes(OpCode::OP_GET_LOCAL, 0); // instance `this` will be at this slot
   } else {
     EmitByte(OpCode::OP_NIL);
   }
@@ -178,69 +179,69 @@ void FunctionUnit::EmitDefaultReturn() {
 
 void FunctionUnit::EmitUnary(const TokenType &token_type) {
   switch (token_type) {
-    case TokenType::MINUS:
-      EmitByte(OpCode::OP_NEGATE);
-      break;
-    case TokenType::BANG:
-      EmitByte(OpCode::OP_NOT);
-      break;
-    default:
-      Error("Unknown unary operator.");
-      return;  // Unreachable.
+  case TokenType::MINUS:
+    EmitByte(OpCode::OP_NEGATE);
+    break;
+  case TokenType::BANG:
+    EmitByte(OpCode::OP_NOT);
+    break;
+  default:
+    Error("Unknown unary operator.");
+    return; // Unreachable.
   }
 }
 void FunctionUnit::EmitBinary(const TokenType &token_type) {
   switch (token_type) {
-    case TokenType::BANG_EQUAL:
-      EmitBytes(OpCode::OP_EQUAL, OpCode::OP_NOT);
-      break;
-    case TokenType::EQUAL_EQUAL:
-      EmitByte(OpCode::OP_EQUAL);
-      break;
-    case TokenType::GREATER:
-      EmitByte(OpCode::OP_GREATER);
-      break;
-    case TokenType::GREATER_EQUAL:
-      EmitBytes(OpCode::OP_LESS, OpCode::OP_NOT);
-      break;
-    case TokenType::LESS:
-      EmitByte(OpCode::OP_LESS);
-      break;
-    case TokenType::LESS_EQUAL:
-      EmitBytes(OpCode::OP_GREATER, OpCode::OP_NOT);
-      break;
-    case TokenType::PLUS:
-      EmitByte(OpCode::OP_ADD);
-      break;
-    case TokenType::MINUS:
-      EmitByte(OpCode::OP_SUBTRACT);
-      break;
-    case TokenType::STAR:
-      EmitByte(OpCode::OP_MULTIPLY);
-      break;
-    case TokenType::SLASH:
-      EmitByte(OpCode::OP_DIVIDE);
-      break;
-    default:
-      Error("Unknown binary operator.");
-      return;  // Unreachable.
+  case TokenType::BANG_EQUAL:
+    EmitBytes(OpCode::OP_EQUAL, OpCode::OP_NOT);
+    break;
+  case TokenType::EQUAL_EQUAL:
+    EmitByte(OpCode::OP_EQUAL);
+    break;
+  case TokenType::GREATER:
+    EmitByte(OpCode::OP_GREATER);
+    break;
+  case TokenType::GREATER_EQUAL:
+    EmitBytes(OpCode::OP_LESS, OpCode::OP_NOT);
+    break;
+  case TokenType::LESS:
+    EmitByte(OpCode::OP_LESS);
+    break;
+  case TokenType::LESS_EQUAL:
+    EmitBytes(OpCode::OP_GREATER, OpCode::OP_NOT);
+    break;
+  case TokenType::PLUS:
+    EmitByte(OpCode::OP_ADD);
+    break;
+  case TokenType::MINUS:
+    EmitByte(OpCode::OP_SUBTRACT);
+    break;
+  case TokenType::STAR:
+    EmitByte(OpCode::OP_MULTIPLY);
+    break;
+  case TokenType::SLASH:
+    EmitByte(OpCode::OP_DIVIDE);
+    break;
+  default:
+    Error("Unknown binary operator.");
+    return; // Unreachable.
   }
 }
 
 void FunctionUnit::EmitLiteral(TokenType token_type) {
   switch (token_type) {
-    case TokenType::FALSE_TOKEN:
-      EmitByte(OpCode::OP_FALSE);
-      break;
-    case TokenType::NIL:
-      EmitByte(OpCode::OP_NIL);
-      break;
-    case TokenType::TRUE_TOKEN:
-      EmitByte(OpCode::OP_TRUE);
-      break;
-    default:
-      Error("Unknown literal.");
-      return;  // Unreachable.
+  case TokenType::FALSE_TOKEN:
+    EmitByte(OpCode::OP_FALSE);
+    break;
+  case TokenType::NIL:
+    EmitByte(OpCode::OP_NIL);
+    break;
+  case TokenType::TRUE_TOKEN:
+    EmitByte(OpCode::OP_TRUE);
+    break;
+  default:
+    Error("Unknown literal.");
+    return; // Unreachable.
   }
 }
 FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
@@ -250,7 +251,7 @@ FunctionUnit::NamedValue *FunctionUnit::DeclNamedValue(Token var_name) {
     // check redifinition
     for (auto &global : globals) {
       if (global.name == var_name->lexeme) {
-        SPDLOG_DEBUG("Redefine global of {} detected.", var_name->lexeme);
+        SPDLOG_DEBUG("Redefine global of {} detected.", var_name->lexeme.Str());
       }
     }
 
@@ -324,10 +325,10 @@ void FunctionUnit::EmitOpClosure(FunctionUnit *newly_created_cu) {
 
   int extra_count = 0;
   for (auto &pair : value_need_to_force_closed) {
-    auto handle = ResolveNamedValue(Token(TokenType::IDENTIFIER, pair.first, -1, -1, "Unknown"));
+    auto handle = ResolveNamedValue(Token(TokenType::IDENTIFIER, pair.first, Location(nullptr, -1, -1)));
     EmitBytes(handle.get_op, handle.reslove.position);
     pair.second->position_at_begin =
-        value_need_to_force_closed.size() - extra_count - 1;  // position is count from stack top to bottom
+        value_need_to_force_closed.size() - extra_count - 1; // position is count from stack top to bottom
     ++extra_count;
   }
   EmitBytes(OpCode::OP_CLOSURE, AddValueConstant(Value(newly_created_cu->func)));
@@ -365,8 +366,6 @@ void FunctionUnit::ForceCloseValue(Token name_in_outer_scope, bool emit_get_upva
    */
 
   if (!force_closed_values.contains(name_in_outer_scope->lexeme)) {
-    Token new_name =
-        Token(TokenType::IDENTIFIER, "__closed_" + name_in_outer_scope->lexeme, line_info_callback(), -1, "Unknown");
     if (!enclosing) {
       Error("Cannot force close in global scope");
     }
@@ -375,11 +374,11 @@ void FunctionUnit::ForceCloseValue(Token name_in_outer_scope, bool emit_get_upva
       Error("Too many closure variables in function.");
     }
     upvalues.resize(upvalues.size() + 1);
-    upvalues.back().name = new_name->lexeme;
+    upvalues.back().name = "__closed_" + name_in_outer_scope->lexeme.Str();
     upvalues.back().src_at_begin = UpValueSrc::ON_STACK_TOP;
     upvalues.back().position = upvalues.size() - 1;
     upvalues.back().position_at_begin = -1;
-    upvalues.back().is_inited = true;  // all upvalues are already inited
+    upvalues.back().is_inited = true; // all upvalues are already inited
 
     force_closed_values[name_in_outer_scope->lexeme] = &upvalues.back();
   }
@@ -474,4 +473,4 @@ FunctionUnit::NamedValueOperator FunctionUnit::ResolveNamedValue(Token varaible_
   };
 }
 
-}  // namespace lox::vm
+} // namespace lox::vm

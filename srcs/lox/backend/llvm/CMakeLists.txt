@@ -9,7 +9,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-z,nodelete")
 add_subdirectory(translation)
 add_subdirectory(builtins)
 
-cc_library(llvm SHARED llvm_jit.cpp)
+cc_library(llvm llvm_jit.cpp)
 
 llvm_map_components_to_libnames(llvm_libs passes support core nativecodegen OrcJIT native)
 

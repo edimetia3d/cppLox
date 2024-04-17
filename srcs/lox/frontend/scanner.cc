@@ -10,9 +10,7 @@ namespace lox {
 
 Token Scanner::ScanOne() {
   if (input_->IsAtEnd()) {
-    auto beg = "EOF";
-    auto end = beg + 3;
-    return {TokenType::EOF_TOKEN, RefString(beg, end), Location(input_, line_, input_->Pos() - 1)};
+    return {TokenType::EOF_TOKEN, RefString("EOF"), Location(input_, line_, input_->Pos() - 1)};
   }
   ResetTokenBeg();
   char c = Advance();

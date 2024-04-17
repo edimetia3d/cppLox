@@ -123,13 +123,13 @@ public:
     auto new_value = ValueVisit(node->value);
     assert(ty == new_value->getType()); // todo: add implicit type cast support
     builder_.CreateStore(new_value, addr);
-    VisitorReturn(builder_.CreateLoad(ty, addr, node->attr->name->lexeme));
+    VisitorReturn(builder_.CreateLoad(ty, addr, node->attr->name->lexeme.Str()));
   }
 
   void Visit(LogicalExpr *node) override {
     // short circuit evaluation, we will create two basic blocks, one for else, and one for end
-    auto else_bb = llvm::BasicBlock::Create(context_, node->attr->op->lexeme + ".else", current_function_);
-    auto end_bb = llvm::BasicBlock::Create(context_, node->attr->op->lexeme + ".end", current_function_);
+    auto else_bb = llvm::BasicBlock::Create(context_, node->attr->op->lexeme.Str() + ".else", current_function_);
+    auto end_bb = llvm::BasicBlock::Create(context_, node->attr->op->lexeme.Str() + ".end", current_function_);
     auto left_v = ValueVisit(node->left);
     assert(left_v->getType() == cst_->bool_ty);
     auto ret_addr = EntryBlockAlloca(node->attr->op->lexeme, left_v->getType(), left_v);
@@ -210,7 +210,7 @@ public:
     case TokenType::NUMBER:
       VisitorReturn(llvm::ConstantFP::get(context_, llvm::APFloat(std::stod(node->attr->value->lexeme))));
     case TokenType::STRING: {
-      std::string str_v(node->attr->value->lexeme.begin() + 1, node->attr->value->lexeme.end() - 1);
+      std::string str_v(node->attr->value->lexeme.Data() + 1, node->attr->value->lexeme.End() - 1);
       VisitorReturn(builder_.CreateGlobalStringPtr(str_v, "", 0, active_module_));
     }
     case TokenType::NIL:
@@ -256,7 +256,7 @@ public:
     }
     std::string ret_name;
     if (!callee_fn->getReturnType()->isVoidTy()) {
-      ret_name = std::string("call_") + fn_name;
+      ret_name = std::string("call_") + fn_name.Str();
     }
     VisitorReturn(builder_.CreateCall(callee_fn, args_value, ret_name));
   }
@@ -268,7 +268,7 @@ public:
   void Visit(VariableExpr *node) override {
     llvm::Type *ty = nullptr;
     auto addr = SymAddrLookup(node->attr->name->lexeme, &ty);
-    VisitorReturn(builder_.CreateLoad(ty, addr, node->attr->name->lexeme));
+    VisitorReturn(builder_.CreateLoad(ty, addr, node->attr->name->lexeme.Str()));
   }
 
   void Visit(CommaExpr *node) override { throw LLVMTranslationError("CommaExpr is not supported yet"); }
@@ -287,9 +287,9 @@ public:
     }
     if (IsAtGlobal()) {
       auto *var_type = GetType(node->attr->type_hint);
-      assert(active_module_->getGlobalVariable(node->attr->name->lexeme) == nullptr);
-      active_module_->getOrInsertGlobal(node->attr->name->lexeme, var_type);
-      auto global_var = active_module_->getNamedGlobal(node->attr->name->lexeme);
+      assert(active_module_->getGlobalVariable(node->attr->name->lexeme.Str()) == nullptr);
+      active_module_->getOrInsertGlobal(node->attr->name->lexeme.Str(), var_type);
+      auto global_var = active_module_->getNamedGlobal(node->attr->name->lexeme.Str());
       if (init_v) {
         global_var->setInitializer(llvm::dyn_cast<llvm::Constant>(init_v));
       }
@@ -375,12 +375,12 @@ public:
       }
     }
     llvm::FunctionType *fn_type = llvm::FunctionType::get(ret_ty, arg_tys, false);
-    active_module_->getOrInsertFunction(node->attr->name->lexeme, fn_type);
+    active_module_->getOrInsertFunction(node->attr->name->lexeme.Str(), fn_type);
     known_global_symbol_->insert({node->attr->name->lexeme, fn_type});
     if (node->attr->is_decl) {
       return;
     }
-    llvm::Function *fn = active_module_->getFunction(node->attr->name->lexeme);
+    llvm::Function *fn = active_module_->getFunction(node->attr->name->lexeme.Str());
     fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
 
     // switch current_function

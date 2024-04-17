@@ -192,7 +192,7 @@ StmtPtr Parser::ForStmt() {
 }
 StmtPtr Parser::BreakStmt() {
   auto src_token = Previous();
-  Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token->lexeme);
+  Consume(TokenType::SEMICOLON, std::string("Expect ';' after ") + src_token->lexeme.Str());
   return ASTNode::Make<lox::BreakStmt>(BreakStmtAttr{.src_token = src_token});
 }
 

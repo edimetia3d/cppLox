@@ -104,10 +104,10 @@ std::string Compiler::CreateErrMsg(const Token &token, const char *message) cons
   std::vector<char> buf(256);
   int offset = 0;
   if (token->type == TokenType::EOF_TOKEN) {
-    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at end: %s", token->line + 1, message);
+    offset += snprintf(buf.data() + offset, 256, "[line %ld] Error at end: %s", token->location.Line() + 1, message);
   } else {
-    offset += snprintf(buf.data() + offset, 256, "[line %d] Error at '%s': %s", token->line + 1, token->lexeme.c_str(),
-                       message);
+    offset += snprintf(buf.data() + offset, 256, "[line %ld] Error at '%s': %s", token->location.Line() + 1,
+                       token->lexeme.Str().c_str(), message);
   }
   return std::string(buf.data());
 }
@@ -510,7 +510,7 @@ void Compiler::ClassDefStmt() {
 
 void Compiler::PushCU(FunctionType type, const std::string &name) {
   cu_ = new FunctionUnit(
-      cu_, type, name, [this]() { return this->previous->line; },
+      cu_, type, name, [this]() { return this->previous->location.Line(); },
       [this](const char *msg) { this->ErrorAt(this->previous, msg); });
 }
 std::unique_ptr<FunctionUnit> Compiler::PopCU() {
@@ -627,7 +627,7 @@ void Compiler::EmitPrefix() {
 }
 void Compiler::EmitClassAttrAccess(Token class_token) {
   cu_->ForceCloseValue(class_token);
-  GetNamedValue(Token(TokenType::THIS, "this", previous->line, -1, "Unkown"));
+  GetNamedValue(Token(TokenType::THIS, "this", Location(nullptr, previous->location.Line(), -1)));
   cu_->EmitByte(OpCode::OP_INSTANCE_TYPE_CAST);
 }
 bool Compiler::IsAccessingClassAttr(Token class_name, Token next_token) {

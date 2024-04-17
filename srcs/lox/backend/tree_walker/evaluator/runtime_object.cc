@@ -45,7 +45,7 @@ ObjectPtr Closure::Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<
   }
   return ret;
 }
-std::string Closure::Str() const { return std::string("<fn ") + data.function->attr->name->lexeme + ">"; }
+std::string Closure::Str() const { return std::string("<fn ") + data.function->attr->name->lexeme.Str() + ">"; }
 
 int Klass::Arity() {
   auto init_fn = GetMethod(NullObject(), "init");

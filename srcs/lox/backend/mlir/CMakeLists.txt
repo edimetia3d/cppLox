@@ -14,7 +14,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-z,nodelete")
 
 add_subdirectory(translation)
 
-cc_library(mlir SHARED mlir_jit.cpp)
+cc_library(mlir mlir_jit.cpp)
 
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

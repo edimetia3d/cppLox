@@ -40,7 +40,7 @@ void Evaluator::Visit(LiteralExpr* node) {
       VisitorReturn(Object::MakeShared<Number>(std::stod(node->attr->value->lexeme)));
     case TokenType::STRING:
       VisitorReturn(Object::MakeShared<String>(
-          std::string(node->attr->value->lexeme.begin() + 1, node->attr->value->lexeme.end() - 1)));
+          std::string(node->attr->value->lexeme.Data() + 1, node->attr->value->lexeme.End() - 1)));
     case TokenType::TRUE_TOKEN:
       VisitorReturn(Object::MakeShared<Bool>(true));
     case TokenType::FALSE_TOKEN:

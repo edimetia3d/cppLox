@@ -117,7 +117,7 @@ protected:
     auto location = Loc(node->attr->op);
 
     // Derive the operation name from the binary operator.
-    switch (node->attr->op->lexeme[0]) {
+    switch (node->attr->op->lexeme.Data()[0]) {
     case '+':
       VisitorReturn(builder.create<AddOp>(location, lhs, rhs));
     case '*':
@@ -135,14 +135,14 @@ protected:
   }
   void Visit(UnaryExpr *node) override { VisitorReturn(nullptr); }
   void Visit(VariableExpr *node) override {
-    if (auto variable = symbolTable.lookup(node->attr->name->lexeme))
+    if (auto variable = symbolTable.lookup(node->attr->name->lexeme.Str()))
       VisitorReturn(variable);
 
     throw MLIRTranslationError("error: unknown variable '");
   }
   void Visit(AssignExpr *node) override { VisitorReturn(nullptr); }
   void Visit(CallExpr *node) override {
-    llvm::StringRef callee = node->callee->DynAs<VariableExpr>()->attr->name->lexeme;
+    llvm::StringRef callee = node->callee->DynAs<VariableExpr>()->attr->name->lexeme.Str();
     auto location = Loc(node->attr->src_token);
 
     // Codegen the operands first.
@@ -200,7 +200,7 @@ protected:
       throw MLIRTranslationError("error in initializer of variable");
 
     // Register the value in the symbol table.
-    if (failed(DeclareNamedValue(node->attr->name->lexeme, value)))
+    if (failed(DeclareNamedValue(node->attr->name->lexeme.Str(), value)))
       throw MLIRTranslationError("error in variable declaration");
   }
 
@@ -300,7 +300,8 @@ protected:
   }
 
   mlir::Location Loc(Token token) {
-    return mlir::FileLineColLoc::get(builder.getStringAttr(token->file_name), token->line, token->col);
+    return mlir::FileLineColLoc::get(builder.getStringAttr(token->location.FileName()), token->location.Line(),
+                                     token->location.Column());
   }
 
   /// Build a tensor type from a list of shape dimensions.
