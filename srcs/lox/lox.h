@@ -5,6 +5,7 @@
 #ifndef CPPLOX_INCLUDES_LOX_LOX_H_
 #define CPPLOX_INCLUDES_LOX_LOX_H_
 
+#include "lox/common/input_file.h"
 #include <memory>
 #include <string>
 
@@ -19,9 +20,9 @@ class LoxInterpreter {
 
   void RunPrompt();
 
-  void Eval(const std::string &code, const std::string &file_name = "Unknown file");
+  void Eval(std::shared_ptr<CharStream> input);
 
- private:
+private:
   std::shared_ptr<BackEnd> back_end_;
 };
 

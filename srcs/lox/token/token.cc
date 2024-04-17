@@ -31,15 +31,15 @@ static std::map<std::string,TokenType> g_reserved_map{
 // clang-format on
 
 std::string TokenState::Dump() const {
-  return std::string("[Type:{") + std::to_string((int)type) + "},Lexme:{" + lexeme + "},@Line:" + std::to_string(line) +
-         "]";
+  return std::string("[Type:{") + std::to_string((int)type) + "},Lexme:{" + lexeme.Str() +
+         "},@Loc:" + location.OneLineStr() + "]";
 }
 
-TokenType Token::GetIdentifierType(const std::string& identifier) {
+TokenType Token::GetIdentifierType(const std::string &identifier) {
   if (g_reserved_map.count(identifier) == 0) {
     return TokenType::IDENTIFIER;
   } else {
     return g_reserved_map[identifier];
   }
 }
-}  // namespace lox
+} // namespace lox

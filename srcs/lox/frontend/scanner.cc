@@ -8,17 +8,11 @@
 
 namespace lox {
 
-std::vector<Token> Scanner::ScanAll() {
-  std::vector<Token> output;
-  while (output.empty() || output.back()->type != TokenType::EOF_TOKEN) {
-    output.push_back(ScanOne());
-  }
-  return output;
-}
-
 Token Scanner::ScanOne() {
-  if (IsAtEnd()) {
-    return Token(TokenType::EOF_TOKEN, "EOF", line_, col_, src_file_name);
+  if (input_->IsAtEnd()) {
+    auto beg = "EOF";
+    auto end = beg + 3;
+    return {TokenType::EOF_TOKEN, RefString(beg, end), Location(input_, line_, input_->Pos() - 1)};
   }
   ResetTokenBeg();
   char c = Advance();
@@ -44,7 +38,7 @@ Token Scanner::ScanOne() {
     case '/':{
         if (MatchAndAdvance('/')) {
           // A comment goes until the end of the line.
-          while (Peek() != '\n' && !IsAtEnd()) Advance();
+          while (Peek() != '\n' && !input_->IsAtEnd()) Advance();
           return ScanOne();
         } else {
           return AddToken(TokenType::SLASH);
@@ -75,39 +69,40 @@ Token Scanner::ScanOne() {
   return Token();
 }
 Token Scanner::AddToken(TokenType type) {
-  auto ret = Token(type, std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_), line_, col_,
-                   src_file_name);
+  auto str_beg = input_->Data() + start_lex_pos_;
+  auto str_end = input_->Data() + input_->Pos();
+  auto ret = Token(type, RefString(str_beg, str_end), Location(input_, line_, start_lex_pos_));
   ResetTokenBeg();
   return ret;
 }
-void Scanner::ResetTokenBeg() { start_lex_pos_ = current_lex_pos_; }
+void Scanner::ResetTokenBeg() { start_lex_pos_ = input_->Pos(); }
 
-char Scanner::Advance() {
-  auto ret = LastChar();
-  ++current_lex_pos_;
-  ++col_;
-  return ret;
-}
+char Scanner::Advance() { return input_->Read(); }
 
 bool Scanner::MatchAndAdvance(char expected) {
-  if (IsAtEnd()) return false;
-  if (LastChar() != expected) return false;
+  if (input_->IsAtEnd())
+    return false;
+  if (input_->Peek() != expected)
+    return false;
   Advance();
   return true;
 }
 
 char Scanner::Peek(int offset) {
-  if ((current_lex_pos_ + offset) >= srcs_->size()) return '\0';
-  return srcs_->at(current_lex_pos_ + offset);
+  auto read_pos = input_->Pos() + offset;
+  if (read_pos >= input_->Size())
+    return '\0';
+  return input_->At(read_pos);
 }
 
 Token Scanner::AddStringToken() {
-  while (Peek() != '"' && !IsAtEnd()) {
-    if (Peek() == '\n') StartNewLine();
+  while (Peek() != '"' && !input_->IsAtEnd()) {
+    if (Peek() == '\n')
+      StartNewLine();
     Advance();
   }
 
-  if (IsAtEnd()) {
+  if (input_->IsAtEnd()) {
     Error("Unterminated string.");
   }
 
@@ -117,14 +112,16 @@ Token Scanner::AddStringToken() {
   return AddToken(TokenType::STRING);
 }
 Token Scanner::AddNumToken() {
-  while (IsDigit(Peek())) Advance();
+  while (IsDigit(Peek()))
+    Advance();
 
   // Look for a fractional part.
   if ((Peek() == '.') && IsDigit(Peek(1))) {
     // Consume the "."
     Advance();
 
-    while (IsDigit(Peek())) Advance();
+    while (IsDigit(Peek()))
+      Advance();
 
     return AddToken(TokenType::NUMBER);
   } else {
@@ -133,13 +130,12 @@ Token Scanner::AddNumToken() {
 }
 
 Token Scanner::AddIdentifierToken() {
-  while (IsAlphaNumeric(Peek())) Advance();
-
-  return AddToken(
-      Token::GetIdentifierType(std::string(srcs_->cbegin() + start_lex_pos_, srcs_->cbegin() + current_lex_pos_)));
+  while (IsAlphaNumeric(Peek()))
+    Advance();
+  auto beg = input_->Data() + start_lex_pos_;
+  auto end = input_->Data() + input_->Pos();
+  return AddToken(Token::GetIdentifierType(std::string(beg, end)));
 }
-
-char Scanner::LastChar() { return srcs_->at(current_lex_pos_); }
 
 void Scanner::Error(const std::string &msg) {
   std::vector<char> buf(100);
@@ -147,4 +143,4 @@ void Scanner::Error(const std::string &msg) {
   throw ScannerError(buf.data());
 }
 
-}  // namespace lox
+} // namespace lox

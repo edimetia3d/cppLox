@@ -18,8 +18,8 @@ std::string LoxInterpreter::CLIHelpString() { return std::string(); }
 void LoxInterpreter::RunFile(const std::string &file_path) {
   std::ifstream infile(file_path);
   GlobalSetting().interactive_mode = false;
-  std::string all_line((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
-  Eval(all_line, file_path);
+  auto file = std::make_shared<InputFile>(file_path);
+  Eval(file);
 }
 
 void LoxInterpreter::RunPrompt() {
@@ -30,8 +30,9 @@ void LoxInterpreter::RunPrompt() {
     if (one_line == "exit()") {
       break;
     }
+    auto line_code = std::make_shared<InputString>(one_line.c_str(), one_line.size());
     try {
-      Eval(one_line, "stdin");
+      Eval(line_code);
     } catch (const LoxError &e) {
       std::cout << e.what() << std::endl;
     }
@@ -40,9 +41,9 @@ void LoxInterpreter::RunPrompt() {
   }
 }
 
-void LoxInterpreter::Eval(const std::string &code, const std::string &file_name) {
-  Scanner scanner(code, file_name);
+void LoxInterpreter::Eval(std::shared_ptr<CharStream> input) {
+  Scanner scanner(input);
   return back_end_->Run(scanner);
 }
 LoxInterpreter::LoxInterpreter() { back_end_ = BackEndRegistry::Instance().Get(GlobalSetting().backend)(); }
-}  // namespace lox
+} // namespace lox

@@ -19,25 +19,15 @@ class ScannerError : public LoxErrorWithExitCode<EX_DATAERR> {
 };
 
 class Scanner {
- public:
-  explicit Scanner(const std::string& srcs, std::string src_file_name)
-      : srcs_(&srcs), src_file_name(std::move(src_file_name)) {}
-
-  std::vector<Token> ScanAll();
+public:
+  explicit Scanner(std::shared_ptr<CharStream> input) : input_(std::move(input)) {}
 
   Token ScanOne();
 
-  void Reset() { Reset(*srcs_); }
-
-  void Reset(const std::string& srcs) {
-    Scanner tmp(srcs, src_file_name);
-    std::swap(tmp, *this);
-  }
-
- private:
+private:
   bool MatchAndAdvance(char expected);
 
-  char Peek(int offseet = 0);
+  char Peek(int offset = 0);
 
   Token AddStringToken();
 
@@ -53,28 +43,17 @@ class Scanner {
 
   void Error(const std::string &msg);
 
-  bool IsAtEnd() {
-    assert(current_lex_pos_ >= 0);
-    return (size_t)current_lex_pos_ >= srcs_->size();
-  }
-  char LastChar();
-
   char Advance();
 
-  void StartNewLine() {
-    line_++;
-    col_ = 0;
-  }
+  void StartNewLine() { line_++; }
 
   Token AddIdentifierToken();
 
-  const std::string* srcs_;
+  std::shared_ptr<CharStream> input_;
   int start_lex_pos_ = 0;
-  int current_lex_pos_ = 0;
   int line_ = 0;
-  int col_ = 0;
-  std::string src_file_name;
+
   void ResetTokenBeg();
 };
-}  // namespace lox
-#endif  // CPPLOX_SRCS_LOX_SCANNER_H_
+} // namespace lox
+#endif // CPPLOX_SRCS_LOX_SCANNER_H_
