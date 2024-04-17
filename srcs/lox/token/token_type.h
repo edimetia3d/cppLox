@@ -31,5 +31,5 @@ enum class TokenType {
   _TOKEN_COUNT_NUMBER
 };
 // clang-format on
-}  // namespace lox
-#endif  // CPPLOX_INCLUDES_LOX_TOKEN_TYPE_H_
+} // namespace lox
+#endif // CPPLOX_INCLUDES_LOX_TOKEN_TYPE_H_

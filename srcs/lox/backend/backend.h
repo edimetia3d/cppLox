@@ -22,19 +22,19 @@ struct BackEndRegistry {
 
   BackEndCreateFn Get(const std::string &name);
 
- private:
+private:
   BackEndRegistry();
 
   std::map<std::string, BackEndCreateFn> reg_;
 };
 
 class BackEnd {
- public:
+public:
   virtual void Run(Scanner &scanner) = 0;
 
- protected:
+protected:
   static std::unique_ptr<Module> BuildASTModule(Scanner &scanner);
 };
 
-}  // namespace lox
-#endif  // CPPLOX_SRCS_LOX_BACKEND_BACKEND_H_
+} // namespace lox
+#endif // CPPLOX_SRCS_LOX_BACKEND_BACKEND_H_

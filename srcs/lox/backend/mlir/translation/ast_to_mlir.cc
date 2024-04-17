@@ -183,7 +183,8 @@ protected:
     mlir::Value ret_v = nullptr;
     if (node->value) {
       ret_v = ValueVisit(node->value);
-      if (!(ret_v)) throw MLIRTranslationError("error in return expression");
+      if (!(ret_v))
+        throw MLIRTranslationError("error in return expression");
     }
     builder.create<ReturnOp>(location, ret_v);
   }

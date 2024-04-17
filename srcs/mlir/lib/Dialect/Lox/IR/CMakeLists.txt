@@ -15,4 +15,4 @@ add_mlir_dialect_library(MLIRLoxDialect
     MLIRCastInterfaces
     MLIRCallInterfaces
     MLIRLoxTransforms
-    )
+)

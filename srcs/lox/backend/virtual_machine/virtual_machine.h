@@ -10,11 +10,11 @@
 
 namespace lox::vm {
 class VirtualMachine : public BackEnd {
- public:
-  void Run(Scanner& scanner) override;
+public:
+  void Run(Scanner &scanner) override;
 
- private:
+private:
   VM vm_;
 };
-}  // namespace lox::vm
-#endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_VIRTUAL_MACHINE_H_
+} // namespace lox::vm
+#endif // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_VIRTUAL_MACHINE_H_

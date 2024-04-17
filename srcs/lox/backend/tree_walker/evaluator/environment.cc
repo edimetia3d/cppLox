@@ -9,7 +9,7 @@
 namespace lox::twalker {
 
 void Environment::Define(std::string var_name, ObjectPtr value) {
-  map[var_name] = value;  // redefine existing var is permitted
+  map[var_name] = value; // redefine existing var is permitted
 }
 
 bool Environment::Set(std::string var_name, ObjectPtr value) {
@@ -31,4 +31,4 @@ ObjectPtr Environment::Get(std::string var_name) {
   }
   return map[var_name];
 }
-}  // namespace lox::twalker
+} // namespace lox::twalker

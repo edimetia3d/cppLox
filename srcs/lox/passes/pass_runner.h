@@ -10,16 +10,16 @@
 #include "pass.h"
 namespace lox {
 class PassRunner {
- public:
+public:
   PassRunner() = default;
   void SetPass(PassSequence passes) { passes_ = passes; }
-  lox::Pass::IsModified Run(ASTNode* node);
-  lox::Pass::IsModified Run(Module* module);
+  lox::Pass::IsModified Run(ASTNode *node);
+  lox::Pass::IsModified Run(Module *module);
 
- private:
-  lox::Pass::IsModified RunPass(ASTNode* node, Pass* pass);
+private:
+  lox::Pass::IsModified RunPass(ASTNode *node, Pass *pass);
   PassSequence passes_;
 };
-}  // namespace lox
+} // namespace lox
 
-#endif  // CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_RUNNER_H_
+#endif // CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_RUNNER_H_

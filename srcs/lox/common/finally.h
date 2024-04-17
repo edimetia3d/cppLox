@@ -8,12 +8,12 @@
 #include <functional>
 namespace lox {
 class Finally {
- public:
+public:
   explicit Finally(std::function<void()> fn) : cleaner(std::move(fn)) {}
   ~Finally() { cleaner(); }
 
- private:
+private:
   std::function<void()> cleaner;
 };
-}  // namespace lox
-#endif  // LOX_SRCS_LOX_COMMON_FINALLY_H
+} // namespace lox
+#endif // LOX_SRCS_LOX_COMMON_FINALLY_H

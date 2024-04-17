@@ -14,6 +14,6 @@ class CompilationError : public LoxErrorWithExitCode<EX_DATAERR> {
 class RuntimeError : public LoxErrorWithExitCode<EX_SOFTWARE> {
   using LoxErrorWithExitCode<EX_SOFTWARE>::LoxErrorWithExitCode;
 };
-}  // namespace lox::vm
+} // namespace lox::vm
 
-#endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_ERRORS_H
+#endif // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_ERRORS_H

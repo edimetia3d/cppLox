@@ -13,7 +13,7 @@ add_mlir_dialect_library(MLIRLoxTransforms
     MLIRAnalysis
     MLIRSideEffectInterfaces
     MLIRTransforms
-    )
+)
 
 mlir_check_link_libraries(MLIRLoxTransforms)
 

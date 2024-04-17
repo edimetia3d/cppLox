@@ -11,7 +11,7 @@
 namespace lox::vm {
 
 class ChunkDump {
- public:
+public:
   explicit ChunkDump(const Chunk &chunk) : chunk(&chunk), latest_line_buf(1000, '\0') {}
 
   int DumpCodeAt(int offset) {
@@ -52,83 +52,83 @@ class ChunkDump {
     SPDLOG_DEBUG(ReleaseLatestLine());
   }
 
- private:
+private:
   int AppendInstruction(int offset) {
     auto instruction = static_cast<OpCode>(chunk->code[offset]);
     switch (instruction) {
-      case OpCode::OP_CONSTANT:
-        return ConstantInstruction("OP_CONSTANT", offset);
-      case OpCode::OP_NIL:
-        return SimpleInstruction("OP_NIL", offset);
-      case OpCode::OP_TRUE:
-        return SimpleInstruction("OP_TRUE", offset);
-      case OpCode::OP_FALSE:
-        return SimpleInstruction("OP_FALSE", offset);
-      case OpCode::OP_EQUAL:
-        return SimpleInstruction("OP_EQUAL", offset);
-      case OpCode::OP_GREATER:
-        return SimpleInstruction("OP_GREATER", offset);
-      case OpCode::OP_LESS:
-        return SimpleInstruction("OP_LESS", offset);
-      case OpCode::OP_ADD:
-        return SimpleInstruction("OP_ADD", offset);
-      case OpCode::OP_SUBTRACT:
-        return SimpleInstruction("OP_SUBTRACT", offset);
-      case OpCode::OP_MULTIPLY:
-        return SimpleInstruction("OP_MULTIPLY", offset);
-      case OpCode::OP_DIVIDE:
-        return SimpleInstruction("OP_DIVIDE", offset);
-      case OpCode::OP_NOT:
-        return SimpleInstruction("OP_NOT", offset);
-      case OpCode::OP_NEGATE:
-        return SimpleInstruction("OP_NEGATE", offset);
-      case OpCode::OP_RETURN:
-        return SimpleInstruction("OP_RETURN", offset);
-      case OpCode::OP_PRINT:
-        return SimpleInstruction("OP_PRINT", offset);
-      case OpCode::OP_POP:
-        return SimpleInstruction("OP_POP", offset);
-      case OpCode::OP_DEFINE_GLOBAL:
-        return ConstantInstruction("OP_DEFINE_GLOBAL", offset);
-      case OpCode::OP_GET_GLOBAL:
-        return ConstantInstruction("OP_GET_GLOBAL", offset);
-      case OpCode::OP_SET_GLOBAL:
-        return ConstantInstruction("OP_SET_GLOBAL", offset);
-      case OpCode::OP_GET_LOCAL:
-        return ByteInstruction("OP_GET_LOCAL", offset);
-      case OpCode::OP_SET_LOCAL:
-        return ByteInstruction("OP_SET_LOCAL", offset);
-      case OpCode::OP_JUMP:
-        return JumpInstruction("OP_JUMP", 1, offset);
-      case OpCode::OP_JUMP_IF_FALSE:
-        return JumpInstruction("OP_JUMP_IF_FALSE", 1, offset);
-      case OpCode::OP_JUMP_BACK:
-        return JumpInstruction("OP_JUMP_BACK", -1, offset);
-      case OpCode::OP_CALL:
-        return ByteInstruction("OP_CALL", offset);
-      case OpCode::OP_CLOSURE:
-        return ClosureInstruction(offset);
-      case OpCode::OP_GET_UPVALUE:
-        return ByteInstruction("OP_GET_UPVALUE", offset);
-      case OpCode::OP_SET_UPVALUE:
-        return ByteInstruction("OP_SET_UPVALUE", offset);
-      case OpCode::OP_CLASS:
-        return ConstantInstruction("OP_CLASS", offset);
-      case OpCode::OP_GET_ATTR:
-        return ConstantInstruction("OP_GET_ATTR", offset);
-      case OpCode::OP_SET_ATTR:
-        return ConstantInstruction("OP_SET_ATTR", offset);
-      case OpCode::OP_METHOD:
-        return ConstantInstruction("OP_METHOD", offset);
-      case OpCode::OP_INVOKE:
-        return InvokeInstruction("OP_INVOKE", offset);
-      case OpCode::OP_INHERIT:
-        return SimpleInstruction("OP_INHERIT", offset);
-      case OpCode::OP_INSTANCE_TYPE_CAST:
-        return SimpleInstruction("TYPE_CAST", offset);
-      default:
-        AppendLatestLine("Unknown opcode %d\n", (int)instruction);
-        return offset + 1;
+    case OpCode::OP_CONSTANT:
+      return ConstantInstruction("OP_CONSTANT", offset);
+    case OpCode::OP_NIL:
+      return SimpleInstruction("OP_NIL", offset);
+    case OpCode::OP_TRUE:
+      return SimpleInstruction("OP_TRUE", offset);
+    case OpCode::OP_FALSE:
+      return SimpleInstruction("OP_FALSE", offset);
+    case OpCode::OP_EQUAL:
+      return SimpleInstruction("OP_EQUAL", offset);
+    case OpCode::OP_GREATER:
+      return SimpleInstruction("OP_GREATER", offset);
+    case OpCode::OP_LESS:
+      return SimpleInstruction("OP_LESS", offset);
+    case OpCode::OP_ADD:
+      return SimpleInstruction("OP_ADD", offset);
+    case OpCode::OP_SUBTRACT:
+      return SimpleInstruction("OP_SUBTRACT", offset);
+    case OpCode::OP_MULTIPLY:
+      return SimpleInstruction("OP_MULTIPLY", offset);
+    case OpCode::OP_DIVIDE:
+      return SimpleInstruction("OP_DIVIDE", offset);
+    case OpCode::OP_NOT:
+      return SimpleInstruction("OP_NOT", offset);
+    case OpCode::OP_NEGATE:
+      return SimpleInstruction("OP_NEGATE", offset);
+    case OpCode::OP_RETURN:
+      return SimpleInstruction("OP_RETURN", offset);
+    case OpCode::OP_PRINT:
+      return SimpleInstruction("OP_PRINT", offset);
+    case OpCode::OP_POP:
+      return SimpleInstruction("OP_POP", offset);
+    case OpCode::OP_DEFINE_GLOBAL:
+      return ConstantInstruction("OP_DEFINE_GLOBAL", offset);
+    case OpCode::OP_GET_GLOBAL:
+      return ConstantInstruction("OP_GET_GLOBAL", offset);
+    case OpCode::OP_SET_GLOBAL:
+      return ConstantInstruction("OP_SET_GLOBAL", offset);
+    case OpCode::OP_GET_LOCAL:
+      return ByteInstruction("OP_GET_LOCAL", offset);
+    case OpCode::OP_SET_LOCAL:
+      return ByteInstruction("OP_SET_LOCAL", offset);
+    case OpCode::OP_JUMP:
+      return JumpInstruction("OP_JUMP", 1, offset);
+    case OpCode::OP_JUMP_IF_FALSE:
+      return JumpInstruction("OP_JUMP_IF_FALSE", 1, offset);
+    case OpCode::OP_JUMP_BACK:
+      return JumpInstruction("OP_JUMP_BACK", -1, offset);
+    case OpCode::OP_CALL:
+      return ByteInstruction("OP_CALL", offset);
+    case OpCode::OP_CLOSURE:
+      return ClosureInstruction(offset);
+    case OpCode::OP_GET_UPVALUE:
+      return ByteInstruction("OP_GET_UPVALUE", offset);
+    case OpCode::OP_SET_UPVALUE:
+      return ByteInstruction("OP_SET_UPVALUE", offset);
+    case OpCode::OP_CLASS:
+      return ConstantInstruction("OP_CLASS", offset);
+    case OpCode::OP_GET_ATTR:
+      return ConstantInstruction("OP_GET_ATTR", offset);
+    case OpCode::OP_SET_ATTR:
+      return ConstantInstruction("OP_SET_ATTR", offset);
+    case OpCode::OP_METHOD:
+      return ConstantInstruction("OP_METHOD", offset);
+    case OpCode::OP_INVOKE:
+      return InvokeInstruction("OP_INVOKE", offset);
+    case OpCode::OP_INHERIT:
+      return SimpleInstruction("OP_INHERIT", offset);
+    case OpCode::OP_INSTANCE_TYPE_CAST:
+      return SimpleInstruction("TYPE_CAST", offset);
+    default:
+      AppendLatestLine("Unknown opcode %d\n", (int)instruction);
+      return offset + 1;
     }
   }
 
@@ -246,4 +246,4 @@ void DumpChunkConstant(const Chunk *chunk) {
   dump.DumpConstant();
 }
 
-}  // namespace lox::vm
+} // namespace lox::vm

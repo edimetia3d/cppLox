@@ -28,12 +28,12 @@ struct Pass {
     YES,
   };
 
-  virtual IsModified PreNode(ASTNode* ast_node) = 0;
-  virtual IsModified PostNode(ASTNode* ast_node) = 0;
+  virtual IsModified PreNode(ASTNode *ast_node) = 0;
+  virtual IsModified PostNode(ASTNode *ast_node) = 0;
 };
 
 using PassSequence = std::vector<std::shared_ptr<Pass>>;
 
-}  // namespace lox
+} // namespace lox
 
-#endif  // CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_H_
+#endif // CPPLOX_SRCS_LOX_VISITORS_PASSES_PASS_H_

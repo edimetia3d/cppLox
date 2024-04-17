@@ -16,10 +16,10 @@ namespace lox::llvm_jit {
 struct ConvertedModule {
   std::unique_ptr<llvm::Module> def_module;
   std::unique_ptr<llvm::Module>
-      init_module;  // contains global expression that will be evaluated after def_module is loaded
+      init_module; // contains global expression that will be evaluated after def_module is loaded
 };
 
-ConvertedModule ConvertASTToLLVM(llvm::LLVMContext& context, lox::Module* root, KnownGlobalSymbol* known_global_symbol);
-}  // namespace lox::llvm_jit
+ConvertedModule ConvertASTToLLVM(llvm::LLVMContext &context, lox::Module *root, KnownGlobalSymbol *known_global_symbol);
+} // namespace lox::llvm_jit
 
-#endif  // LOX_AST_TO_LLVM_H
+#endif // LOX_AST_TO_LLVM_H

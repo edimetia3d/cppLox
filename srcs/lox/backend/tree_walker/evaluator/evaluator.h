@@ -29,53 +29,53 @@ namespace lox::twalker {
  * possible.
  */
 class Evaluator : public ASTNodeVisitor<ObjectPtr> {
- public:
+public:
   Evaluator();
-  void LaunchStmts(std::vector<StmtPtr>& stmts);
-  ObjectPtr Eval(ASTNode* node);
-  void Error(const std::string& msg);
+  void LaunchStmts(std::vector<StmtPtr> &stmts);
+  ObjectPtr Eval(ASTNode *node);
+  void Error(const std::string &msg);
   EnvPtr WorkEnv() { return work_env_; }
   EnvPtr SwitchEnv(EnvPtr new_env);
 
- protected:
-  void Visit(LogicalExpr* node) override;
-  void Visit(BinaryExpr* node) override;
-  void Visit(GroupingExpr* node) override;
-  void Visit(LiteralExpr* state) override;
-  void Visit(UnaryExpr* node) override;
-  void Visit(VariableExpr* node) override;
-  void Visit(AssignExpr* node) override;
-  void Visit(CallExpr* node) override;
-  void Visit(GetAttrExpr* node) override;
-  void Visit(SetAttrExpr* node) override;
-  void Visit(CommaExpr* node) override;
-  void Visit(ListExpr* node) override;
-  void Visit(GetItemExpr* node) override;
-  void Visit(TensorExpr* node) override;
+protected:
+  void Visit(LogicalExpr *node) override;
+  void Visit(BinaryExpr *node) override;
+  void Visit(GroupingExpr *node) override;
+  void Visit(LiteralExpr *state) override;
+  void Visit(UnaryExpr *node) override;
+  void Visit(VariableExpr *node) override;
+  void Visit(AssignExpr *node) override;
+  void Visit(CallExpr *node) override;
+  void Visit(GetAttrExpr *node) override;
+  void Visit(SetAttrExpr *node) override;
+  void Visit(CommaExpr *node) override;
+  void Visit(ListExpr *node) override;
+  void Visit(GetItemExpr *node) override;
+  void Visit(TensorExpr *node) override;
 
-  void Visit(PrintStmt* node) override;
-  void Visit(ReturnStmt* state) override;
-  void Visit(WhileStmt* state) override;
-  void Visit(ForStmt* node) override;
-  void Visit(ExprStmt* state) override;
-  void Visit(BreakStmt* state) override;
-  void Visit(VarDeclStmt* state) override;
-  void Visit(FunctionStmt* node) override;
-  void Visit(ClassStmt* node) override;
-  void Visit(BlockStmt* state) override;
-  void Visit(IfStmt* state) override;
+  void Visit(PrintStmt *node) override;
+  void Visit(ReturnStmt *state) override;
+  void Visit(WhileStmt *state) override;
+  void Visit(ForStmt *node) override;
+  void Visit(ExprStmt *state) override;
+  void Visit(BreakStmt *state) override;
+  void Visit(VarDeclStmt *state) override;
+  void Visit(FunctionStmt *node) override;
+  void Visit(ClassStmt *node) override;
+  void Visit(BlockStmt *state) override;
+  void Visit(IfStmt *state) override;
 
-  void NumberBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right);
-  void StringBinaryOp(const BinaryExpr* node, ObjectPtr left, ObjectPtr right);
+  void NumberBinaryOp(const BinaryExpr *node, ObjectPtr left, ObjectPtr right);
+  void StringBinaryOp(const BinaryExpr *node, ObjectPtr left, ObjectPtr right);
   /**
    * Used for closure capture, a env fork will be created, so later update of env will not affect the captured env.
    */
   EnvPtr ForkEnv();
-  ObjectPtr CreateClosure(FunctionStmt* function);
+  ObjectPtr CreateClosure(FunctionStmt *function);
 
   EnvPtr work_env_;
   const EnvPtr global_env_;
 };
 
-}  // namespace lox::twalker
-#endif  // CPPLOX_SRCS_LOX_EVALUATOR_EVAL_VISITOR_H_
+} // namespace lox::twalker
+#endif // CPPLOX_SRCS_LOX_EVALUATOR_EVAL_VISITOR_H_

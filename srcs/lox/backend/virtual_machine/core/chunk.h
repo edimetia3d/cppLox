@@ -31,5 +31,5 @@ struct Chunk {
   [[nodiscard]] std::size_t ChunkSize() const;
   std::size_t AddConstant(Value value);
 };
-}  // namespace lox::vm
-#endif  // CLOX_SRCS_CLOX_CHUNK_H_
+} // namespace lox::vm
+#endif // CLOX_SRCS_CLOX_CHUNK_H_

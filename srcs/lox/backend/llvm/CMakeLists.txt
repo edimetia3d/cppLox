@@ -19,5 +19,5 @@ target_link_libraries(lox.backend.llvm
     lox.common
     lox.backend.llvm.translation
     lox.backend.llvm.builtins
-    )
+)
 llvm_update_compile_flags(lox.backend.llvm)

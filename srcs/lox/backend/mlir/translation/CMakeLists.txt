@@ -15,6 +15,6 @@ target_link_libraries(lox.backend.mlir.translation
     MLIRIR
     MLIRLoxAll
     lox.common
-    )
+)
 
 mlir_check_all_link_libraries(lox.backend.mlir.translation)

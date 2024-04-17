@@ -12,14 +12,13 @@
 
 namespace lox::twalker {
 
-template <class DataType_>
-class TWObject : public lox::Object {
- public:
+template <class DataType_> class TWObject : public lox::Object {
+public:
   using DataType = DataType_;
-  explicit TWObject(const DataType_& data_) : data(data_) {}
-  explicit TWObject(DataType_&& data_) : data(std::move(data_)) {}
+  explicit TWObject(const DataType_ &data_) : data(data_) {}
+  explicit TWObject(DataType_ &&data_) : data(std::move(data_)) {}
 
-  std::vector<Object*> References() override { return {}; }
+  std::vector<Object *> References() override { return {}; }
 
   DataType_ data;
 };
@@ -32,7 +31,7 @@ struct ReturnValueException : public std::exception {
 
 class Evaluator;
 class ICallable {
- public:
+public:
   virtual int Arity() = 0;
   /**
    * A callable could:
@@ -43,50 +42,50 @@ class ICallable {
    * 1. for we did ot use enable_shared_from_this, we can not get shared this from definition,
    * the param this_in_sp should be given by caller
    */
-  virtual ObjectPtr Call(Evaluator* evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) = 0;
+  virtual ObjectPtr Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) = 0;
 };
 
 class Bool : public TWObject<bool> {
- public:
+public:
   using TWObject<DataType>::TWObject;
   bool IsTrue() const override { return data; }
   std::string Str() const override { return (data ? "true" : "false"); }
-  bool Equal(const Object* rhs) const override { return rhs->DynAs<Bool>() && rhs->As<Bool>()->data == data; }
+  bool Equal(const Object *rhs) const override { return rhs->DynAs<Bool>() && rhs->As<Bool>()->data == data; }
 };
 
 class Number : public TWObject<double> {
- public:
+public:
   using TWObject<DataType>::TWObject;
   std::string Str() const override {
     std::vector<char> buf(30);
     snprintf(buf.data(), buf.size(), "%g", data);
     return buf.data();
   }
-  bool Equal(const Object* rhs) const override { return rhs->DynAs<Number>() && rhs->As<Number>()->data == data; }
+  bool Equal(const Object *rhs) const override { return rhs->DynAs<Number>() && rhs->As<Number>()->data == data; }
 };
 
 class String : public TWObject<std::string> {
- public:
+public:
   using TWObject<DataType>::TWObject;
   std::string Str() const override { return data; }
-  bool Equal(const Object* rhs) const override { return rhs->DynAs<String>() && rhs->As<String>()->data == data; }
+  bool Equal(const Object *rhs) const override { return rhs->DynAs<String>() && rhs->As<String>()->data == data; }
 };
 
 class Nil : public lox::Object {
- public:
+public:
   using lox::Object::Object;
   bool IsTrue() const override { return false; }
   std::string Str() const override { return "nil"; }
-  std::vector<Object*> References() override { return {}; }
-  bool Equal(const Object* rhs) const override { return rhs->DynAs<Nil>(); }
+  std::vector<Object *> References() override { return {}; }
+  bool Equal(const Object *rhs) const override { return rhs->DynAs<Nil>(); }
 };
 
 class List : public TWObject<std::vector<ObjectPtr>> {
- public:
+public:
   using TWObject<DataType>::TWObject;
   std::string Str() const override;
-  std::vector<Object*> References() override { return {}; }
-  bool Equal(const Object* rhs) const override;
+  std::vector<Object *> References() override { return {}; }
+  bool Equal(const Object *rhs) const override;
 };
 
 // todo: support more dtype
@@ -101,11 +100,11 @@ struct TensorData {
 };
 
 class Tensor : public TWObject<TensorData> {
- public:
+public:
   using TWObject<DataType>::TWObject;
   std::string Str() const override;
-  std::vector<Object*> References() override { return {}; }
-  bool Equal(const Object* rhs) const override;
+  std::vector<Object *> References() override { return {}; }
+  bool Equal(const Object *rhs) const override;
 };
 
 class Klass;
@@ -113,29 +112,29 @@ struct InstanceData {
   using DictT = std::map<std::string, ObjectPtr>;
   InstanceData() noexcept;
   ObjectPtr klass;
-  DictT& dict() { return *dict_; }
+  DictT &dict() { return *dict_; }
 
- private:
+private:
   std::shared_ptr<DictT> dict_;
 };
 
 class Instance : public TWObject<InstanceData> {
- public:
+public:
   using TWObject<DataType>::TWObject;
   std::string Str() const override;
 };
 
 class Environment;
 struct ClosureData {
-  bool is_initializer = false;  // only method could use this
-  EnvPtr closed;                // note that when created, `closed` is a capture of the caller's environment
-  FunctionStmt* function;
+  bool is_initializer = false; // only method could use this
+  EnvPtr closed;               // note that when created, `closed` is a capture of the caller's environment
+  FunctionStmt *function;
 };
 
 class Closure : public TWObject<ClosureData>, public ICallable {
- public:
+public:
   using TWObject<DataType>::TWObject;
-  ObjectPtr Call(Evaluator* evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) override;
+  ObjectPtr Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) override;
   int Arity() override;
   std::string Str() const override;
 };
@@ -148,20 +147,20 @@ struct KlassData {
 };
 
 class Klass : public TWObject<KlassData>, public ICallable {
- public:
+public:
   using TWObject<DataType>::TWObject;
   int Arity() override;
-  ObjectPtr Call(Evaluator* evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) override;
+  ObjectPtr Call(Evaluator *evaluator, ObjectPtr this_in_sp, std::vector<ObjectPtr> arguments) override;
   std::string Str() const override;
 
   /**
    * GetMethod will always return a bounded method (closure object will "this" in environment)
    */
-  ObjectPtr GetMethod(ObjectPtr object_this, const std::string& name);
+  ObjectPtr GetMethod(ObjectPtr object_this, const std::string &name);
 
-  void AddMethod(const std::string& name, ObjectPtr method);
+  void AddMethod(const std::string &name, ObjectPtr method);
 };
 
-}  // namespace lox::twalker
+} // namespace lox::twalker
 
-#endif  // LOX_SRCS_LOX_BACKEND_TREE_WALKER_EVALUATOR_RUNTIME_OBJECT_H
+#endif // LOX_SRCS_LOX_BACKEND_TREE_WALKER_EVALUATOR_RUNTIME_OBJECT_H

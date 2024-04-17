@@ -13,4 +13,4 @@ void TreeWalker::Run(Scanner &scanner) {
   evaluator_->LaunchStmts(lox_module->Statements());
 }
 
-}  // namespace lox
+} // namespace lox::twalker

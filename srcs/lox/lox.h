@@ -12,7 +12,7 @@
 namespace lox {
 class BackEnd;
 class LoxInterpreter {
- public:
+public:
   explicit LoxInterpreter();
   static std::string CLIHelpString();
 
@@ -26,5 +26,5 @@ private:
   std::shared_ptr<BackEnd> back_end_;
 };
 
-}  // namespace lox
-#endif  // CPPLOX_INCLUDES_LOX_LOX_H_
+} // namespace lox
+#endif // CPPLOX_INCLUDES_LOX_LOX_H_

@@ -5,8 +5,8 @@
 #ifndef CLOX_SRCS_CLOX_CLOX_VALUE_H_
 #define CLOX_SRCS_CLOX_CLOX_VALUE_H_
 
-#include <cassert>
 #include "lox/object/object.h"
+#include <cassert>
 
 namespace lox {
 
@@ -15,7 +15,7 @@ struct Value {
   Value() : type(ValueType::NIL), as{.number = 0} {};
   explicit Value(double number) : type(ValueType::NUMBER), as{.number = number} {}
   explicit Value(bool boolean) : type(ValueType::BOOL), as{.boolean = boolean} {}
-  explicit Value(Object* obj) : type(ValueType::OBJECT), as{.object = obj} {}
+  explicit Value(Object *obj) : type(ValueType::OBJECT), as{.object = obj} {}
   [[nodiscard]] bool AsBool() const {
     assert(IsBool());
     return as.boolean;
@@ -24,11 +24,11 @@ struct Value {
     assert(IsNumber());
     return as.number;
   };
-  [[nodiscard]] const Object* AsObject() const {
+  [[nodiscard]] const Object *AsObject() const {
     assert(IsObject());
     return as.object;
   }
-  Object* AsObject() {
+  Object *AsObject() {
     assert(IsObject());
     return as.object;
   }
@@ -43,14 +43,14 @@ struct Value {
 
   [[nodiscard]] bool IsTrue() const;
 
- private:
+private:
   ValueType type;
   union {
     bool boolean;
     double number;
-    Object* object;
+    Object *object;
   } as;
 };
 
-}  // namespace lox
-#endif  // CLOX_SRCS_CLOX_CLOX_VALUE_H_
+} // namespace lox
+#endif // CLOX_SRCS_CLOX_CLOX_VALUE_H_

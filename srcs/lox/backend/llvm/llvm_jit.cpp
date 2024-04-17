@@ -16,11 +16,11 @@
 
 #include <map>
 
-#include "lox/passes/ast_printer/ast_printer.h"
 #include "lox/backend/llvm/builtins/builtin.h"
 #include "lox/backend/llvm/translation/ast_to_llvm.h"
 #include "lox/common/global_setting.h"
 #include "lox/frontend/parser.h"
+#include "lox/passes/ast_printer/ast_printer.h"
 
 namespace lox::llvm_jit {
 
@@ -29,19 +29,21 @@ class RuntimeError : public LoxErrorWithExitCode<EX_SOFTWARE> {
 };
 
 class LLVMJITImpl : public BackEnd {
- public:
+public:
   LLVMJITImpl() {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
 
     auto expectJIT = llvm::orc::LLJITBuilder().create();
-    if (!expectJIT) throw RuntimeError(toString(expectJIT.takeError()));
+    if (!expectJIT)
+      throw RuntimeError(toString(expectJIT.takeError()));
     JIT_ = std::move(expectJIT.get());
     // export symbols in current process
     auto &DL = JIT_->getDataLayout();
     auto DLSG = llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL.getGlobalPrefix());
-    if (!DLSG) throw RuntimeError(toString(DLSG.takeError()));
+    if (!DLSG)
+      throw RuntimeError(toString(DLSG.takeError()));
     JIT_->getMainJITDylib().addGenerator(std::move(*DLSG));
 
     // register builtin functions
@@ -77,7 +79,7 @@ class LLVMJITImpl : public BackEnd {
 
   void InvokeInitAndDiscard(std::unique_ptr<llvm::Module> init_module);
 
- private:
+private:
   std::map<llvm::Module *, std::unique_ptr<llvm::legacy::FunctionPassManager>> FPM_;
   std::unique_ptr<llvm::orc::LLJIT> JIT_;
   llvm::orc::ThreadSafeContext TSCtx_;
@@ -92,11 +94,11 @@ class LLVMJITImpl : public BackEnd {
     }
   }
 
-  template <class RetT>
-  RetT Invoke(const std::string &name) {
+  template <class RetT> RetT Invoke(const std::string &name) {
     // look up
     auto EntrySym = JIT_->lookup(name);
-    if (!EntrySym) throw RuntimeError(toString(EntrySym.takeError()));
+    if (!EntrySym)
+      throw RuntimeError(toString(EntrySym.takeError()));
     // call
     auto *Entry = EntrySym->template toPtr<RetT (*)()>();
     return Entry();
@@ -154,4 +156,4 @@ void LLVMJITImpl::InvokeInitAndDiscard(std::unique_ptr<llvm::Module> init_module
   }
 }
 
-}  // namespace lox::llvm_jit
+} // namespace lox::llvm_jit

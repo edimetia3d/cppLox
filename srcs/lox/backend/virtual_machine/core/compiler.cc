@@ -17,8 +17,6 @@
 // there is always a stack used by function pointer
 namespace lox::vm {
 
-
-
 enum class ScopeType { UNKOWN, BLOCK, IF_ELSE, WHILE, FOR, FUNCTION, CLASS };
 
 /**
@@ -43,8 +41,8 @@ struct ScopeGuard {
   }
   ~ScopeGuard() {
     if (type == ScopeType::FUNCTION) {
-      return;  // function scope is cleared by a frame switch at runtime, all stack variables in the frame will be
-               // discarded.
+      return; // function scope is cleared by a frame switch at runtime, all stack variables in the frame will be
+              // discarded.
     }
 
     int var_num_of_just_out_of_scope = OutOfScopeVar();
@@ -150,7 +148,8 @@ void Compiler::AnyExpression(InfixPrecedence lower_bound) {
 }
 
 bool Compiler::MatchAndAdvance(TokenType type) {
-  if (!CheckCurrentTokenType(type)) return false;
+  if (!CheckCurrentTokenType(type))
+    return false;
   Advance();
   return true;
 }
@@ -219,23 +218,23 @@ void Compiler::ExpressionStmt() {
 void Compiler::Synchronize() {
   while (current->type != TokenType::EOF_TOKEN) {
     switch (previous->type) {
-      case TokenType::SEMICOLON:
-        return;
-      default:
-        break;  // do nothing
+    case TokenType::SEMICOLON:
+      return;
+    default:
+      break; // do nothing
     };
     switch (current->type) {
-      case TokenType::CLASS:
-      case TokenType::FUN:
-      case TokenType::VAR:
-      case TokenType::FOR:
-      case TokenType::IF:
-      case TokenType::WHILE:
-      case TokenType::PRINT:
-      case TokenType::RETURN:
-        return;
-      default:
-        break;  // Do nothing.
+    case TokenType::CLASS:
+    case TokenType::FUN:
+    case TokenType::VAR:
+    case TokenType::FOR:
+    case TokenType::IF:
+    case TokenType::WHILE:
+    case TokenType::PRINT:
+    case TokenType::RETURN:
+      return;
+    default:
+      break; // Do nothing.
     }
 
     Advance();
@@ -273,12 +272,12 @@ void Compiler::IfStmt() {
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
 
   auto jump_to_else = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
-  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
+  cu_->EmitByte(OpCode::OP_POP); // discard the condition
   // these expressions are allowed technically, but lox disable them on purpose
   AnyStatement({TokenType::CLASS, TokenType::FUN, TokenType::VAR}, "Expect expression.");
   auto jump_to_exit = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
   cu_->JumpHerePatch(jump_to_else);
-  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
+  cu_->EmitByte(OpCode::OP_POP); // discard the condition
   if (MatchAndAdvance(TokenType::ELSE)) {
     // these expressions are allowed technically, but lox disable them on purpose
     AnyStatement({TokenType::CLASS, TokenType::FUN, TokenType::VAR}, "Expect expression.");
@@ -290,18 +289,18 @@ void Compiler::WhileStmt() {
   ScopeGuard guard(cu_, ScopeType::WHILE);
   int loop_begin_offset = cu_->FuncChunk()->ChunkSize();
   cu_->loop_infos.back().beg_offset =
-      loop_begin_offset;  // save the loop begin offset, so we can `continue` to here later
+      loop_begin_offset; // save the loop begin offset, so we can `continue` to here later
   Consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
   AnyExpression();
   Consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
 
   auto exitJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
-  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
+  cu_->EmitByte(OpCode::OP_POP); // discard the condition
   // these expressions are allowed technically, but lox disable them on purpose
   AnyStatement({TokenType::CLASS, TokenType::FUN, TokenType::VAR}, "Expect expression.");
   cu_->EmitJumpBack(loop_begin_offset);
   cu_->JumpHerePatch(exitJump);
-  cu_->EmitByte(OpCode::OP_POP);  // discard the condition
+  cu_->EmitByte(OpCode::OP_POP); // discard the condition
 }
 
 void Compiler::ForStmt() {
@@ -318,7 +317,7 @@ void Compiler::ForStmt() {
 
   int loop_begin_offset = cu_->FuncChunk()->ChunkSize();
   cu_->loop_infos.back().beg_offset =
-      loop_begin_offset;  // save the loop begin offset, so we can `continue` to here later
+      loop_begin_offset; // save the loop begin offset, so we can `continue` to here later
   FunctionUnit::JumpDownHole exitJump;
   if (!MatchAndAdvance(TokenType::SEMICOLON)) {
     AnyExpression();
@@ -326,14 +325,14 @@ void Compiler::ForStmt() {
 
     // Jump out of the loop if the condition is false.
     exitJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
-    cu_->EmitByte(OpCode::OP_POP);  // Condition.
+    cu_->EmitByte(OpCode::OP_POP); // Condition.
   }
 
   if (!MatchAndAdvance(TokenType::RIGHT_PAREN)) {
     auto bodyJump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
     int incrementStart = cu_->FuncChunk()->ChunkSize();
-    AnyExpression();                // this will leave a value on top of stack
-    cu_->EmitByte(OpCode::OP_POP);  // discard stack top
+    AnyExpression();               // this will leave a value on top of stack
+    cu_->EmitByte(OpCode::OP_POP); // discard stack top
     Consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
 
     cu_->EmitJumpBack(loop_begin_offset);
@@ -346,7 +345,7 @@ void Compiler::ForStmt() {
   cu_->EmitJumpBack(loop_begin_offset);
   if (exitJump.beg_offset != -1) {
     cu_->JumpHerePatch(exitJump);
-    cu_->EmitByte(OpCode::OP_POP);  // Condition.
+    cu_->EmitByte(OpCode::OP_POP); // Condition.
   }
 }
 void Compiler::BreakOrContinueStmt() {
@@ -371,7 +370,7 @@ void Compiler::BreakOrContinueStmt() {
     cu_->loop_infos.back().breaks.push_back(jump);
   } else if (previous->type == TokenType::CONTINUE) {
     cu_->CleanUpNLocalFromTail(
-        clear_size - cu_->loop_infos.back().contains_init_value);  // a continue may need to keep the init value
+        clear_size - cu_->loop_infos.back().contains_init_value); // a continue may need to keep the init value
     assert(cu_->loop_infos.back().beg_offset > 0);
     cu_->EmitJumpBack(cu_->loop_infos.back().beg_offset);
   } else {
@@ -388,7 +387,7 @@ void Compiler::FunStmt() {
 }
 void Compiler::CreateFunc(FunctionType type) {
   PushCU(type, previous->lexeme);
-  ScopeGuard guard(cu_, ScopeType::FUNCTION);  // function and method share the same scope type
+  ScopeGuard guard(cu_, ScopeType::FUNCTION); // function and method share the same scope type
 
   Consume(TokenType::LEFT_PAREN, "Expect '(' after function name.");
   if (!CheckCurrentTokenType(TokenType::RIGHT_PAREN)) {
@@ -486,13 +485,13 @@ void Compiler::ClassDefStmt() {
     }
     current_class->superclass = &all_classes[superclass_name->lexeme];
     GetNamedValue(class_name);
-    cu_->EmitByte(OpCode::OP_INHERIT);  // inherit will consume the two class object on stack, and leaves nothing on
-                                        // stack, so stmt rule will be followed
+    cu_->EmitByte(OpCode::OP_INHERIT); // inherit will consume the two class object on stack, and leaves nothing on
+                                       // stack, so stmt rule will be followed
   }
   // we give a new semantic scope to class, so it could be treated as a local scope, to enable the ability to close
   // values
   ScopeGuard guard(cu_, ScopeType::CLASS);
-  GetNamedValue(class_name);  // put the class object on stack, so later method define could use it
+  GetNamedValue(class_name); // put the class object on stack, so later method define could use it
   Consume(TokenType::LEFT_BRACE, "Expect '{' before class body.");
   while (!CheckCurrentTokenType(TokenType::RIGHT_BRACE) && !CheckCurrentTokenType(TokenType::EOF_TOKEN)) {
     Consume(TokenType::IDENTIFIER, "Expect Method name.");
@@ -502,10 +501,10 @@ void Compiler::ClassDefStmt() {
       Type = FunctionType::INITIALIZER;
     }
     CreateFunc(Type);
-    cu_->EmitBytes(OpCode::OP_METHOD, fn_name_cst);  // just move the objClosure on stack to the class object's dict
+    cu_->EmitBytes(OpCode::OP_METHOD, fn_name_cst); // just move the objClosure on stack to the class object's dict
   }
   Consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
-  cu_->EmitByte(OpCode::OP_POP);  // pop the class object, for class def is always a stmt.
+  cu_->EmitByte(OpCode::OP_POP); // pop the class object, for class def is always a stmt.
 }
 
 void Compiler::PushCU(FunctionType type, const std::string &name) {
@@ -514,7 +513,7 @@ void Compiler::PushCU(FunctionType type, const std::string &name) {
       [this](const char *msg) { this->ErrorAt(this->previous, msg); });
 }
 std::unique_ptr<FunctionUnit> Compiler::PopCU() {
-  cu_->EmitDefaultReturn();  // always inject a default return to make sure the function ends
+  cu_->EmitDefaultReturn(); // always inject a default return to make sure the function ends
 #ifndef NDEBUG
   if (GlobalSetting().debug) {
     SPDLOG_DEBUG("=========== {:^20} CODE  ===========", cu_->func->name);
@@ -536,93 +535,93 @@ void Compiler::GetNamedValue(Token name) {
 
 void Compiler::EmitPrefix() {
   switch (previous->type) {
-    case TokenType::LEFT_PAREN: {
-      AnyExpression();
-      Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-      break;
-    }
-    case TokenType::MINUS:
-      [[fallthrough]];
-    case TokenType::BANG: {
-      auto op_type = previous->type;
-      AnyExpression(InfixPrecedence::UNARY);
-      cu_->EmitUnary(op_type);
-      break;
-    }
-    case TokenType::IDENTIFIER: {
-      if (IsAccessingClassAttr(previous, current)) {
-        EmitClassAttrAccess(previous);
-      } else {
-        auto handle = cu_->ResolveNamedValue(previous);
-        if (MatchAndAdvance(TokenType::EQUAL)) {
-          if (CanAssign()) {
-            AnyExpression();
-            cu_->EmitBytes(handle.set_op, handle.reslove.position);
-          } else {
-            ErrorAt(previous, "Invalid assignment target.");
-          }
+  case TokenType::LEFT_PAREN: {
+    AnyExpression();
+    Consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+    break;
+  }
+  case TokenType::MINUS:
+    [[fallthrough]];
+  case TokenType::BANG: {
+    auto op_type = previous->type;
+    AnyExpression(InfixPrecedence::UNARY);
+    cu_->EmitUnary(op_type);
+    break;
+  }
+  case TokenType::IDENTIFIER: {
+    if (IsAccessingClassAttr(previous, current)) {
+      EmitClassAttrAccess(previous);
+    } else {
+      auto handle = cu_->ResolveNamedValue(previous);
+      if (MatchAndAdvance(TokenType::EQUAL)) {
+        if (CanAssign()) {
+          AnyExpression();
+          cu_->EmitBytes(handle.set_op, handle.reslove.position);
         } else {
-          cu_->EmitBytes(handle.get_op, handle.reslove.position);
+          ErrorAt(previous, "Invalid assignment target.");
         }
-      }
-      break;
-    }
-    case TokenType::STRING: {
-      std::string tmp = previous->lexeme;
-      *tmp.rbegin() = '\0';
-      cu_->EmitConstant(Value(Symbol::Intern(tmp.c_str() + 1)));
-      break;
-    }
-    case TokenType::NUMBER: {
-      cu_->EmitConstant(lox::Value(std::stod(previous->lexeme)));
-      break;
-    }
-    case TokenType::TRUE_TOKEN:
-      [[fallthrough]];
-    case TokenType::FALSE_TOKEN:
-      [[fallthrough]];
-    case TokenType::NIL: {
-      cu_->EmitLiteral(previous->type);
-      break;
-    }
-    case TokenType::THIS: {
-      if (current_class == nullptr) {
-        ErrorAt(previous, "Can't use 'this' outside of a class.");
-      }
-      GetNamedValue(previous);
-      break;
-    }
-    case TokenType::SUPER: {
-      if (!current_class) {
-        ErrorAt(previous, "Can't use 'super' outside of a class.");
-      } else if (!current_class->superclass) {
-        ErrorAt(previous, "Can't use 'super' in a class with no superclass.");
       } else {
-        EmitClassAttrAccess(current_class->superclass->name_token);
-#ifdef UPSTREAM_STYLE_ERROR_MSG
-        if (!CheckCurrentTokenType(TokenType::DOT)) {
-          ErrorAt(current, "Expect '.' after 'super'.");
-        }
-        if (auto op_info = InfixOpInfoMap::Get(current)) {
-          if ((op_info->precedence > last_expr_lower_bound ||
-               (op_info->precedence == last_expr_lower_bound &&
-                op_info->associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
-            Advance();
-            if (!CheckCurrentTokenType(TokenType::IDENTIFIER)) {
-              ErrorAt(current, "Expect superclass method name.");
-            }
-            EmitInfix();
-          } else {
-            ErrorAt(current, "Unexpected precedence");
-          }
-        }
-#endif
+        cu_->EmitBytes(handle.get_op, handle.reslove.position);
       }
-
-      break;
     }
-    default:
-      ErrorAt(previous, "Expect expression.");
+    break;
+  }
+  case TokenType::STRING: {
+    std::string tmp = previous->lexeme;
+    *tmp.rbegin() = '\0';
+    cu_->EmitConstant(Value(Symbol::Intern(tmp.c_str() + 1)));
+    break;
+  }
+  case TokenType::NUMBER: {
+    cu_->EmitConstant(lox::Value(std::stod(previous->lexeme)));
+    break;
+  }
+  case TokenType::TRUE_TOKEN:
+    [[fallthrough]];
+  case TokenType::FALSE_TOKEN:
+    [[fallthrough]];
+  case TokenType::NIL: {
+    cu_->EmitLiteral(previous->type);
+    break;
+  }
+  case TokenType::THIS: {
+    if (current_class == nullptr) {
+      ErrorAt(previous, "Can't use 'this' outside of a class.");
+    }
+    GetNamedValue(previous);
+    break;
+  }
+  case TokenType::SUPER: {
+    if (!current_class) {
+      ErrorAt(previous, "Can't use 'super' outside of a class.");
+    } else if (!current_class->superclass) {
+      ErrorAt(previous, "Can't use 'super' in a class with no superclass.");
+    } else {
+      EmitClassAttrAccess(current_class->superclass->name_token);
+#ifdef UPSTREAM_STYLE_ERROR_MSG
+      if (!CheckCurrentTokenType(TokenType::DOT)) {
+        ErrorAt(current, "Expect '.' after 'super'.");
+      }
+      if (auto op_info = InfixOpInfoMap::Get(current)) {
+        if ((op_info->precedence > last_expr_lower_bound ||
+             (op_info->precedence == last_expr_lower_bound &&
+              op_info->associativity == InfixAssociativity::RIGHT_TO_LEFT))) {
+          Advance();
+          if (!CheckCurrentTokenType(TokenType::IDENTIFIER)) {
+            ErrorAt(current, "Expect superclass method name.");
+          }
+          EmitInfix();
+        } else {
+          ErrorAt(current, "Unexpected precedence");
+        }
+      }
+#endif
+    }
+
+    break;
+  }
+  default:
+    ErrorAt(previous, "Expect expression.");
   }
 }
 void Compiler::EmitClassAttrAccess(Token class_token) {
@@ -671,76 +670,76 @@ void Compiler::EmitInfix() {
    */
 
   switch (previous->type) {
-    case TokenType::LEFT_PAREN: {
-      cu_->EmitBytes(OpCode::OP_CALL, ArgumentList());
-      break;
-    }
-    case TokenType::DOT: {
-      Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
-      uint8_t attr_name = cu_->GetSymbolConstant(previous->lexeme);
+  case TokenType::LEFT_PAREN: {
+    cu_->EmitBytes(OpCode::OP_CALL, ArgumentList());
+    break;
+  }
+  case TokenType::DOT: {
+    Consume(TokenType::IDENTIFIER, "Expect property name after '.'.");
+    uint8_t attr_name = cu_->GetSymbolConstant(previous->lexeme);
 
-      if (CanAssign() && MatchAndAdvance(TokenType::EQUAL)) {
-        AnyExpression();
-        cu_->EmitBytes(OpCode::OP_SET_ATTR, attr_name);
-      } else if (MatchAndAdvance(TokenType::LEFT_PAREN)) {
-        uint8_t ArgCount = ArgumentList();
-        cu_->EmitBytes(OpCode::OP_INVOKE, attr_name);
-        cu_->EmitByte(ArgCount);
-      } else {
-        cu_->EmitBytes(OpCode::OP_GET_ATTR, attr_name);
-      }
-      break;
+    if (CanAssign() && MatchAndAdvance(TokenType::EQUAL)) {
+      AnyExpression();
+      cu_->EmitBytes(OpCode::OP_SET_ATTR, attr_name);
+    } else if (MatchAndAdvance(TokenType::LEFT_PAREN)) {
+      uint8_t ArgCount = ArgumentList();
+      cu_->EmitBytes(OpCode::OP_INVOKE, attr_name);
+      cu_->EmitByte(ArgCount);
+    } else {
+      cu_->EmitBytes(OpCode::OP_GET_ATTR, attr_name);
     }
-    case TokenType::EQUAL: {
-      ErrorAt(previous, "Invalid assignment target.");
-    }
-    case TokenType::MINUS:
-      [[fallthrough]];
-    case TokenType::PLUS:
-      [[fallthrough]];
-    case TokenType::SLASH:
-      [[fallthrough]];
-    case TokenType::STAR:
-      [[fallthrough]];
-    case TokenType::BANG_EQUAL:
-      [[fallthrough]];
-    case TokenType::EQUAL_EQUAL:
-      [[fallthrough]];
-    case TokenType::GREATER:
-      [[fallthrough]];
-    case TokenType::GREATER_EQUAL:
-      [[fallthrough]];
-    case TokenType::LESS:
-      [[fallthrough]];
-    case TokenType::LESS_EQUAL: {
-      TokenType op_token = previous->type;
-      AnyExpression(InfixOpInfoMap::Get(op_token)->precedence);
-      cu_->EmitBinary(op_token);
-      break;
-    }
-    case TokenType::AND: {
-      auto end_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+    break;
+  }
+  case TokenType::EQUAL: {
+    ErrorAt(previous, "Invalid assignment target.");
+  }
+  case TokenType::MINUS:
+    [[fallthrough]];
+  case TokenType::PLUS:
+    [[fallthrough]];
+  case TokenType::SLASH:
+    [[fallthrough]];
+  case TokenType::STAR:
+    [[fallthrough]];
+  case TokenType::BANG_EQUAL:
+    [[fallthrough]];
+  case TokenType::EQUAL_EQUAL:
+    [[fallthrough]];
+  case TokenType::GREATER:
+    [[fallthrough]];
+  case TokenType::GREATER_EQUAL:
+    [[fallthrough]];
+  case TokenType::LESS:
+    [[fallthrough]];
+  case TokenType::LESS_EQUAL: {
+    TokenType op_token = previous->type;
+    AnyExpression(InfixOpInfoMap::Get(op_token)->precedence);
+    cu_->EmitBinary(op_token);
+    break;
+  }
+  case TokenType::AND: {
+    auto end_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
 
-      cu_->EmitByte(OpCode::OP_POP);
-      AnyExpression(InfixPrecedence::AND);
+    cu_->EmitByte(OpCode::OP_POP);
+    AnyExpression(InfixPrecedence::AND);
 
-      cu_->JumpHerePatch(end_jump);
-      break;
-    }
-    case TokenType::OR: {
-      auto else_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
-      auto end_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
+    cu_->JumpHerePatch(end_jump);
+    break;
+  }
+  case TokenType::OR: {
+    auto else_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP_IF_FALSE);
+    auto end_jump = cu_->CreateJumpDownHole(OpCode::OP_JUMP);
 
-      cu_->JumpHerePatch(else_jump);
-      cu_->EmitByte(OpCode::OP_POP);
+    cu_->JumpHerePatch(else_jump);
+    cu_->EmitByte(OpCode::OP_POP);
 
-      AnyExpression(InfixPrecedence::OR);
-      cu_->JumpHerePatch(end_jump);
-      break;
-    }
-    default:
-      ErrorAt(previous, "Expect expression.");
+    AnyExpression(InfixPrecedence::OR);
+    cu_->JumpHerePatch(end_jump);
+    break;
+  }
+  default:
+    ErrorAt(previous, "Expect expression.");
   }
 }
 Compiler::~Compiler() { GC::Instance().markers.erase(this); }
-}  // namespace lox::vm
+} // namespace lox::vm

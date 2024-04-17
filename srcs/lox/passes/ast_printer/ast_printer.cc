@@ -5,57 +5,57 @@
 
 namespace lox {
 
-void AstPrinter::Visit(LogicalExpr* node) {
+void AstPrinter::Visit(LogicalExpr *node) {
   std::string left_expr = Print(node->left.get());
   std::string op = node->attr->op->lexeme;
   std::string right_expr = Print(node->right.get());
   VisitorReturn(left_expr + " " + op + " " + right_expr);
 }
 
-void lox::AstPrinter::Visit(BinaryExpr* node) {
+void lox::AstPrinter::Visit(BinaryExpr *node) {
   std::string left_expr = Print(node->left.get());
   std::string op = node->attr->op->lexeme;
   std::string right_expr = Print(node->right.get());
   VisitorReturn(left_expr + " " + op + " " + right_expr);
 }
-void AstPrinter::Visit(LiteralExpr* node) { VisitorReturn(node->attr->value->lexeme); }
-void lox::AstPrinter::Visit(GroupingExpr* node) {
+void AstPrinter::Visit(LiteralExpr *node) { VisitorReturn(node->attr->value->lexeme); }
+void lox::AstPrinter::Visit(GroupingExpr *node) {
   VisitorReturn(std::string("(") + Print(node->expression.get()) + ")");
 }
 void AstPrinter::Visit(UnaryExpr *node) { VisitorReturn(node->attr->op->lexeme.Str() + Print(node->right.get())); }
-void AstPrinter::Visit(VariableExpr* node) { VisitorReturn(node->attr->name->lexeme); }
+void AstPrinter::Visit(VariableExpr *node) { VisitorReturn(node->attr->name->lexeme); }
 void AstPrinter::Visit(AssignExpr *node) {
   VisitorReturn(node->attr->name->lexeme.Str() + " = " + Print(node->value.get()));
 }
-void AstPrinter::Visit(CallExpr* node) {
+void AstPrinter::Visit(CallExpr *node) {
   std::string ret = "";
   ret = ret + Print(node->callee.get()) + "(";
   ret += Print(node->comma_expr_args.get());
   VisitorReturn(ret + ")");
 }
 
-void AstPrinter::Visit(PrintStmt* node) {
+void AstPrinter::Visit(PrintStmt *node) {
   VisitorReturn(Indentation() + std::string("print ") + Print(node->expression.get()) + ";\n");
 }
-void AstPrinter::Visit(ExprStmt* node) { VisitorReturn(Indentation() + Print(node->expression.get()) + ";\n"); }
-void AstPrinter::Visit(VarDeclStmt* node) {
+void AstPrinter::Visit(ExprStmt *node) { VisitorReturn(Indentation() + Print(node->expression.get()) + ";\n"); }
+void AstPrinter::Visit(VarDeclStmt *node) {
   std::string init = "";
   if (node->initializer) {
     init = " = " + Print(node->initializer.get());
   }
   VisitorReturn(Indentation() + std::string("var ") + node->attr->name->lexeme.Str() + init + ";\n");
 }
-void AstPrinter::Visit(BlockStmt* node) {
+void AstPrinter::Visit(BlockStmt *node) {
   auto indentation = Indentation();
   std::string ret = indentation + "{\n";
   SemanticLevelGuard guard(this);
-  for (auto& stmt : node->statements) {
+  for (auto &stmt : node->statements) {
     ret += Print(stmt.get());
   }
   ret += (indentation + "}\n");
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(IfStmt* node) {
+void AstPrinter::Visit(IfStmt *node) {
   auto indentation = Indentation();
   std::string ret = indentation + "if (" + Print(node->condition.get()) + ")";
   PossibleBlockPrint(node->then_branch.get(), ret);
@@ -65,12 +65,12 @@ void AstPrinter::Visit(IfStmt* node) {
   }
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(WhileStmt* node) {
+void AstPrinter::Visit(WhileStmt *node) {
   std::string ret = Indentation() + "while (" + Print(node->condition.get()) + ")\n";
   PossibleBlockPrint(node->body.get(), ret);
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(ForStmt* node) {
+void AstPrinter::Visit(ForStmt *node) {
   std::string ret = Indentation() + "for (";
   if (node->initializer) {
     if (node->initializer->DynAs<VarDeclStmt>()) {
@@ -94,7 +94,7 @@ void AstPrinter::Visit(ForStmt* node) {
   VisitorReturn(ret);
 }
 
-std::string& AstPrinter::PossibleBlockPrint(ASTNode* node, std::string& ret) {
+std::string &AstPrinter::PossibleBlockPrint(ASTNode *node, std::string &ret) {
   if (node->DynAs<BlockStmt>()) {
     ret += Print(node);
   } else {
@@ -104,8 +104,8 @@ std::string& AstPrinter::PossibleBlockPrint(ASTNode* node, std::string& ret) {
   }
   return ret;
 }
-void AstPrinter::Visit(BreakStmt* node) { VisitorReturn(node->attr->src_token->lexeme); }
-void AstPrinter::Visit(FunctionStmt* node) {
+void AstPrinter::Visit(BreakStmt *node) { VisitorReturn(node->attr->src_token->lexeme); }
+void AstPrinter::Visit(FunctionStmt *node) {
   auto indentation = Indentation();
   std::string ret = indentation + "fun " + node->attr->name->lexeme.Str() + "(";
   if (node->comma_expr_params) {
@@ -113,20 +113,20 @@ void AstPrinter::Visit(FunctionStmt* node) {
   }
   ret += ") {\n";
   SemanticLevelGuard guard(this);
-  for (auto& stmt : node->body) {
+  for (auto &stmt : node->body) {
     ret += Print(stmt.get());
   }
   ret += (indentation + "}\n");
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(ReturnStmt* node) {
+void AstPrinter::Visit(ReturnStmt *node) {
   std::string ret = Indentation() + "return ";
   if (node->value) {
     ret += Print(node->value.get());
   }
   VisitorReturn(ret + ";\n");
 }
-void AstPrinter::Visit(ClassStmt* node) {
+void AstPrinter::Visit(ClassStmt *node) {
   auto indentation = Indentation();
   std::string ret = indentation + "class " + node->attr->name->lexeme.Str();
   if (node->superclass.get()) {
@@ -135,26 +135,26 @@ void AstPrinter::Visit(ClassStmt* node) {
   }
   ret += "{\n";
   SemanticLevelGuard guard(this);
-  for (auto& method : node->methods) {
+  for (auto &method : node->methods) {
     ret += Print(method.get());
   }
   ret += (indentation + "}\n");
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(GetAttrExpr* node) {
+void AstPrinter::Visit(GetAttrExpr *node) {
   std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme.Str();
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(SetAttrExpr* node) {
+void AstPrinter::Visit(SetAttrExpr *node) {
   std::string ret = Print(node->src_object.get()) + "." + node->attr->attr_name->lexeme.Str();
   ret += " = ";
   ret += Print(node->value.get());
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(CommaExpr* node) {
+void AstPrinter::Visit(CommaExpr *node) {
   std::string ret = "";
   int i = 0;
-  for (auto& expr : node->elements) {
+  for (auto &expr : node->elements) {
     if (i > 0) {
       ret += ", ";
     }
@@ -164,7 +164,7 @@ void AstPrinter::Visit(CommaExpr* node) {
   VisitorReturn(ret);
 }
 
-void AstPrinter::Visit(ListExpr* node) {
+void AstPrinter::Visit(ListExpr *node) {
   std::string ret = "[";
   if (node->comma_expr) {
     ret += Print(node->comma_expr.get());
@@ -172,11 +172,11 @@ void AstPrinter::Visit(ListExpr* node) {
   ret += "]";
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(GetItemExpr* node) {
+void AstPrinter::Visit(GetItemExpr *node) {
   std::string ret = Print(node->src_object.get()) + "[" + Print(node->index.get()) + "]";
   VisitorReturn(ret);
 }
-void AstPrinter::Visit(TensorExpr* node) {
+void AstPrinter::Visit(TensorExpr *node) {
   std::string ret = "Tensor(";
   ret += Print(node->dtype.get()) + ", ";
   ret += Print(node->shape.get()) + ",";
@@ -185,4 +185,4 @@ void AstPrinter::Visit(TensorExpr* node) {
   VisitorReturn(ret);
 }
 
-}  // namespace lox
+} // namespace lox

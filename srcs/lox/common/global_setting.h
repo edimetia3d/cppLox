@@ -18,7 +18,7 @@ struct LoxGlobalSetting {
   int opt_level = 1;
 };
 
-LoxGlobalSetting& GlobalSetting();
-}  // namespace lox
+LoxGlobalSetting &GlobalSetting();
+} // namespace lox
 
-#endif  // CPPLOX_SRCS_LOX_GLOBAL_SETTING_H_
+#endif // CPPLOX_SRCS_LOX_GLOBAL_SETTING_H_

@@ -15,6 +15,6 @@ namespace lox::llvm_jit {
 using KnownGlobalSymbol = std::unordered_map<std::string, llvm::Type *>;
 
 void RegBuiltin(llvm::LLVMContext &context, KnownGlobalSymbol *known_global_symbol);
-}  // namespace lox::llvm_jit
+} // namespace lox::llvm_jit
 
-#endif  // LOX_SRCS_LOX_BACKEND_LLVM_BUILTINS_BUILTIN_H_
+#endif // LOX_SRCS_LOX_BACKEND_LLVM_BUILTINS_BUILTIN_H_

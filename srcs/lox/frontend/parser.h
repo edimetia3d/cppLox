@@ -17,7 +17,7 @@
 namespace lox {
 
 class ParserError : public LoxErrorWithExitCode<EX_DATAERR> {
- public:
+public:
   using LoxErrorWithExitCode<EX_DATAERR>::LoxErrorWithExitCode;
 };
 
@@ -33,25 +33,25 @@ enum class ParserType {
  * Eg: if a break statement were found in some invalid place, the parsing will continue and no error would be thrown.
  */
 class Parser {
- public:
-  static std::shared_ptr<Parser> Make(ParserType type, Scanner* scanner);
-  static std::shared_ptr<Parser> Make(std::string type, Scanner* scanner);
-  explicit Parser(Scanner* scanner) : scanner_(scanner) { current = scanner_->ScanOne(); }
+public:
+  static std::shared_ptr<Parser> Make(ParserType type, Scanner *scanner);
+  static std::shared_ptr<Parser> Make(std::string type, Scanner *scanner);
+  explicit Parser(Scanner *scanner) : scanner_(scanner) { current = scanner_->ScanOne(); }
 
   std::unique_ptr<lox::Module> Parse();
 
- protected:
-  const Token& Peek() { return current; }
+protected:
+  const Token &Peek() { return current; }
 
-  Token Consume(TokenType type, const std::string& message);
+  Token Consume(TokenType type, const std::string &message);
 
-  void Error(Token token, const std::string& msg);
+  void Error(Token token, const std::string &msg);
 
   bool IsAtEnd() { return Peek()->type == TokenType::EOF_TOKEN; }
 
-  const Token& Previous() { return previous; }
+  const Token &Previous() { return previous; }
 
-  const Token& Advance() {
+  const Token &Advance() {
     if (!IsAtEnd()) {
       previous = current;
       current = scanner_->ScanOne();
@@ -60,7 +60,8 @@ class Parser {
   }
 
   bool Check(TokenType type) {
-    if (IsAtEnd()) return false;
+    if (IsAtEnd())
+      return false;
     return Peek()->type == type;
   }
 
@@ -70,8 +71,7 @@ class Parser {
    * If current token match any of types, return True **and** move cursor to
    * next token
    */
-  template <TokenType type, TokenType... remained_types>
-  bool AdvanceIfMatchAny();
+  template <TokenType type, TokenType... remained_types> bool AdvanceIfMatchAny();
 
   StmtPtr AnyStatement();
   StmtPtr DoAnyStatement();
@@ -81,7 +81,7 @@ class Parser {
   StmtPtr ClassDefStmt();
   StmtPtr ExpressionStmt();
   StmtPtr ForStmt();
-  StmtPtr FunStmt(const std::string& kind);
+  StmtPtr FunStmt(const std::string &kind);
   StmtPtr IfStmt();
   StmtPtr PrintStmt();
   StmtPtr ReturnStmt();
@@ -92,14 +92,14 @@ class Parser {
 
   std::vector<StmtPtr> GetBlocks();
 
-  Scanner* scanner_;
+  Scanner *scanner_;
   Token previous;
   Token current;
   bool err_found = false;
 };
 
 class ParserWithExprUtils : public Parser {
- public:
+public:
   using Parser::Parser;
   ExprPtr ParseCallExpr(ExprPtr expr);
   ExprPtr ParseAssignOrSetAttr(ExprPtr left_expr, ExprPtr right_expr, Token equal_token);
@@ -109,10 +109,10 @@ class ParserWithExprUtils : public Parser {
 };
 
 class RecursiveDescentParser : public ParserWithExprUtils {
- public:
+public:
   using ParserWithExprUtils::ParserWithExprUtils;
 
- protected:
+protected:
   ExprPtr AnyExpression() override;
   ExprPtr CommaExpr();
   ExprPtr AssignExpr();
@@ -134,17 +134,17 @@ class RecursiveDescentParser : public ParserWithExprUtils {
  * The int value of InfixPrecedence will be used in comparison, the order or the enum item is very important.
  */
 enum class InfixPrecedence {
-  LOWEST = 0,            // should not used
-  COMMA,                 // ,
-  ASSIGNMENT,            // =
-  OR,                    // or
-  AND,                   // and
-  EQUALITY,              // == !=
-  COMPARISON,            // < > <= >=
-  TERM,                  // + -
-  FACTOR,                // * /
-  UNARY,                 // ! -
-  CALL_OR_DOT_OR_INDEX,  // . () []
+  LOWEST = 0,           // should not used
+  COMMA,                // ,
+  ASSIGNMENT,           // =
+  OR,                   // or
+  AND,                  // and
+  EQUALITY,             // == !=
+  COMPARISON,           // < > <= >=
+  TERM,                 // + -
+  FACTOR,               // * /
+  UNARY,                // ! -
+  CALL_OR_DOT_OR_INDEX, // . () []
 };
 
 /**
@@ -163,27 +163,27 @@ struct InfixOpInfoMap {
     InfixAssociativity associativity;
   };
 
-  static InfixOpInfoMap& Instance();
+  static InfixOpInfoMap &Instance();
 
-  static InfixOpInfo* Get(TokenType type);
+  static InfixOpInfo *Get(TokenType type);
 
-  static InfixOpInfo* Get(Token token) { return Get(token->type); }
+  static InfixOpInfo *Get(Token token) { return Get(token->type); }
 
   std::map<TokenType, InfixOpInfo> data;
 
- private:
+private:
   InfixOpInfoMap();
 };
 
 class PrattParser : public ParserWithExprUtils {
- public:
+public:
   using ParserWithExprUtils::ParserWithExprUtils;
 
- protected:
+protected:
   ExprPtr AnyExpression() override { return DoAnyExpression(); }
   ExprPtr DoAnyExpression(InfixPrecedence lower_bound = InfixPrecedence::LOWEST);
   ExprPtr PrefixExpr();
   ExprPtr InfixExpr(ExprPtr left_side_expr);
 };
-}  // namespace lox
-#endif  // CPPLOX_INCLUDES_LOX_PARSER_H_
+} // namespace lox
+#endif // CPPLOX_INCLUDES_LOX_PARSER_H_

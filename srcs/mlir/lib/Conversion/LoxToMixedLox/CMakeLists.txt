@@ -4,5 +4,5 @@ add_mlir_conversion_library(LoxToMixedLox
 
     LINK_LIBS PUBLIC
     MLIRLoxDialect
-    )
+)
 

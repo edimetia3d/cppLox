@@ -15,4 +15,4 @@ std::size_t Chunk::AddConstant(Value value) {
   return index;
 }
 std::size_t Chunk::ChunkSize() const { return code.size(); }
-}  // namespace lox::vm
+} // namespace lox::vm

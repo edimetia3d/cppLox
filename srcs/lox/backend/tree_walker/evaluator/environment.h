@@ -15,7 +15,7 @@ class Environment;
 using EnvPtr = std::shared_ptr<Environment>;
 
 class Environment {
- public:
+public:
   static EnvPtr Make() { return EnvPtr(new Environment); };
   static EnvPtr Make(EnvPtr parent) { return EnvPtr(new Environment(parent)); };
 
@@ -24,13 +24,13 @@ class Environment {
   ObjectPtr Get(std::string var_name);
   EnvPtr Parent() { return parent_; }
 
- private:
+private:
   Environment() = default;
   explicit Environment(EnvPtr parent) : parent_(std::move(parent)) {}
   EnvPtr parent_;
   std::map<std::string, ObjectPtr> map;
 };
 
-}  // namespace lox
+} // namespace lox::twalker
 
-#endif  // CPPLOX_SRCS_LOX_ENVIRONMENT_H_
+#endif // CPPLOX_SRCS_LOX_ENVIRONMENT_H_

@@ -143,4 +143,4 @@ std::string Tensor::Str() const {
   shape_string += "]";
   return "Tensor of shape " + shape_string + " and dtype " + std::to_string(int(data.dtype));
 }
-}  // namespace lox::twalker
+} // namespace lox::twalker

@@ -18,7 +18,7 @@ lox::InputFile::InputFile(const std::string &filename) : fd_(open(filename.c_str
     SafeCloseFd();
     return;
   }
-  auto *data = mmap(nullptr, 0, PROT_READ, MAP_PRIVATE, fd_, 0);
+  auto *data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd_, 0);
   if (data == MAP_FAILED) {
     SafeCloseFd();
     return;

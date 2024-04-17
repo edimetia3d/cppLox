@@ -27,30 +27,30 @@
 #include <functional>
 
 #include "lox/backend/virtual_machine/core/function_unit.h"
-#include "lox/frontend/scanner.h"
-#include "lox/frontend/parser.h"  // compiler will use some definitions from rd-parser
-#include "lox/object/gc.h"
 #include "lox/backend/virtual_machine/object/value.h"
+#include "lox/frontend/parser.h" // compiler will use some definitions from rd-parser
+#include "lox/frontend/scanner.h"
+#include "lox/object/gc.h"
 
 namespace lox::vm {
 
 class Compiler {
- public:
+public:
   Compiler();
-  ObjFunction* Compile(Scanner* scanner, std::string* err_msg);
+  ObjFunction *Compile(Scanner *scanner, std::string *err_msg);
   ~Compiler();
 
- private:
+private:
   void Advance();
-  void ErrorAt(Token token, const char* message);
-  void Consume(TokenType type, const char* message);
+  void ErrorAt(Token token, const char *message);
+  void Consume(TokenType type, const char *message);
   bool MatchAndAdvance(TokenType type);
   bool CheckCurrentTokenType(TokenType type);
   void Synchronize();
 
-  void AnyStatement(const std::vector<TokenType>& not_allowed_stmt = {},
-                    const char* not_allowed_msg = "Statement not allowed here.");
-  void DoAnyStatement(const std::vector<TokenType>& not_allowed_stmt, const char* not_allowed_msg);
+  void AnyStatement(const std::vector<TokenType> &not_allowed_stmt = {},
+                    const char *not_allowed_msg = "Statement not allowed here.");
+  void DoAnyStatement(const std::vector<TokenType> &not_allowed_stmt, const char *not_allowed_msg);
 
   void BlockStmt();
   void BreakOrContinueStmt();
@@ -90,11 +90,11 @@ class Compiler {
   uint8_t ArgumentList();
   void MarkRoots();
 
-  FunctionUnit* cu_ = nullptr;
+  FunctionUnit *cu_ = nullptr;
   /**
    * Push a new Function Unit as the main compilation unit
    */
-  void PushCU(FunctionType type, const std::string& name);
+  void PushCU(FunctionType type, const std::string &name);
   /**
    * Pop and return the current Function Unit, and switch to the enclosing Function Unit as main compilation unit.
    *
@@ -105,18 +105,18 @@ class Compiler {
   std::unique_ptr<FunctionUnit> PopCU();
   struct ClassInfo {
     Token name_token;
-    ClassInfo* superclass = nullptr;
-    ClassInfo* enclosing = nullptr;  // nested class
+    ClassInfo *superclass = nullptr;
+    ClassInfo *enclosing = nullptr; // nested class
   };
   std::map<std::string, ClassInfo> all_classes;
-  ClassInfo* current_class = nullptr;
-  Token previous;  // previous is the last consumed token
-  Token current;   // current is the next might to be consumed token.
-  Scanner* scanner_;
+  ClassInfo *current_class = nullptr;
+  Token previous; // previous is the last consumed token
+  Token current;  // current is the next might to be consumed token.
+  Scanner *scanner_;
   InfixPrecedence last_expr_lower_bound = InfixPrecedence::ASSIGNMENT;
   friend struct ScopeGuard;
   std::vector<std::string> err_msgs;
-  std::string CreateErrMsg(const Token& token, const char* message) const;
+  std::string CreateErrMsg(const Token &token, const char *message) const;
 #ifdef UPSTREAM_STYLE_ERROR_MSG
   bool panic_mode = false;
 #endif
@@ -124,5 +124,5 @@ class Compiler {
   void EmitClassAttrAccess(Token class_token);
 };
 
-}  // namespace lox::vm
-#endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_COMPILER_H_
+} // namespace lox::vm
+#endif // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_CORE_COMPILER_H_

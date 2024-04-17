@@ -7,8 +7,8 @@
 
 #include "lox/object/gc.h"
 
-#include "lox/backend/virtual_machine/object/object.h"
 #include "lox/backend/virtual_machine/core/chunk.h"
+#include "lox/backend/virtual_machine/object/object.h"
 
 #define VM_FRAMES_LIMIT 64
 #define VM_STACK_LIMIT (VM_FRAMES_LIMIT * STACK_COUNT_LIMIT)
@@ -33,21 +33,21 @@ namespace lox::vm {
  * And, a return frame switch will also discard everything in the callee frame's local stack.
  */
 struct CallFrame {
-  ObjClosure *closure;      // the callee function
-  uint8_t *return_address;  // pointer to somewhere in caller's chunk
-  Value *slots;             // pointer to somewhere in VM::stack_
+  ObjClosure *closure;     // the callee function
+  uint8_t *return_address; // pointer to somewhere in caller's chunk
+  Value *slots;            // pointer to somewhere in VM::stack_
 };
 
 /**
  * A stack machine, it has is most important part of the virtual machine, and very important to the performance.
  */
 class VM {
- public:
+public:
   VM();
   ~VM();
-  void Interpret(ObjFunction *function);  // interpret a script
- private:
-  void Run();  // the core vm dispatch loop.
+  void Interpret(ObjFunction *function); // interpret a script
+private:
+  void Run(); // the core vm dispatch loop.
 
   inline void Push(Value value);
   inline Value Peek(int distance = 0);
@@ -64,26 +64,26 @@ class VM {
 
   void MarkGCRoots();
 
-  void PushFrame(ObjClosure *closure);  // push a new call frame and active it
-  void PopFrame();                      // pop the current call frame and discard it
+  void PushFrame(ObjClosure *closure); // push a new call frame and active it
+  void PopFrame();                     // pop the current call frame and discard it
 
   friend void DumpStack(const VM *vm);
   friend void DumpGlobal(const VM *vm);
 
- private:
+private:
   CallFrame frames_[VM_FRAMES_LIMIT];
-  CallFrame *active_frame_ = nullptr;  // point to the current active frame
+  CallFrame *active_frame_ = nullptr; // point to the current active frame
   Value stack_[VM_STACK_LIMIT];
-  Value *sp_ = nullptr;    // the pointer point to global stack top.(also the top of last call-frame's local stack)
-  uint8_t *ip_ = nullptr;  // pointer to the next instruction to be executed
+  Value *sp_ = nullptr;   // the pointer point to global stack top.(also the top of last call-frame's local stack)
+  uint8_t *ip_ = nullptr; // pointer to the next instruction to be executed
   std::unordered_map<Symbol *, Value> globals_;
 
-  ObjUpvalue *open_upvalues;  // a linked-list that stores all the upvalues that has not been closed
-  Symbol *const SYMBOL_INIT{Symbol::Intern("init")};  // just used to avoid repeated symbol creation
+  ObjUpvalue *open_upvalues; // a linked-list that stores all the upvalues that has not been closed
+  Symbol *const SYMBOL_INIT{Symbol::Intern("init")}; // just used to avoid repeated symbol creation
   /**
    * Reset the VM after a runtime error occurs, so we can execute next script.
    */
   void Rescue();
 };
-}  // namespace lox::vm
-#endif  // CLOX_SRCS_CLOX_VM_VM_H_
+} // namespace lox::vm
+#endif // CLOX_SRCS_CLOX_VM_VM_H_

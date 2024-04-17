@@ -7,13 +7,13 @@
 
 namespace lox::vm {
 
-void VirtualMachine::Run(Scanner& scanner) {
+void VirtualMachine::Run(Scanner &scanner) {
   Compiler compiler;
   std::string err_msg;
-  ObjFunction* script = compiler.Compile(&scanner, &err_msg);
+  ObjFunction *script = compiler.Compile(&scanner, &err_msg);
   if (!script) {
     throw CompilationError(err_msg);
   }
   vm_.Interpret(script);
 }
-}  // namespace lox
+} // namespace lox::vm

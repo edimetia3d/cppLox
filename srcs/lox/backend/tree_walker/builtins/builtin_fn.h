@@ -13,6 +13,6 @@
 namespace lox::twalker {
 std::map<std::string, ObjectPtr> BuiltinCallables();
 
-}  // namespace lox::twalker
+} // namespace lox::twalker
 
-#endif  // LOX_SRCS_LOX_BACKEND_TREE_WALKER_BULTINS_BUILTIN_FN_H
+#endif // LOX_SRCS_LOX_BACKEND_TREE_WALKER_BULTINS_BUILTIN_FN_H

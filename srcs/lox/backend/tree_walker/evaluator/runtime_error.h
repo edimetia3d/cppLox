@@ -8,8 +8,8 @@
 
 namespace lox::twalker {
 class RuntimeError : public LoxErrorWithExitCode<EX_SOFTWARE> {
- public:
+public:
   using LoxErrorWithExitCode<EX_SOFTWARE>::LoxErrorWithExitCode;
 };
-}  // namespace lox::twalker
-#endif  // LOX_SRCS_LOX_BACKEND_TREE_WALKER_EVALUATOR_RUNTIME_ERROR_H
+} // namespace lox::twalker
+#endif // LOX_SRCS_LOX_BACKEND_TREE_WALKER_EVALUATOR_RUNTIME_ERROR_H

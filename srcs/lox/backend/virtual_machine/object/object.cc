@@ -8,8 +8,7 @@
 
 #include "lox/backend/virtual_machine/core/chunk.h"
 
-template <class... T>
-static inline std::string string_sprint(const char *format, T... args) {
+template <class... T> static inline std::string string_sprint(const char *format, T... args) {
   char buf[100];
   std::snprintf(buf, 100, format, args...);
   return buf;
@@ -104,7 +103,8 @@ bool ObjInstance::IsInstance(ObjClass *target) const {
   return check == target;
 }
 ObjInstance *ObjInstance::Cast(ObjClass *target) {
-  if (klass == target) return this;
+  if (klass == target)
+    return this;
   if (IsInstance(target)) {
     auto ret = Object::Make<ObjInstance>(target);
     ret->dict_data = dict_data;
@@ -114,4 +114,4 @@ ObjInstance *ObjInstance::Cast(ObjClass *target) {
   return nullptr;
 }
 
-}  // namespace lox::vm
+} // namespace lox::vm

@@ -19,7 +19,8 @@ void GC::Collect() {
 }
 
 void GC::RecursiveMark(Object *object) {
-  if (object == nullptr || marked.contains(object)) return;
+  if (object == nullptr || marked.contains(object))
+    return;
   marked[object] = true;
   for (auto ref : object->References()) {
     RecursiveMark(ref);
@@ -80,4 +81,4 @@ int GC::ForceClearAll() {
   return count;
 }
 
-}  // namespace lox
+} // namespace lox

@@ -2,7 +2,6 @@
 // LICENSE: MIT
 //
 
-#include "lox/passes/ast_printer/ast_printer.h"
 #include "lox/backend/backend.h"
 #include "lox/backend/llvm/llvm_jit.h"
 #include "lox/backend/mlir/mlir_jit.h"
@@ -11,12 +10,13 @@
 #include "lox/common/global_setting.h"
 #include "lox/common/lox_error.h"
 #include "lox/frontend/parser.h"
+#include "lox/passes/ast_printer/ast_printer.h"
 #include "lox/passes/pass_runner.h"
 #include "lox/passes/semantic_check/semantic_check.h"
 
 namespace lox {
 
-static void LoadBuiltinBackEnd(BackEndRegistry* registry) {
+static void LoadBuiltinBackEnd(BackEndRegistry *registry) {
   registry->Register("TreeWalker", []() { return std::shared_ptr<BackEnd>(new twalker::TreeWalker()); });
   registry->Register("VirtualMachine", []() { return std::shared_ptr<BackEnd>(new vm::VirtualMachine()); });
 #ifdef ENABLE_JIT_BACKEND
@@ -25,22 +25,22 @@ static void LoadBuiltinBackEnd(BackEndRegistry* registry) {
 #endif
 }
 
-BackEndRegistry& BackEndRegistry::Instance() {
+BackEndRegistry &BackEndRegistry::Instance() {
   static BackEndRegistry instance;
   return instance;
 }
 BackEndRegistry::BackEndRegistry() { LoadBuiltinBackEnd(this); }
-void BackEndRegistry::Register(const std::string& name, BackEndRegistry::BackEndCreateFn fn) {
+void BackEndRegistry::Register(const std::string &name, BackEndRegistry::BackEndCreateFn fn) {
   reg_[name] = std::move(fn);
 }
-BackEndRegistry::BackEndCreateFn BackEndRegistry::Get(const std::string& name) {
+BackEndRegistry::BackEndCreateFn BackEndRegistry::Get(const std::string &name) {
   if (!reg_.contains(name)) {
     throw LoxError("Backend not found: " + name);
   }
   return reg_[name];
 }
 
-std::unique_ptr<Module> BackEnd::BuildASTModule(Scanner& scanner) {
+std::unique_ptr<Module> BackEnd::BuildASTModule(Scanner &scanner) {
   auto parser = Parser::Make(GlobalSetting().parser, &scanner);
   auto lox_module = parser->Parse();
   if (!lox_module) {
@@ -57,4 +57,4 @@ std::unique_ptr<Module> BackEnd::BuildASTModule(Scanner& scanner) {
   pass_runner.Run(lox_module.get());
   return lox_module;
 }
-}  // namespace lox
+} // namespace lox

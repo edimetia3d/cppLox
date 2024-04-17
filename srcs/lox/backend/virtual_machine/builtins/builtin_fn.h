@@ -22,8 +22,8 @@
  */
 
 namespace lox::vm {
-using NativeFn = Value (*)(int argCount, Value* args);
-const std::map<std::string, NativeFn>& AllNativeFn();
+using NativeFn = Value (*)(int argCount, Value *args);
+const std::map<std::string, NativeFn> &AllNativeFn();
 
-}  // namespace lox::vm
-#endif  // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_BULTINS_BUILTIN_FN_H
+} // namespace lox::vm
+#endif // LOX_SRCS_LOX_BACKEND_VIRTUAL_MACHINE_BULTINS_BUILTIN_FN_H

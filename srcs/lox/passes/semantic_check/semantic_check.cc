@@ -8,7 +8,7 @@
 
 namespace lox {
 
-Pass::IsModified SemanticCheck::PreNode(ASTNode* ast_node) {
+Pass::IsModified SemanticCheck::PreNode(ASTNode *ast_node) {
   if (auto p = ast_node->DynAs<WhileStmt>() || ast_node->DynAs<ForStmt>()) {
     loop_infos.push_back(LoopInfo{});
   }
@@ -29,7 +29,7 @@ Pass::IsModified SemanticCheck::PreNode(ASTNode* ast_node) {
     }
     AddNamedValue(name);
   }
-  auto NO_VAR_FUNC_CLASS = [](ASTNode* p, const std::string& src) {
+  auto NO_VAR_FUNC_CLASS = [](ASTNode *p, const std::string &src) {
     if (!p) {
       return;
     }
@@ -105,7 +105,7 @@ Pass::IsModified SemanticCheck::PreNode(ASTNode* ast_node) {
       if (p->comma_expr_params->As<CommaExpr>()->elements.size() >= 255) {
         throw SemanticError("Lox Can't have more than 255 parameter.");
       } else {
-        for (auto& param : p->comma_expr_params->As<CommaExpr>()->elements) {
+        for (auto &param : p->comma_expr_params->As<CommaExpr>()->elements) {
           if (!param->DynAs<VariableExpr>()) {
             throw SemanticError("Semantic Error: " + p->attr->name->Dump() + " Function parameter must be variable");
           }
@@ -161,14 +161,14 @@ Pass::IsModified SemanticCheck::PreNode(ASTNode* ast_node) {
 
   return Pass::IsModified::NO;
 }
-void SemanticCheck::AddNamedValue(const std::string& name) {
+void SemanticCheck::AddNamedValue(const std::string &name) {
   if (function_infos.back().scopes.back().locals.contains(name) &&
       function_infos.back().scopes.back().type != ScopeType::GLOBAL) {
     throw SemanticError(std::string("Semantic Error:  Variable ") + name + " already declared.");
   }
   function_infos.back().scopes.back().locals.insert(name);
 }
-Pass::IsModified SemanticCheck::PostNode(ASTNode* ast_node) {
+Pass::IsModified SemanticCheck::PostNode(ASTNode *ast_node) {
   if (auto p = ast_node->DynAs<WhileStmt>() || ast_node->DynAs<ForStmt>()) {
     loop_infos.pop_back();
   }
@@ -188,4 +188,4 @@ Pass::IsModified SemanticCheck::PostNode(ASTNode* ast_node) {
 
   return Pass::IsModified::NO;
 }
-}  // namespace lox
+} // namespace lox

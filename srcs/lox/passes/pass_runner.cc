@@ -5,19 +5,19 @@
 #include "pass_runner.h"
 namespace lox {
 
-lox::Pass::IsModified PassRunner::RunPass(ASTNode* node, Pass* pass) {
+lox::Pass::IsModified PassRunner::RunPass(ASTNode *node, Pass *pass) {
   assert(node);
   assert(pass);
   bool is_modified = false;
   is_modified |= Pass::IsModified::YES == pass->PreNode(node);
-  for (auto& child : node->Children()) {
+  for (auto &child : node->Children()) {
     is_modified |= Pass::IsModified::YES == RunPass(child, pass);
   }
   is_modified |= Pass::IsModified::YES == pass->PostNode(node);
   return is_modified ? Pass::IsModified::YES : Pass::IsModified::NO;
 }
 
-lox::Pass::IsModified PassRunner::Run(ASTNode* node) {
+lox::Pass::IsModified PassRunner::Run(ASTNode *node) {
   assert(node);
   bool is_modified = false;
   for (auto pass : passes_) {
@@ -25,15 +25,15 @@ lox::Pass::IsModified PassRunner::Run(ASTNode* node) {
   }
   return is_modified ? Pass::IsModified::YES : Pass::IsModified::NO;
 }
-lox::Pass::IsModified PassRunner::Run(Module* module) {
+lox::Pass::IsModified PassRunner::Run(Module *module) {
   assert(module);
   bool is_modified = false;
   for (auto pass : passes_) {
-    for (auto& stmt : module->Statements()) {
+    for (auto &stmt : module->Statements()) {
       is_modified |= Pass::IsModified::YES == RunPass(stmt.get(), pass.get());
     }
   }
   return is_modified ? Pass::IsModified::YES : Pass::IsModified::NO;
 }
 
-}  // namespace lox
+} // namespace lox

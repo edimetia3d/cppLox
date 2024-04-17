@@ -12,13 +12,13 @@
 namespace lox::mlir_jit {
 class MLIRJITImpl;
 class MLIRJIT : public BackEnd {
- public:
+public:
   MLIRJIT();
-  void Run(Scanner& scanner) override;
+  void Run(Scanner &scanner) override;
 
- private:
+private:
   std::shared_ptr<MLIRJITImpl> impl_;
 };
-};  // namespace lox::mlir_jit
+}; // namespace lox::mlir_jit
 
-#endif  // LOX_MLIR_JIT_H
+#endif // LOX_MLIR_JIT_H

@@ -12,13 +12,13 @@
 namespace lox::llvm_jit {
 class LLVMJITImpl;
 class LLVMJIT : public BackEnd {
- public:
+public:
   LLVMJIT();
-  void Run(Scanner& scanner) override;
+  void Run(Scanner &scanner) override;
 
- private:
+private:
   std::shared_ptr<LLVMJITImpl> impl_;
 };
-};  // namespace lox::llvm_jit
+}; // namespace lox::llvm_jit
 
-#endif  // LOX_LLVM_JIT_H
+#endif // LOX_LLVM_JIT_H

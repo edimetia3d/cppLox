@@ -1,20 +1,3 @@
-# About the HardStone
-
-The hardstone branch is a more engineering-oriented branch, which is intended to be a more practical one, and is
-designed
-to provide more component that could be copy-paste to your project.
-
-And, the JIT backend will only be developed in this branch.
-
-Roadmap:
-[ ] Add `SourceManager` and `StringRef`, to manage source code strings in a more efficient way.
-[ ] Create a simple VM ByteCode IR, add things like Module/Function/BB/Inst, to make the VM bytecode generation process
-more clear.
-[ ] Add more infra to make analysis/rewrite easier to implement.
-[ ] Add runtime sym-table, so we have stack, static-data and dynamic-data, which give us a more flexible way to manage
-values at runtime
-[ ] Dynamic memory (Heap) support, so we can manage some dense data in a more efficient way.
-[ ] ref-count / tracing mixed GC, to reduce the tracing GC's pause time.
 
 # cppLox
 
@@ -73,6 +56,21 @@ There are (will be) four versions of Lox interpreter, they all share a same fron
   implemented in Lox
 
 * [jit_notes.md](jit_notes.md) may give you more info.
+
+# About the HardStone branch
+
+The hardstone branch is a more engineering-oriented branch, which will try to make the Lox implementation more robust.
+
+Roadmap:
+
+- [ ] Add more utils like StringRef/Location to make the code more structured.
+- [ ] Create a simple VM ByteCode IR, add things like LLVM Module/Function/BB/Inst, to make the VM bytecode generation
+process more clear.
+- [ ] Add more infra to make analysis/rewrite easier to implement.
+- [ ] Add runtime sym-table, so we have stack, static-data and dynamic-data, which give us a more flexible way to manage
+values at runtime
+- [ ] Dynamic memory (Heap) support, so we can manage some dense data in a more efficient way.
+- [ ] ref-count / tracing mixed GC, to reduce the tracing GC's pause time.
 
 # Requirements
 

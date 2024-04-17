@@ -12,12 +12,12 @@
 namespace lox::twalker {
 class Evaluator;
 class TreeWalker : public BackEnd {
- public:
+public:
   TreeWalker();
-  void Run(Scanner& scanner) override;
+  void Run(Scanner &scanner) override;
 
- private:
+private:
   std::shared_ptr<Evaluator> evaluator_;
 };
-}  // namespace lox
-#endif  // CPPLOX_SRCS_LOX_BACKEND_TREE_WALKER_TREE_WALKER_H_
+} // namespace lox::twalker
+#endif // CPPLOX_SRCS_LOX_BACKEND_TREE_WALKER_TREE_WALKER_H_
