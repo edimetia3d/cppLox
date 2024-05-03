@@ -1,4 +1,3 @@
-
 # cppLox
 
 This repo is a cpp Lox interpreter of Lox Language from [Crafting Interpreters](https://craftinginterpreters.com/)
@@ -64,13 +63,30 @@ The hardstone branch is a more engineering-oriented branch, which will try to ma
 Roadmap:
 
 - [ ] Add more utils like StringRef/Location to make the code more structured.
-- [ ] Create a simple VM ByteCode IR, add things like LLVM Module/Function/BB/Inst, to make the VM bytecode generation
-process more clear.
+- [ ] Remove the one-pass bytecode emission compiler, create a simple VM ByteCode IR, add things like LLVM
+  Module/Function/BB/Inst, to make the VM bytecode generation
+  process more clear. The one-pass compiler is very educational, and also is a dancing with shackles on, you need to
+  handle a lot of delicate code to make the compiler work, but I don't think you will be
+  happy to maintain the code with shackles on in a long run.
 - [ ] Add more infra to make analysis/rewrite easier to implement.
-- [ ] Add runtime sym-table, so we have stack, static-data and dynamic-data, which give us a more flexible way to manage
-values at runtime
-- [ ] Dynamic memory (Heap) support, so we can manage some dense data in a more efficient way.
+- [ ] Add some canonicalization pass to desugar some syntax-sugar, e.g., `a += b` to `a = a + b`, `var a;`
+  to `var a = nil;`, this should make both the IR and the codegen more clear.
+- [ ] Add basic constant folding / propagating and CSE/DCE support.
+- [ ] Add more stand-alone semantic check/verify pass, to split all the semantic check logic from the codegen and
+  parsing logic. When mixing codegen and semantic check, the codegen will be more noisy, and the semantic check logic
+  will be hard to maintain.
+- [ ] speed up intra-module global var, method and attribute lookup by using some compilation time index.
 - [ ] ref-count / tracing mixed GC, to reduce the tracing GC's pause time.
+- [ ] Add some bytecode cache to speed up the VM's startup time. (things like `__pycache__` in python). It will also
+  help you to separate the compilation and execution time more clearly. In the original clox implementation, some
+  values (especially objects) that will be used at runtime are created at compilation time, which is somehow confusing.
+- [ ] Add multi-module support, and a simple python style module `import module.full.name as foo` builtin
+- [ ] remove most uint8_t related size limitation.
+- [ ] add basic IO support, mainly open/read/write/close file, since the stdout/stderr is file too, this should be
+  enough for most cases. with this support, we can add a user defined `print` function.
+- [ ] add support for "copy capture" and "reference capture".
+- [ ] add `del`, `set_attr` `get_attr` support, to make the language more powerful.
+- [ ] add a `this` argument implicitly when compiling a method, to avoid using stack hack to access the `this` object.
 
 # Requirements
 
